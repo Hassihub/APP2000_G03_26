@@ -1,12 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 :root {
-  --background: #ffffff;
+  --background: #f5f7fb;
   --foreground: #171717;
+  --box-overlay: rgba(0, 0, 0, 0.12);
+  --box-hover-overlay: rgba(0, 0, 0, 0.18);
+  --ui-font: "Poppins", Arial, Helvetica, sans-serif;
+  --info-font-size: 20px;
+  --info-font-weight: 600;
+  --info-label-size: 22px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --box-overlay: rgba(255, 255, 255, 0.06);
+    --box-hover-overlay: rgba(255, 255, 255, 0.10);
   }
 }
 
@@ -19,7 +29,7 @@ body {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--ui-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -35,8 +45,191 @@ a {
   text-decoration: none;
 }
 
+/* ------------------- */
+/*     TOP BAR         */
+/* ------------------- */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+  padding: 0 16px;
+  z-index: 1000;
+  font-family: var(--ui-font);
+}
+
+.topbar-nav {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.topbar-item {
+  color: var(--foreground);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+/* Hover effect */
+.topbar-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Active state for current page */
+.topbar-item.active,
+.topbar-item[aria-current="page"] {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* ------------------- */
+/*      MAIN AREA      */
+/* ------------------- */
+main {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.box-container {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: calc(100vh - 56px);
+  margin-top: 56px;
+}
+
+/* INFO BOX */
+.info-box {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  height: 100%;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: var(--info-font-size);
+  font-weight: var(--info-font-weight);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--foreground);
+  font-family: var(--ui-font);
+  text-transform: none;
+  letter-spacing: 0.2px;
+}
+
+.info-box:last-child {
+  border-right: none;
+}
+
+/* absolute image that covers entire box */
+.info-box img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* subtle overlay for readability */
+.info-box::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 0%, var(--box-overlay) 100%);
+  z-index: 1;
+  pointer-events: none;
+  transition: background 0.18s;
+}
+
+.info-box:hover::before {
+  background: linear-gradient(to bottom, transparent 0%, var(--box-hover-overlay) 100%);
+}
+
+/* content above image and overlay */
+.info-box > *:not(img) {
+  position: relative;
+  z-index: 2;
+}
+
+/* label styling */
+.info-box span {
+  margin-top: 8px;
+  font-size: var(--info-label-size);
+  font-weight: var(--info-font-weight);
+  color: var(--foreground);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* ------------------- */
+/*     RESPONSIVE      */
+/* ------------------- */
+@media (max-width: 900px) {
+  :root {
+    --info-font-size: 18px;
+    --info-label-size: 20px;
+  }
+  .box-container {
+    flex-direction: column;
+    height: auto;
+    margin-top: 56px;
+  }
+  .info-box {
+    height: 40vh;
+    min-height: 160px;
+  }
+}
+
+/* ------------------- */
+/*      DARK MODE      */
+/* ------------------- */
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
+  }
+
+  .topbar {
+    background: rgba(10, 10, 10, 0.9);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+  }
+
+  .topbar-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .topbar-item.active,
+  .topbar-item[aria-current="page"] {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .info-box {
+    background: rgba(255, 255, 255, 0.03);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--foreground);
+  }
+
+  .info-box:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .info-box span {
+    text-shadow: none;
   }
 }
