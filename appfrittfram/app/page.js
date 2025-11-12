@@ -4,28 +4,17 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#b8b2b2ff",
-      }}
-    >
+    <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
       <header className="topbar">
-        <nav className="topbar-nav">
-          <Link className="topbar-item active" href="/">
-            Home
-          </Link>
-          <Link className="topbar-item" href="/search">
-            Search
-          </Link>
-          <Link className="topbar-item" href="/settings">
-            Settings
-          </Link>
-          <Link className="topbar-item" href="/profile">
-            Profile
-          </Link>
-        </nav>
-      </header>
+  <span className="topbar-left-text">Dette er et skoleprosjekt</span>
+  <nav className="topbar-nav">
+    <Link className="topbar-item" href="/">Home</Link>
+    <Link className="topbar-item" href="/search">Search</Link>
+    <Link className="topbar-item" href="/settings">Settings</Link>
+    <Link className="topbar-item" href="/profile">Profile</Link>
+  </nav>
+</header>
+
 
       <main style={{ padding: 0 }}>
         <div className="box-container">
@@ -35,11 +24,7 @@ export default function Home() {
               alt="Utforsk"
               fill
               sizes="(max-width:600px) 100vw, (max-width:1200px) 50vw, 20vw"
-              style={{
-                objectFit: "cover",
-                objectPosition: "center",
-                pointerEvents: "none",
-              }}
+              style={{ objectFit: "cover", objectPosition: "center", pointerEvents: "none" }}
             />
             <span>Utforsk</span>
           </Link>
@@ -50,11 +35,7 @@ export default function Home() {
               alt="Reserver"
               fill
               sizes="(max-width:600px) 100vw, (max-width:1200px) 50vw, 20vw"
-              style={{
-                objectFit: "cover",
-                objectPosition: "center",
-                pointerEvents: "none",
-              }}
+              style={{ objectFit: "cover", objectPosition: "center", pointerEvents: "none" }}
             />
             <span>Reserver</span>
           </Link>
@@ -65,11 +46,7 @@ export default function Home() {
               alt="Kart"
               fill
               sizes="(max-width:600px) 100vw, (max-width:1200px) 50vw, 20vw"
-              style={{
-                objectFit: "cover",
-                objectPosition: "center",
-                pointerEvents: "none",
-              }}
+              style={{ objectFit: "cover", objectPosition: "center", pointerEvents: "none" }}
             />
             <span>Kart</span>
           </Link>
@@ -77,16 +54,12 @@ export default function Home() {
           <Link href="/vaer" className="info-box">
             <Image
               src="/images/Weather.jpg"
-              alt="Vaer"
+              alt="Vær"
               fill
               sizes="(max-width:600px) 100vw, (max-width:1200px) 50vw, 20vw"
-              style={{
-                objectFit: "cover",
-                objectPosition: "center",
-                pointerEvents: "none",
-              }}
+              style={{ objectFit: "cover", objectPosition: "center", pointerEvents: "none" }}
             />
-            <span>Vaer</span>
+            <span>Vær</span>
           </Link>
 
           <Link href="/sosial" className="info-box">
@@ -95,15 +68,16 @@ export default function Home() {
               alt="Sosial"
               fill
               sizes="(max-width:600px) 100vw, (max-width:1200px) 50vw, 20vw"
-              style={{
-                objectFit: "cover",
-                objectPosition: "center",
-                pointerEvents: "none",
-              }}
+              style={{ objectFit: "cover", objectPosition: "center", pointerEvents: "none" }}
             />
             <span>Sosial</span>
           </Link>
         </div>
+
+        <footer className="footer">
+        Dette er en footer som ligger over bildene
+        </footer>
+
       </main>
     </div>
   );
