@@ -1,7 +1,4 @@
 "use client";
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 import Image from "next/image";
 import Link from "next/link";
 
@@ -84,38 +81,4 @@ export default function Home() {
       </main>
     </div>
   );
-=======
-
-import Link from 'next/link';
-
-export default function Home() {
-=======
-
-import Link from 'next/link';
-
-export default function Home() {
->>>>>>> Stashed changes
-=======
-
-import Link from 'next/link';
-
-export default function Home() {
->>>>>>> Stashed changes
- return ( 
-    <main>
-        <h1>Hei verden!</h1>
-    
-
-    <Link href="/reservasjon">
-        Reservasjon
-    </Link>
-    </main> 
-    );
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 }
