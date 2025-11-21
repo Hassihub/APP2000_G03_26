@@ -40,7 +40,7 @@ export default function Home() {
             <span>Reserver</span>
           </Link>
 
-          <Link href="/kart" className="info-box">
+          <Link href="/map" className="info-box">
             <Image
               src="/images/Map.jpg"
               alt="Kart"
