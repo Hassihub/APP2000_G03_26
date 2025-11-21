@@ -1,5 +1,6 @@
 "use client";
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import Image from "next/image";
 import Link from "next/link";
 
@@ -87,6 +88,12 @@ export default function Home() {
 import Link from 'next/link';
 
 export default function Home() {
+=======
+
+import Link from 'next/link';
+
+export default function Home() {
+>>>>>>> Stashed changes
  return ( 
     <main>
         <h1>Hei verden!</h1>
@@ -97,5 +104,8 @@ export default function Home() {
     </Link>
     </main> 
     );
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 }
