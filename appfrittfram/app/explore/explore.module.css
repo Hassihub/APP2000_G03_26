@@ -1,0 +1,105 @@
+.container {
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.heading {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+}
+
+.subheading {
+  color: #555;
+}
+
+.filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.search {
+  flex: 1;
+  padding: 12px;
+  font-size: 1rem;
+}
+
+.select {
+  padding: 12px;
+  font-size: 1rem;
+}
+
+.mapSection {
+  margin-bottom: 32px;
+}
+
+.map {
+  height: 350px;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #555;
+}
+
+.results h2 {
+  margin-bottom: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* Kortene som er under kartet */
+
+.card {
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.imagePlaceholder {
+  height: 160px;
+  background: linear-gradient(135deg, #c7d2fe, #a7f3d0);
+}
+
+.cardContent {
+  padding: 16px;
+}
+
+.location {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  margin: 12px 0;
+  font-size: 0.9rem;
+}
+
+.button {
+  padding: 10px;
+  border: none;
+  background: #065f46;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: #047857;
+}
