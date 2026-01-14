@@ -19,7 +19,7 @@ export default function Home() {
 
       <main style={{ padding: 0 }}>
         <div className="box-container">
-          <Link href="/utforsk" className="info-box">
+          <Link href="/explore" className="info-box">
             <Image
               src="/images/Explore.jpg"
               alt="Utforsk"

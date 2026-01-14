@@ -11,7 +11,7 @@ export default function MapComponent() {
   const mapRef = useRef(null);
 
   useEffect(() => {
-    // OSM kartdata
+    // OSM kartdanpmta
     const osmLayer = new TileLayer({
       source: new XYZ({
         url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
