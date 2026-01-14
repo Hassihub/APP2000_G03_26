@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+
 export default function Home() {
   return (
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
