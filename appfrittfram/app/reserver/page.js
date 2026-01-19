@@ -2,110 +2,149 @@
 import { useState } from "react";
 import Image from "next/image";
 
-export default function Reserver({ valgtHytte }) {
-  // valgtHytte kan komme som prop:
-  // {
-  //   id: "hytte1",
-  //   navn: "Fjellbu",
-  //   bilde: "/bilder/fjellbu.jpg",
-  //   beskrivelse: "Koselig hytte på fjellet",
-  //   kapasitet: 6,
-  //   pris: 900
-  // }
+export default function Reserver() {
+
+  // 🔹 Midlertidig testdata – later som dette kommer fra databasen
+  const valgtHytte = {
+    id: "hytte_01",
+    navn: "Fjellro Lodge",
+    bilde: "/bilder/fjellhytte.jpg", // legg et bilde i public/bilder/
+    beskrivelse: "En moderne fjellhytte med panoramautsikt og peis.",
+    kapasitet: 6,
+    pris: 1200,
+    lokasjon: "Hemsedal, Norge",
+    fasiliteter: ["Peis", "Badstue", "WiFi", "Parkering"]
+  };
 
   const [navn, setNavn] = useState("");
   const [epost, setEpost] = useState("");
   const [fraDato, setFraDato] = useState("");
   const [tilDato, setTilDato] = useState("");
   const [antall, setAntall] = useState(1);
-
   const [bekreftelse, setBekreftelse] = useState(null);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    // Opprett et reservasjon-objekt
-    const reservasjon = {
-      hytteId: valgtHytte?.id,
-      hytteNavn: valgtHytte?.navn,
-      hytteBilde: valgtHytte?.bilde,
-      navn,
-      epost,
-      fraDato,
-      tilDato,
-      antall,
-    };
-
-    setBekreftelse(reservasjon);
-
-    // Nullstill skjema
-    setNavn("");
-    setEpost("");
-    setFraDato("");
-    setTilDato("");
-    setAntall(1);
+    setBekreftelse({ navn, fraDato, tilDato, antall });
   };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>Reserver hytte</h1>
-      <p>Fyll ut skjemaet under for å reservere.</p>
+    <div style={{ maxWidth: "900px", margin: "0 auto", padding: "2rem" }}>
 
-      {/* Vis valgt hytte */}
-      {valgtHytte && (
-        <div style={{ marginBottom: "2rem", border: "1px solid #ccc", padding: "1rem" }}>
-          {valgtHytte.bilde && (
-            <Image src={valgtHytte.bilde} alt={valgtHytte.navn} width={800} height={600} style={{ maxWidth: "100%", height: "auto" }} />
-          )}
-          <p>{valgtHytte.beskrivelse}</p>
-          <p>Kapasitet: {valgtHytte.kapasitet} personer</p>
-          <p>Pris per natt: {valgtHytte.pris} kr</p>
+      {/* Funnet-hytte melding */}
+      <div style={{
+        background: "#e8f6ee",
+        border: "1px solid #b7e1c7",
+        padding: "1rem",
+        borderRadius: "8px",
+        marginBottom: "1.5rem"
+      }}>
+        <strong>✔ Hytte funnet!</strong>
+        <p>Vi har funnet en ledig hytte som passer ditt søk.</p>
+      </div>
+
+      {/* Hyttekort */}
+      <div style={{
+        border: "1px solid #ddd",
+        borderRadius: "10px",
+        overflow: "hidden",
+        boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+        marginBottom: "2rem"
+      }}>
+        <div style={{ position: "relative", width: "100%", height: "380px" }}>
+          <Image
+            src={valgtHytte.bilde}
+            alt={valgtHytte.navn}
+            fill
+            style={{ objectFit: "cover" }}
+          />
         </div>
-      )}
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem", maxWidth: "400px" }}>
+        <div style={{ padding: "1.5rem" }}>
+          <h2>{valgtHytte.navn}</h2>
+          <p>{valgtHytte.beskrivelse}</p>
+
+          <p>📍 {valgtHytte.lokasjon}</p>
+          <p>👥 {valgtHytte.kapasitet} personer</p>
+          <p>💰 {valgtHytte.pris} kr per natt</p>
+          <p>🏡 {valgtHytte.fasiliteter.join(", ")}</p>
+        </div>
+      </div>
+
+      {/* Her fyller du inn booking */}
+      <h3>Fyll inn din bestilling</h3>
+
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "grid", gap: "1rem", maxWidth: "400px" }}
+      >
+        <input
+          placeholder="Navn"
+          value={navn}
+          onChange={(e) => setNavn(e.target.value)}
+          required
+        />
+
+        <input
+          type="email"
+          placeholder="E-post"
+          value={epost}
+          onChange={(e) => setEpost(e.target.value)}
+          required
+        />
+
         <label>
-          Navn:
-          <input type="text" value={navn} onChange={(e) => setNavn(e.target.value)} required />
+          Fra dato
+          <input
+            type="date"
+            value={fraDato}
+            onChange={(e) => setFraDato(e.target.value)}
+            required
+          />
         </label>
 
         <label>
-          E-post:
-          <input type="email" value={epost} onChange={(e) => setEpost(e.target.value)} required />
+          Til dato
+          <input
+            type="date"
+            value={tilDato}
+            onChange={(e) => setTilDato(e.target.value)}
+            required
+          />
         </label>
 
-        <label>
-          Fra dato:
-          <input type="date" value={fraDato} onChange={(e) => setFraDato(e.target.value)} required />
-        </label>
+        <input
+          type="number"
+          min="1"
+          max={valgtHytte.kapasitet}
+          value={antall}
+          onChange={(e) => setAntall(Number(e.target.value))}
+          required
+        />
 
-        <label>
-          Til dato:
-          <input type="date" value={tilDato} onChange={(e) => setTilDato(e.target.value)} required />
-        </label>
-
-        <label>
-          Antall personer:
-          <input type="number" value={antall} min="1" max={valgtHytte?.kapasitet || 10} onChange={(e) => setAntall(e.target.value)} required />
-        </label>
-
-        <button type="submit" style={{ padding: "0.5rem", backgroundColor: "#4CAF50", color: "white", border: "none", cursor: "pointer" }}>
-          Reserver
+        <button style={{
+          padding: "0.7rem",
+          background: "#2f7d4a",
+          color: "white",
+          border: "none",
+          borderRadius: "6px"
+        }}>
+          Reserver nå
         </button>
       </form>
 
-      {/* Bekreftelse */}
+      {/* Bekreftelse når du trykker reserver */}
       {bekreftelse && (
-        <div style={{ marginTop: "2rem", padding: "1rem", border: "1px solid #ccc", backgroundColor: "#f0f0f0" }}>
-          <h2>Bekreftelse</h2>
-          {bekreftelse.hytteBilde && (
-            <Image src={bekreftelse.hytteBilde} alt={bekreftelse.hytteNavn} width={800} height={600} style={{ maxWidth: "100%", height: "auto" }} />
-          )}
-          <p>Navn: {bekreftelse.navn}</p>
-          <p>E-post: {bekreftelse.epost}</p>
-          <p>Fra: {bekreftelse.fraDato}</p>
-          <p>Til: {bekreftelse.tilDato}</p>
-          <p>Antall personer: {bekreftelse.antall}</p>
+        <div style={{
+          marginTop: "2rem",
+          background: "#f3f3f3",
+          padding: "1rem",
+          borderRadius: "8px"
+        }}>
+          <h2>Bestilling registrert 🎉</h2>
+          <p>Takk {bekreftelse.navn}!</p>
+          <p>{bekreftelse.fraDato} → {bekreftelse.tilDato}</p>
+          <p>{bekreftelse.antall} personer</p>
         </div>
       )}
     </div>
