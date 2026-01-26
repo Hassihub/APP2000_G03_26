@@ -1,49 +1,52 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styles from "./Reserver.module.css";
 
 export default function CabinsPage() {
-  // Mock-data som matcher tabellen din (cabins)
-  const cabins = useMemo(
-    () => [
-      {
-        id: "0d0f2c1a-1111-4444-8888-aaaaaaaaaaaa",
-        name: "Fjellro Lodge",
-        description: "En moderne fjellhytte med panoramautsikt og peis.",
-        location: "Hemsedal, Norge",
-        price_per_night: 1200,
-        capacity: 6,
-        amenities: ["Peis", "Badstue", "WiFi", "Parkering"],
-        created_at: "2026-01-15 12:10:00",
-      },
-      {
-        id: "0d0f2c1a-2222-4444-8888-bbbbbbbbbbbb",
-        name: "Sjøbris Cabin",
-        description: "Koselig hytte nær sjøen – perfekt for rolige helger.",
-        location: "Lofoten, Norge",
-        price_per_night: 1450,
-        capacity: 4,
-        amenities: ["Havutsikt", "Kjøkken", "WiFi"],
-        created_at: "2026-01-20 09:30:00",
-      },
-      {
-        id: "0d0f2c1a-3333-4444-8888-cccccccccccc",
-        name: "Skogstjerne",
-        description: "Skjermet skogshytte med bålplass og turstier rett utenfor.",
-        location: "Trysil, Norge",
-        price_per_night: 990,
-        capacity: 5,
-        amenities: ["Bålplass", "Parkering", "Kjæledyr tillatt"],
-        created_at: "2026-01-22 18:00:00",
-      },
-    ],
-    []
-  );
+  const [cabins, setCabins] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  // Viktig: init state med en funksjon, så slipper du edge-case warnings/crash
-  const [selectedId, setSelectedId] = useState(() => cabins[0]?.id ?? null);
+  useEffect(() => {
+    let alive = true;
+
+    async function loadCabins() {
+      try {
+        setLoading(true);
+        setErrorMsg("");
+
+        const res = await fetch("/api/cabins", { method: "GET" });
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(json?.error || "Kunne ikke hente hytter fra databasen.");
+        }
+
+        if (!alive) return;
+
+        const list = Array.isArray(json.cabins) ? json.cabins : [];
+        setCabins(list);
+
+        // velg første automatisk
+        setSelectedId((prev) => prev ?? (list[0]?.id ?? null));
+      } catch (e) {
+        if (!alive) return;
+        setErrorMsg(e?.message || "Ukjent feil ved henting av hytter.");
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    }
+
+    loadCabins();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const selectedCabin = useMemo(() => {
     if (!selectedId) return null;
@@ -56,27 +59,23 @@ export default function CabinsPage() {
       <header className="topbar">
         <span className="topbar-left-text">Dette er et skoleprosjekt</span>
         <nav className="topbar-nav">
-          <Link className="topbar-item" href="/">
-            Home
-          </Link>
-          <Link className="topbar-item" href="/search">
-            Search
-          </Link>
-          <Link className="topbar-item" href="/settings">
-            Settings
-          </Link>
-          <Link className="topbar-item" href="/profile">
-            Profile
-          </Link>
+          <Link className="topbar-item" href="/">Home</Link>
+          <Link className="topbar-item" href="/search">Search</Link>
+          <Link className="topbar-item" href="/settings">Settings</Link>
+          <Link className="topbar-item" href="/profile">Profile</Link>
         </nav>
       </header>
 
       {/* Main */}
-      <main style={{ padding: 0 }}>
+      <main style={{ padding: 0, paddingBottom: 120 }}>
         <div className={styles.page}>
           <div className={styles.container}>
             <div className={styles.notice}>
-              🏡 Hytter tilgjengelig: {cabins.length} funnet
+              {loading
+                ? "⏳ Laster hytter..."
+                : errorMsg
+                ? `❌ ${errorMsg}`
+                : `🏡 Hytter tilgjengelig: ${cabins.length} funnet`}
             </div>
 
             <div className={styles.layout}>
@@ -85,23 +84,22 @@ export default function CabinsPage() {
                 <h3 className={styles.listTitle}>Velg en hytte</h3>
 
                 <div className={styles.list}>
+                  {!loading && !errorMsg && cabins.length === 0 ? (
+                    <div className={styles.empty}>Ingen hytter i databasen enda.</div>
+                  ) : null}
+
                   {cabins.map((cabin) => {
                     const isActive = cabin.id === selectedId;
-
                     return (
                       <button
                         key={cabin.id}
-                        className={`${styles.listItem} ${
-                          isActive ? styles.active : ""
-                        }`}
+                        className={`${styles.listItem} ${isActive ? styles.active : ""}`}
                         onClick={() => setSelectedId(cabin.id)}
                         type="button"
                       >
                         <div className={styles.listItemTop}>
                           <span className={styles.cabinName}>{cabin.name}</span>
-                          <span className={styles.price}>
-                            {cabin.price_per_night} kr/natt
-                          </span>
+                          <span className={styles.price}>{cabin.price_per_night} kr/natt</span>
                         </div>
 
                         <div className={styles.listItemMeta}>
@@ -112,7 +110,6 @@ export default function CabinsPage() {
                   })}
                 </div>
 
-                {/* 👇 Ny knapp i venstre kort også (valgfritt, men veldig praktisk) */}
                 <div style={{ marginTop: 12 }}>
                   <Link className={styles.button} href="/reserver/ny">
                     ➕ Legg til ny hytte
@@ -126,10 +123,7 @@ export default function CabinsPage() {
                   <div className={styles.cardContent}>
                     <div className={styles.info}>
                       <h2>{selectedCabin.name}</h2>
-                      <p>
-                        {selectedCabin.description ??
-                          "Ingen beskrivelse tilgjengelig."}
-                      </p>
+                      <p>{selectedCabin.description ?? "Ingen beskrivelse tilgjengelig."}</p>
 
                       <div className={styles.meta}>
                         📍 {selectedCabin.location}
@@ -142,18 +136,9 @@ export default function CabinsPage() {
                         {selectedCabin.amenities?.length
                           ? selectedCabin.amenities.join(", ")
                           : "Ingen registrerte fasiliteter"}
-                        <br />
-                        🕒 Opprettet: {selectedCabin.created_at ?? "ukjent"}
                       </div>
 
-                      {/* Knapper */}
                       <div className={styles.actions}>
-                        <Link className={styles.button} href="/reserver">
-                          Gå til reservering
-                        </Link>
-
-                        <div style={{ height: 10 }} />
-
                         <Link className={styles.button} href="/reserver/ny">
                           ➕ Legg til ny hytte
                         </Link>
@@ -162,7 +147,11 @@ export default function CabinsPage() {
                   </div>
                 ) : (
                   <div className={styles.empty}>
-                    Velg en hytte i listen for å se detaljer.
+                    {loading
+                      ? "Laster..."
+                      : errorMsg
+                      ? "Kunne ikke laste data."
+                      : "Velg en hytte i listen for å se detaljer."}
                   </div>
                 )}
               </div>
