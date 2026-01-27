@@ -53,6 +53,12 @@ export default function CabinsPage() {
     return cabins.find((c) => c.id === selectedId) ?? null;
   }, [cabins, selectedId]);
 
+  // NY: link til booking-side uten [cabinId]-mappe (bruker query param)
+  const bookingHref = useMemo(() => {
+    if (!selectedCabin?.id) return null;
+    return `/reserver/booking?cabinId=${encodeURIComponent(selectedCabin.id)}`;
+  }, [selectedCabin]);
+
   return (
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
       {/* Header */}
@@ -139,6 +145,12 @@ export default function CabinsPage() {
                       </div>
 
                       <div className={styles.actions}>
+                        {bookingHref ? (
+                          <Link className={styles.button} href={bookingHref}>
+                            🗓️ Reserver denne hytta
+                          </Link>
+                        ) : null}
+
                         <Link className={styles.button} href="/reserver/ny">
                           ➕ Legg til ny hytte
                         </Link>

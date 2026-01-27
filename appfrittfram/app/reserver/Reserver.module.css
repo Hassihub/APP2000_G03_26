@@ -149,3 +149,120 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Forms (brukes av booking) ---------- */
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
+.sectionTitle {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.label {
+  font-weight: 700;
+  color: #111827;
+  font-size: 13px;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid #e6e6ef;
+  background: #fafaff;
+  outline: none;
+  font-size: 14px;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 92px;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15);
+  background: #ffffff;
+}
+
+.helper {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Meldingsbokser */
+.errorBox {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.successBox {
+  background: #e8fff0;
+  border: 1px solid #b7f5c8;
+  color: #14532d;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+/* Knapper i en rad */
+.actionsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.buttonSecondary {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e6e6ef;
+  background: #f8fafc;
+  color: #111827;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+}
+
+.buttonSecondary:hover {
+  filter: brightness(0.98);
+}
+
+.button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+  .row2 {
+    grid-template-columns: 1fr;
+  }
+  .actionsRow {
+    grid-template-columns: 1fr;
+  }
+}
