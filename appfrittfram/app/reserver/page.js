@@ -1,113 +1,179 @@
 "use client";
-import { useState } from "react";
-import Image from "next/image";
 
-export default function Reserver({ valgtHytte }) {
-  // valgtHytte kan komme som prop:
-  // {
-  //   id: "hytte1",
-  //   navn: "Fjellbu",
-  //   bilde: "/bilder/fjellbu.jpg",
-  //   beskrivelse: "Koselig hytte på fjellet",
-  //   kapasitet: 6,
-  //   pris: 900
-  // }
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import styles from "./Reserver.module.css";
 
-  const [navn, setNavn] = useState("");
-  const [epost, setEpost] = useState("");
-  const [fraDato, setFraDato] = useState("");
-  const [tilDato, setTilDato] = useState("");
-  const [antall, setAntall] = useState(1);
+export default function CabinsPage() {
+  const [cabins, setCabins] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const [bekreftelse, setBekreftelse] = useState(null);
+  useEffect(() => {
+    let alive = true;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+    async function loadCabins() {
+      try {
+        setLoading(true);
+        setErrorMsg("");
 
-    // Opprett et reservasjon-objekt
-    const reservasjon = {
-      hytteId: valgtHytte?.id,
-      hytteNavn: valgtHytte?.navn,
-      hytteBilde: valgtHytte?.bilde,
-      navn,
-      epost,
-      fraDato,
-      tilDato,
-      antall,
+        const res = await fetch("/api/cabins", { method: "GET" });
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(json?.error || "Kunne ikke hente hytter fra databasen.");
+        }
+
+        if (!alive) return;
+
+        const list = Array.isArray(json.cabins) ? json.cabins : [];
+        setCabins(list);
+
+        // velg første automatisk
+        setSelectedId((prev) => prev ?? (list[0]?.id ?? null));
+      } catch (e) {
+        if (!alive) return;
+        setErrorMsg(e?.message || "Ukjent feil ved henting av hytter.");
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    }
+
+    loadCabins();
+
+    return () => {
+      alive = false;
     };
+  }, []);
 
-    setBekreftelse(reservasjon);
+  const selectedCabin = useMemo(() => {
+    if (!selectedId) return null;
+    return cabins.find((c) => c.id === selectedId) ?? null;
+  }, [cabins, selectedId]);
 
-    // Nullstill skjema
-    setNavn("");
-    setEpost("");
-    setFraDato("");
-    setTilDato("");
-    setAntall(1);
-  };
+  // NY: link til booking-side uten [cabinId]-mappe (bruker query param)
+  const bookingHref = useMemo(() => {
+    if (!selectedCabin?.id) return null;
+    return `/reserver/booking?cabinId=${encodeURIComponent(selectedCabin.id)}`;
+  }, [selectedCabin]);
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>Reserver hytte</h1>
-      <p>Fyll ut skjemaet under for å reservere.</p>
+    <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
+      {/* Header */}
+      <header className="topbar">
+        <span className="topbar-left-text">Dette er et skoleprosjekt</span>
+        <nav className="topbar-nav">
+          <Link className="topbar-item" href="/">Home</Link>
+          <Link className="topbar-item" href="/search">Search</Link>
+          <Link className="topbar-item" href="/settings">Settings</Link>
+          <Link className="topbar-item" href="/profile">Profile</Link>
+        </nav>
+      </header>
 
-      {/* Vis valgt hytte */}
-      {valgtHytte && (
-        <div style={{ marginBottom: "2rem", border: "1px solid #ccc", padding: "1rem" }}>
-          {valgtHytte.bilde && (
-            <Image src={valgtHytte.bilde} alt={valgtHytte.navn} width={800} height={600} style={{ maxWidth: "100%", height: "auto" }} />
-          )}
-          <p>{valgtHytte.beskrivelse}</p>
-          <p>Kapasitet: {valgtHytte.kapasitet} personer</p>
-          <p>Pris per natt: {valgtHytte.pris} kr</p>
+      {/* Main */}
+      <main style={{ padding: 0, paddingBottom: 120 }}>
+        <div className={styles.page}>
+          <div className={styles.container}>
+            <div className={styles.notice}>
+              {loading
+                ? "⏳ Laster hytter..."
+                : errorMsg
+                ? `❌ ${errorMsg}`
+                : `🏡 Hytter tilgjengelig: ${cabins.length} funnet`}
+            </div>
+
+            <div className={styles.layout}>
+              {/* Venstre: liste */}
+              <div className={styles.listCard}>
+                <h3 className={styles.listTitle}>Velg en hytte</h3>
+
+                <div className={styles.list}>
+                  {!loading && !errorMsg && cabins.length === 0 ? (
+                    <div className={styles.empty}>Ingen hytter i databasen enda.</div>
+                  ) : null}
+
+                  {cabins.map((cabin) => {
+                    const isActive = cabin.id === selectedId;
+                    return (
+                      <button
+                        key={cabin.id}
+                        className={`${styles.listItem} ${isActive ? styles.active : ""}`}
+                        onClick={() => setSelectedId(cabin.id)}
+                        type="button"
+                      >
+                        <div className={styles.listItemTop}>
+                          <span className={styles.cabinName}>{cabin.name}</span>
+                          <span className={styles.price}>{cabin.price_per_night} kr/natt</span>
+                        </div>
+
+                        <div className={styles.listItemMeta}>
+                          📍 {cabin.location} • 👥 {cabin.capacity} pers
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  <Link className={styles.button} href="/reserver/ny">
+                    ➕ Legg til ny hytte
+                  </Link>
+                </div>
+              </div>
+
+              {/* Høyre: detalj */}
+              <div className={styles.card}>
+                {selectedCabin ? (
+                  <div className={styles.cardContent}>
+                    <div className={styles.info}>
+                      <h2>{selectedCabin.name}</h2>
+                      <p>{selectedCabin.description ?? "Ingen beskrivelse tilgjengelig."}</p>
+
+                      <div className={styles.meta}>
+                        📍 {selectedCabin.location}
+                        <br />
+                        👥 {selectedCabin.capacity} personer
+                        <br />
+                        💰 {selectedCabin.price_per_night} kr per natt
+                        <br />
+                        🏡{" "}
+                        {selectedCabin.amenities?.length
+                          ? selectedCabin.amenities.join(", ")
+                          : "Ingen registrerte fasiliteter"}
+                      </div>
+
+                      <div className={styles.actions}>
+                        {bookingHref ? (
+                          <Link className={styles.button} href={bookingHref}>
+                            🗓️ Reserver denne hytta
+                          </Link>
+                        ) : null}
+
+                        <Link className={styles.button} href="/reserver/ny">
+                          ➕ Legg til ny hytte
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.empty}>
+                    {loading
+                      ? "Laster..."
+                      : errorMsg
+                      ? "Kunne ikke laste data."
+                      : "Velg en hytte i listen for å se detaljer."}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      )}
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem", maxWidth: "400px" }}>
-        <label>
-          Navn:
-          <input type="text" value={navn} onChange={(e) => setNavn(e.target.value)} required />
-        </label>
-
-        <label>
-          E-post:
-          <input type="email" value={epost} onChange={(e) => setEpost(e.target.value)} required />
-        </label>
-
-        <label>
-          Fra dato:
-          <input type="date" value={fraDato} onChange={(e) => setFraDato(e.target.value)} required />
-        </label>
-
-        <label>
-          Til dato:
-          <input type="date" value={tilDato} onChange={(e) => setTilDato(e.target.value)} required />
-        </label>
-
-        <label>
-          Antall personer:
-          <input type="number" value={antall} min="1" max={valgtHytte?.kapasitet || 10} onChange={(e) => setAntall(e.target.value)} required />
-        </label>
-
-        <button type="submit" style={{ padding: "0.5rem", backgroundColor: "#4CAF50", color: "white", border: "none", cursor: "pointer" }}>
-          Reserver
-        </button>
-      </form>
-
-      {/* Bekreftelse */}
-      {bekreftelse && (
-        <div style={{ marginTop: "2rem", padding: "1rem", border: "1px solid #ccc", backgroundColor: "#f0f0f0" }}>
-          <h2>Bekreftelse</h2>
-          {bekreftelse.hytteBilde && (
-            <Image src={bekreftelse.hytteBilde} alt={bekreftelse.hytteNavn} width={800} height={600} style={{ maxWidth: "100%", height: "auto" }} />
-          )}
-          <p>Navn: {bekreftelse.navn}</p>
-          <p>E-post: {bekreftelse.epost}</p>
-          <p>Fra: {bekreftelse.fraDato}</p>
-          <p>Til: {bekreftelse.tilDato}</p>
-          <p>Antall personer: {bekreftelse.antall}</p>
-        </div>
-      )}
+        {/* Footer */}
+        <footer className="footer">Dette er en footer som ligger over bildene</footer>
+      </main>
     </div>
   );
 }

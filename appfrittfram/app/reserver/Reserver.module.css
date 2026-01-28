@@ -1,0 +1,268 @@
+.page {
+  display: flex;
+  justify-content: center;
+  padding: 40px 16px;
+  padding-top: 80px; /* 👈 ekstra luft under header */
+}
+
+.container {
+  width: 100%;
+  max-width: 1100px;
+}
+
+.notice {
+  background: #e8fff0;
+  border: 1px solid #b7f5c8;
+  color: #14532d;
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 16px;
+}
+
+.listCard {
+  background: white;
+  border-radius: 16px;
+  padding: 14px;
+  border: 1px solid #e6e6ef;
+  box-shadow: 0 6px 18px rgba(10, 10, 20, 0.06);
+  height: fit-content;
+}
+
+.listTitle {
+  margin: 4px 4px 12px;
+  font-size: 16px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.listItem {
+  text-align: left;
+  border: 1px solid #e6e6ef;
+  background: #fafaff;
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.listItem:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(10, 10, 20, 0.06);
+}
+
+.active {
+  border-color: #7c3aed;
+  background: #f4efff;
+}
+
+.listItemTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.cabinName {
+  font-weight: 700;
+}
+
+.price {
+  font-weight: 700;
+  color: #111827;
+}
+
+.listItemMeta {
+  margin-top: 6px;
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e6e6ef;
+  box-shadow: 0 6px 18px rgba(10, 10, 20, 0.06);
+  overflow: hidden;
+}
+
+.cardContent {
+  padding: 18px;
+}
+
+.info h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+.info p {
+  margin: 0 0 12px;
+  color: #374151;
+  line-height: 1.45;
+}
+
+.meta {
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  padding: 12px;
+  border-radius: 12px;
+  color: #111827;
+  line-height: 1.6;
+}
+
+.actions {
+  margin-top: 14px;
+}
+
+.button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  background: #7c3aed;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button:hover {
+  filter: brightness(0.95);
+}
+
+.empty {
+  padding: 18px;
+  color: #6b7280;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Forms (brukes av booking) ---------- */
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
+.sectionTitle {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.label {
+  font-weight: 700;
+  color: #111827;
+  font-size: 13px;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid #e6e6ef;
+  background: #fafaff;
+  outline: none;
+  font-size: 14px;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 92px;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15);
+  background: #ffffff;
+}
+
+.helper {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Meldingsbokser */
+.errorBox {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.successBox {
+  background: #e8fff0;
+  border: 1px solid #b7f5c8;
+  color: #14532d;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+/* Knapper i en rad */
+.actionsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.buttonSecondary {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e6e6ef;
+  background: #f8fafc;
+  color: #111827;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+}
+
+.buttonSecondary:hover {
+  filter: brightness(0.98);
+}
+
+.button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+  .row2 {
+    grid-template-columns: 1fr;
+  }
+  .actionsRow {
+    grid-template-columns: 1fr;
+  }
+}
