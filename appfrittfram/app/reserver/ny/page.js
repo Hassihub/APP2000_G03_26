@@ -83,25 +83,6 @@ export default function NewCabinPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
-      {/* Samme header som Home */}
-      <header className="topbar">
-        <span className="topbar-left-text">Dette er et skoleprosjekt</span>
-        <nav className="topbar-nav">
-          <Link className="topbar-item" href="/">
-            Home
-          </Link>
-          <Link className="topbar-item" href="/search">
-            Search
-          </Link>
-          <Link className="topbar-item" href="/settings">
-            Settings
-          </Link>
-          <Link className="topbar-item" href="/profile">
-            Profile
-          </Link>
-        </nav>
-      </header>
-
       {/* Samme main-oppsett som Home */}
       <main style={{ padding: 0 }}>
         <div className={styles.page}>
@@ -222,9 +203,6 @@ export default function NewCabinPage() {
             </div>
           </div>
         </div>
-
-        {/* Samme footer som Home */}
-        <footer className="footer">Dette er en footer som ligger over bildene</footer>
       </main>
     </div>
   );

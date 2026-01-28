@@ -145,17 +145,6 @@ export default function BookingPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
-      {/* Header (samme som reserver/page.js) */}
-      <header className="topbar">
-        <span className="topbar-left-text">Dette er et skoleprosjekt</span>
-        <nav className="topbar-nav">
-          <Link className="topbar-item" href="/">Home</Link>
-          <Link className="topbar-item" href="/search">Search</Link>
-          <Link className="topbar-item" href="/settings">Settings</Link>
-          <Link className="topbar-item" href="/profile">Profile</Link>
-        </nav>
-      </header>
-
       <main className={styles.page} style={{ paddingBottom: 120 }}>
         <div className={styles.container}>
           <div className={styles.notice}>
@@ -336,8 +325,6 @@ export default function BookingPage() {
             </div>
           )}
         </div>
-
-        <footer className="footer">Dette er en footer som ligger over bildene</footer>
       </main>
     </div>
   );

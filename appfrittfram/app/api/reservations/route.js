@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { getPool } from "../../../lib/db.js"; // samme mønster som du bruker i cabins
+import db from "../../../lib/db"; // default Pool
 
 export async function GET(req) {
   try {
-    const pool = getPool();
-
     const { searchParams } = new URL(req.url);
     const cabin_id = searchParams.get("cabin_id"); // valgfri filter
     const guest_email = searchParams.get("guest_email"); // valgfri filter
@@ -28,7 +26,7 @@ export async function GET(req) {
       ORDER BY created_at DESC
     `;
 
-    const result = await pool.query(sql, values);
+    const result = await db.query(sql, values);
     return NextResponse.json({ reservations: result.rows }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
@@ -44,7 +42,7 @@ export async function POST(req) {
     const guest_email = String(body.guest_email ?? "").trim();
 
     const start_date = String(body.start_date ?? "").trim(); // "YYYY-MM-DD"
-    const end_date = String(body.end_date ?? "").trim();     // "YYYY-MM-DD"
+    const end_date = String(body.end_date ?? "").trim(); // "YYYY-MM-DD"
 
     const guests_count = Number(body.guests_count);
     const notes = body.notes ? String(body.notes).trim() : null;
@@ -60,8 +58,6 @@ export async function POST(req) {
 
     // Dobbelbooking-sjekk:
     // Overlapp hvis NOT (existing.end <= new.start OR existing.start >= new.end)
-    const pool = getPool();
-
     const overlapSql = `
       SELECT 1
       FROM public.reservations
@@ -70,7 +66,7 @@ export async function POST(req) {
         AND NOT (end_date <= $2::date OR start_date >= $3::date)
       LIMIT 1
     `;
-    const overlap = await pool.query(overlapSql, [cabin_id, start_date, end_date]);
+    const overlap = await db.query(overlapSql, [cabin_id, start_date, end_date]);
 
     if (overlap.rowCount > 0) {
       return NextResponse.json(
@@ -89,7 +85,7 @@ export async function POST(req) {
     `;
 
     const values = [cabin_id, guest_name, guest_email, start_date, end_date, guests_count, notes];
-    const result = await pool.query(insertSql, values);
+    const result = await db.query(insertSql, values);
 
     return NextResponse.json({ reservation: result.rows[0] }, { status: 201 });
   } catch (e) {

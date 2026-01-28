@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
-import { getPool } from "../../../lib/db.js";
+import db from "../../../lib/db"; // default export (Pool)
 
 export async function GET() {
   try {
-    const pool = getPool();
-
     const sql = `
       SELECT id, name, description, location, price_per_night, capacity, amenities, created_at
       FROM public.cabins
       ORDER BY created_at DESC
     `;
 
-    const result = await pool.query(sql);
+    const result = await db.query(sql);
     return NextResponse.json({ cabins: result.rows }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
@@ -31,14 +29,16 @@ export async function POST(req) {
 
     if (!name) return NextResponse.json({ error: "name er påkrevd" }, { status: 400 });
     if (!location) return NextResponse.json({ error: "location er påkrevd" }, { status: 400 });
-    if (!Number.isFinite(price_per_night)) return NextResponse.json({ error: "price_per_night må være tall" }, { status: 400 });
-    if (!Number.isFinite(capacity)) return NextResponse.json({ error: "capacity må være tall" }, { status: 400 });
+    if (!Number.isFinite(price_per_night)) {
+      return NextResponse.json({ error: "price_per_night må være tall" }, { status: 400 });
+    }
+    if (!Number.isFinite(capacity)) {
+      return NextResponse.json({ error: "capacity må være tall" }, { status: 400 });
+    }
 
     const amenities = Array.isArray(body.amenities)
       ? body.amenities.map((x) => String(x).trim()).filter(Boolean)
       : [];
-
-    const pool = getPool();
 
     const sql = `
       INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities)
@@ -48,7 +48,7 @@ export async function POST(req) {
 
     const values = [name, description, location, price_per_night, capacity, amenities];
 
-    const result = await pool.query(sql, values);
+    const result = await db.query(sql, values);
 
     return NextResponse.json({ cabin: result.rows[0] }, { status: 201 });
   } catch (e) {
