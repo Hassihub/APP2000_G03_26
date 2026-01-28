@@ -1,4 +1,4 @@
-import MapComponent from "./mapComponent";
+import MapComponent from "../components/map/mapComponent";
 
 export default function MapPage() {
   return (
