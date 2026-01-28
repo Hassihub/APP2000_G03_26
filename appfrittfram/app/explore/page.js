@@ -1,30 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./explore.module.css";
 
 export default function ExplorePage() {
+  const [trips, setTrips] = useState([]);
+
+  // Filters
   const [search, setSearch] = useState("");
   const [type, setType] = useState("alle");
   const [difficulty, setDifficulty] = useState("alle");
 
+  useEffect(() => {
+    const fetchTrips = async () => {
+      try {
+        const params = new URLSearchParams({ search, type, difficulty });
+        const res = await fetch(`/api/users/trips?${params.toString()}`);
+
+        if (!res.ok) throw new Error("Kunne ikke hente turer");
+
+        const data = await res.json();
+        setTrips(data);
+      } catch (err) {
+        console.error(err);
+        setTrips([]); // clear trips if error
+      }
+    };
+
+    fetchTrips();
+  }, [search, type, difficulty]);
+
   return (
     <main className={styles.container}>
-      
       {/* Header */}
       <section className={styles.header}>
         <h1 className={styles.heading}>Utforsk Norge</h1>
         <p className={styles.subheading}>
-          Finn turer, ruter og friluftsopplevelser
+          Finn turer over hele landet
         </p>
       </section>
 
-      {/* Søk og filter */}
+      {/* Filters */}
       <section className={styles.filters}>
         <input
           className={styles.search}
-          type="text"
-          placeholder="Søk etter tur eller sted"
+          placeholder="Søk etter tur"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -52,62 +72,34 @@ export default function ExplorePage() {
         </select>
       </section>
 
-      {/* Kart box */}
-      <section className={styles.mapSection}>
-        <div className={styles.map}>
-          <p>Kartvisning (Leaflet / Mapbox senere)</p>
-        </div>
-      </section>
-
-      {/* Resultater */}
+      {/* Trips */}
       <section className={styles.results}>
-        <h2>Forslag til turer</h2>
-
+        <h2>Turer</h2>
         <div className={styles.grid}>
-          <TourCard
-            title="Rondane rundt"
-            location="Innlandet"
-            distance="12 km"
-            difficulty="Middels"
-          />
-          <TourCard
-            title="Topptur til Galdhøpiggen"
-            location="Jotunheimen"
-            distance="15 km"
-            difficulty="Krevende"
-          />
-          <TourCard
-            title="Kyststi ved Stavern"
-            location="Vestfold"
-            distance="6 km"
-            difficulty="Lett"
-          />
+          {trips.length > 0 ? (
+            trips.map((trip) => <TripCard key={trip.id} trip={trip} />)
+          ) : (
+            <p>Ingen turer funnet</p>
+          )}
         </div>
       </section>
-
     </main>
   );
 }
 
-/*  Kort!!!*/
-
-function TourCard({ title, location, distance, difficulty }) {
+/* ===== Components ===== */
+function TripCard({ trip }) {
   return (
     <article className={styles.card}>
       <div className={styles.imagePlaceholder} />
-
       <div className={styles.cardContent}>
-        <h3>{title}</h3>
-        <p className={styles.location}>{location}</p>
-
+        <h3>{trip.navn}</h3>
+        <p className={styles.location}>{trip.type}</p>
         <div className={styles.meta}>
-          <span>{distance}</span>
-          <span>{difficulty}</span>
+          <span>{trip.lengde_km} km</span>
+          <span>{trip.vanskelighetsgrad}</span>
         </div>
-
-        <button className={styles.button}>
-          Se detaljer
-        </button>
+        <button className={styles.button}>Se detaljer</button>
       </div>
     </article>
   );
