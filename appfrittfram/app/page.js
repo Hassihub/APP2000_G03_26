@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+
 export default function Home() {
   return (
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
@@ -18,7 +19,7 @@ export default function Home() {
 
       <main style={{ padding: 0 }}>
         <div className="box-container">
-          <Link href="/utforsk" className="info-box">
+          <Link href="/explore" className="info-box">
             <Image
               src="/images/Explore.jpg"
               alt="Utforsk"
@@ -40,7 +41,7 @@ export default function Home() {
             <span>Reserver</span>
           </Link>
 
-          <Link href="/kart" className="info-box">
+          <Link href="/map" className="info-box">
             <Image
               src="/images/Map.jpg"
               alt="Kart"

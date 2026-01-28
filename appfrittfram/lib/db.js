@@ -1,17 +1,12 @@
-import { Pool } from "pg";
+import pkg from "pg";
 
-let pool;
+const { Pool } = pkg;
 
-export function getPool() {
-  if (pool) return pool;
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: true, // viktig for Cockroach Cloud
+  },
+});
 
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error("Mangler DATABASE_URL i .env.local");
-
-  pool = new Pool({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
-  });
-
-  return pool;
-}
+export default pool;
