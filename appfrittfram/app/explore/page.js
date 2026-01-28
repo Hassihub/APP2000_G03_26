@@ -15,7 +15,7 @@ export default function ExplorePage() {
     const fetchTrips = async () => {
       try {
         const params = new URLSearchParams({ search, type, difficulty });
-        const res = await fetch(`/api/users/trips?${params.toString()}`);
+        const res = await fetch(`/api/trips?${params.toString()}`);
 
         if (!res.ok) throw new Error("Kunne ikke hente turer");
 
