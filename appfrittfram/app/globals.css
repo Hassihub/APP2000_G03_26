@@ -57,7 +57,7 @@ a {
 /* ------------------- */
 .topbar {
   position: sticky;
-  top: 32px;
+  top: 0;
   left: 0;
   width: 100%;
   height: 56px;
@@ -72,22 +72,13 @@ a {
 }
 
 /* Tekst øverst til venstre i topbar */
-.warning-banner {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  height: 32px;
-  background: #dc2626; /* rød */
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.topbar-left-text {
+  position: absolute;
+  left: 16px; /* litt margin fra venstre kant */
   font-size: 14px;
-  font-weight: 600;
-  z-index: 1001; /* høyere enn topbar */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  font-weight: 500;
+  color: var(--foreground);
+  z-index: 1001;
 }
 
 /* Dark mode for teksten */
@@ -298,7 +289,7 @@ main {
 
 /* Ikke hoverede bokser */
 .box-container .info-box:not(:hover) {
-  flex: 0.75;
+  flex: 0.5;
 }
 
 /* ------------------- */
@@ -365,3 +356,4 @@ main {
   width: 150px;
   height: 40px;
 }
+
