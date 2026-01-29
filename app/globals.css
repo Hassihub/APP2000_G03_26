@@ -1,0 +1,359 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+
+/* ------------------- */
+/*      ROOT VARIABLES */
+/* ------------------- */
+:root {
+  --background: #f5f7fb;
+  --foreground: #171717;
+  --box-overlay: rgba(0, 0, 0, 0.12);
+  --box-hover-overlay: rgba(0, 0, 0, 0.18);
+  --ui-font: "Poppins", Arial, Helvetica, sans-serif;
+  --info-font-size: 20px;
+  --info-font-weight: 600;
+  --info-label-size: 22px;
+}
+
+/* Dark mode variables */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --box-overlay: rgba(255, 255, 255, 0.06);
+    --box-hover-overlay: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* ------------------- */
+/*      GLOBAL STYLES  */
+/* ------------------- */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--ui-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ------------------- */
+/*       TOP BAR       */
+/* ------------------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+  padding: 0 16px;
+  z-index: 1000;
+}
+
+/* Tekst øverst til venstre i topbar */
+.topbar-left-text {
+  position: absolute;
+  left: 16px; /* litt margin fra venstre kant */
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+  z-index: 1001;
+}
+
+/* Dark mode for teksten */
+@media (prefers-color-scheme: dark) {
+  .topbar-left-text {
+    color: var(--foreground);
+  }
+}
+
+.topbar-nav {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.topbar-item {
+  color: var(--foreground);
+  padding: 8px 12px;
+  border-radius: 2px;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background 0.15s ease,
+    border-radius 0.15s ease;
+  position: relative;
+}
+
+/* Hover */
+.topbar-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+}
+
+/* Vertical divider */
+.topbar-item + .topbar-item {
+  border-left: 1px solid rgba(0, 0, 0, 0.2);
+  padding-left: 16px;
+  margin-left: 16px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .topbar {
+    background: rgba(10, 10, 10, 0.9);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+  }
+  .topbar-item + .topbar-item {
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  .topbar-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* ------------------- */
+/*     Footer          */
+
+/* FOOTER */
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 70px; /* kan justeres */
+  background: rgb(255, 255, 255); /* halvtransparent mørk bakgrunn */
+  color: rgb(0, 0, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ui-font);
+  font-size: 16px;
+  z-index: 1000; /* ligger over bildene */
+  pointer-events: none; /* slik at hover-effekter på bildene fortsatt fungerer */
+}
+
+/* Dark mode hvis nødvendig */
+@media (prefers-color-scheme: dark) {
+  .footer {
+    background: rgba(10, 10, 10, 1);
+    color: white;
+  }
+}
+
+/* ------------------- */
+/*       MAIN AREA     */
+/* ------------------- */
+main {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.box-container {
+  display: flex;
+  width: 100%;
+  height: calc(100vh - 56px);
+  /* margin-top: 56px; */
+  justify-content: flex-start;
+  transition: all 0.5s ease;
+}
+
+/* ------------------- */
+/*       INFO BOX      */
+/* ------------------- */
+.info-box {
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  height: 100%;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: var(--info-font-size);
+  font-weight: var(--info-font-weight);
+  cursor: pointer;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--foreground);
+  text-transform: none;
+  letter-spacing: 0.2px;
+  transition:
+    transform 0.5s ease,
+    flex 0.5s ease;
+}
+
+/* Hover effekter for å skalere ned */
+.info-box:hover {
+  transform: scale(1.15); /* skalerer hele boksen litt ned */
+  flex: 2; /* gir mer plass til den hoverede boksen */
+}
+
+.info-box:last-child {
+  border-right: none;
+}
+
+/* Image */
+.info-box img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  filter: blur(0);
+  transition:
+    filter 0.3s ease,
+    transform 0.5s ease;
+}
+
+/* Image blur på hover */
+.info-box:hover img {
+  filter: blur(4px);
+  transform: scale(1.05); /* skalerer bildet litt opp inni boksen */
+}
+
+/* Overlay */
+.info-box::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--box-overlay) 100%
+  );
+  z-index: 1;
+  pointer-events: none;
+  transition: background 0.3s;
+}
+
+.info-box:hover::before {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--box-hover-overlay) 100%
+  );
+}
+
+/* Overlay tekst */
+.info-box .overlay-text {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  color: white;
+  font-size: 24px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: 2;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+/* Label styling */
+.info-box span {
+  position: relative;
+  z-index: 2;
+  margin-top: 8px;
+  font-size: var(--info-label-size);
+  font-weight: var(--info-font-weight);
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* Ikke hoverede bokser */
+.box-container .info-box:not(:hover) {
+  flex: 0.5;
+}
+
+/* ------------------- */
+/*    RESPONSIVE       */
+/* ------------------- */
+@media (max-width: 900px) {
+  :root {
+    --info-font-size: 18px;
+    --info-label-size: 20px;
+  }
+  .box-container {
+    flex-direction: column;
+    height: auto;
+    margin-top: 56px;
+  }
+  .info-box {
+    height: 40vh;
+    min-height: 160px;
+  }
+}
+
+/* ------------------- */
+/*    DARK MODE        */
+/* ------------------- */
+@media (prefers-color-scheme: dark) {
+  .info-box {
+    background: rgba(255, 255, 255, 0.03);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--foreground);
+  }
+  .info-box:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .info-box span {
+    text-shadow: none;
+  }
+}
+
+.root {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 50px;
+}
+.box {
+  margin: 10px;
+  background-color: white;
+  display: flex;
+  flex-flow: column nowrap;
+  justify-content: center;
+  align-items: center;
+  width: 80vw;
+  height: 80vh;
+}
+.knapp {
+  margin-left: 50px;
+  border: none;
+  width: 100px;
+  height: 40px;
+}
+.w-search {
+  margin-left: 100px;
+  border: none;
+  width: 150px;
+  height: 40px;
+}
+

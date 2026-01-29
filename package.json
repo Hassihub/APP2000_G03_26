@@ -1,0 +1,33 @@
+{
+  "name": "appfrittfram",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4",
+    "leaflet-draw": "^1.0.4",
+    "next": "^16.1.6",
+    "ol": "^10.7.0",
+    "pg": "^8.17.2",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-leaflet": "^5.0.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "autoprefixer": "^10.4.23",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.5",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18"
+  }
+}

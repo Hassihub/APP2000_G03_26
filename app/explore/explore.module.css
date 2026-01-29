@@ -1,0 +1,160 @@
+/* Hovedcontainer */
+.container {
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: sans-serif;
+  color: #111827;
+}
+
+/* Header */
+.header {
+  margin-bottom: 24px;
+}
+
+.heading {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.subheading {
+  color: #555;
+  font-size: 1.1rem;
+}
+
+/* Filters */
+.filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.search {
+  flex: 1;
+  padding: 12px;
+  font-size: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+}
+
+.select {
+  padding: 12px;
+  font-size: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+/* Kart-seksjon (placeholder) */
+.mapSection {
+  margin-bottom: 32px;
+}
+
+.map {
+  height: 350px;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #555;
+  font-weight: 500;
+}
+
+/* Resultater */
+.results h2 {
+  margin-bottom: 16px;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* Grid for kortene */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* Kortene */
+.card {
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+
+/* Bilde/placeholder for kort */
+.imagePlaceholder {
+  height: 160px;
+  background: linear-gradient(135deg, #c7d2fe, #a7f3d0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: #fff;
+  font-weight: 500;
+}
+
+/* Innhold i kort */
+.cardContent {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.cardContent h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.location {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+/* Meta-informasjon (distance/difficulty/beds) */
+.meta {
+  display: flex;
+  justify-content: space-between;
+  margin: 12px 0;
+  font-size: 0.9rem;
+  color: #444;
+}
+
+/* Button */
+.button {
+  padding: 10px;
+  border: none;
+  background: #065f46;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+  margin-top: auto;
+}
+
+.button:hover {
+  background: #047857;
+}
+
+/* Ekstra styling for CABINS om ønskelig */
+.cabinBeds {
+  font-size: 0.9rem;
+  color: #444;
+}
