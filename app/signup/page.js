@@ -2,18 +2,42 @@
 import { useState } from "react";
 import Link from "next/link";
 
-export default function Profile() {
+export default function SignUp() {
   const [formData, setFormData] = useState({
     username: "",
+    email: "",
     password: "",
+    confirmPassword: "",
   });
 
   const handleChange = (e) =>
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert("Login er ikke koblet til backend ennå");
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passordene matcher ikke!");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Bruker ${data.user.username} registrert!`);
+        setFormData({ username: "", email: "", password: "", confirmPassword: "" });
+      } else {
+        alert(data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Noe gikk galt!");
+    }
   };
 
   return (
@@ -48,7 +72,7 @@ export default function Profile() {
         width: "350px",
         boxShadow: "0 8px 20px rgba(0,0,0,0.4)"
       }}>
-        <h1 style={{ marginBottom: "2rem" }}>Logg inn</h1>
+        <h1 style={{ marginBottom: "2rem" }}>Registrer deg</h1>
 
         <form onSubmit={handleSubmit} style={{
           display: "flex",
@@ -70,7 +94,21 @@ export default function Profile() {
               color: "white",
             }}
           />
-
+          <input
+            type="email"
+            name="email"
+            placeholder="E-post"
+            value={formData.email}
+            onChange={handleChange}
+            style={{
+              padding: "0.75rem",
+              borderRadius: "8px",
+              border: "none",
+              fontSize: "16px",
+              backgroundColor: "rgba(255,255,255,0.1)",
+              color: "white",
+            }}
+          />
           <input
             type="password"
             name="password"
@@ -86,7 +124,21 @@ export default function Profile() {
               color: "white",
             }}
           />
-
+          <input
+            type="password"
+            name="confirmPassword"
+            placeholder="Bekreft passord"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            style={{
+              padding: "0.75rem",
+              borderRadius: "8px",
+              border: "none",
+              fontSize: "16px",
+              backgroundColor: "rgba(255,255,255,0.1)",
+              color: "white",
+            }}
+          />
           <button type="submit" style={{
             padding: "0.75rem",
             borderRadius: "8px",
@@ -96,19 +148,11 @@ export default function Profile() {
             fontWeight: "600",
             cursor: "pointer",
             transition: "background 0.2s ease"
-          }}>
-            Logg inn
-          </button>
+          }}>Registrer</button>
         </form>
 
         <p style={{ marginTop: "1.5rem" }}>
-          Har du ikke konto?{" "}
-          <Link
-            href="/signup"
-            style={{ color: "#ffffffcc", fontWeight: "600", textDecoration: "underline" }}
-          >
-            Registrer deg
-          </Link>
+          Har du allerede konto? <Link href="/profile" style={{ color: "#ffffffcc", fontWeight: "600", textDecoration: "underline" }}>Logg inn</Link>
         </p>
       </div>
     </main>
