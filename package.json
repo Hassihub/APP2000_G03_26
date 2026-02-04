@@ -7,16 +7,23 @@
     "npm": "10.x"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
     "lint": "eslint"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "connect-pg-simple": "^9.0.0",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
     "next": "^16.1.6",
     "ol": "^10.7.0",
+    "passport": "^0.7.0",
+    "passport-local": "^1.0.0",
     "pg": "^8.17.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",

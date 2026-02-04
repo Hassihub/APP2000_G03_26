@@ -99,7 +99,10 @@ appNext.prepare().then(() => {
       store: new PgSession({
         pool,
         tableName: "session",
-        createTableIfMissing: true,
+        // CockroachDB does not support the default Postgres DDL used by
+        // connect-pg-simple (because of DEFERRABLE). We create the table
+        // manually in SQL instead, so auto-create must be disabled.
+        createTableIfMissing: false,
       }),
       secret: process.env.SESSION_SECRET || "dev-secret-change-me",
       resave: false,
