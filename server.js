@@ -107,8 +107,11 @@ appNext.prepare().then(() => {
       secret: process.env.SESSION_SECRET || "dev-secret-change-me",
       resave: false,
       saveUninitialized: false,
+      // Rolling session: extend expiry on each request
+      rolling: true,
       cookie: {
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        // 30 minutes inactivity timeout
+        maxAge: 30 * 60 * 1000,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
       },
