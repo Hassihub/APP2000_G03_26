@@ -1,52 +1,80 @@
 "use client";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
 export default function Home() {
+  const [checkedAuth, setCheckedAuth] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) setIsLoggedIn(true);
+        }
+      } catch {
+        // ignore, show buttons as logged out
+      } finally {
+        setCheckedAuth(true);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
   return (
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
       <main style={{ padding: 0 }}>
-        <section
-          style={{
-            padding: "1.5rem 1rem 0.5rem",
-            textAlign: "center",
-          }}
-        >
-          <p style={{ marginBottom: "0.75rem", fontWeight: 500 }}>
-            Har du konto? Logg inn eller registrer deg for å bruke profilen din.
-          </p>
-          <div
+        {checkedAuth && !isLoggedIn && (
+          <section
             style={{
-              display: "flex",
-              justifyContent: "center",
-              gap: "0.75rem",
+              padding: "1.5rem 1rem 0.5rem",
+              textAlign: "center",
             }}
           >
-            <Link
-              href="/login"
+            <p style={{ marginBottom: "0.75rem", fontWeight: 500 }}>
+              Har du konto? Logg inn eller registrer deg for å bruke profilen
+              din.
+            </p>
+            <div
               style={{
-                padding: "0.5rem 1.2rem",
-                background: "#333",
-                color: "white",
-                borderRadius: "4px",
+                display: "flex",
+                justifyContent: "center",
+                gap: "0.75rem",
               }}
             >
-              Logg inn
-            </Link>
-            <Link
-              href="/signup"
-              style={{
-                padding: "0.5rem 1.2rem",
-                background: "white",
-                color: "#333",
-                borderRadius: "4px",
-                border: "1px solid #333",
-              }}
-            >
-              Registrer deg
-            </Link>
-          </div>
-        </section>
+              <Link
+                href="/login"
+                style={{
+                  padding: "0.5rem 1.2rem",
+                  background: "#333",
+                  color: "white",
+                  borderRadius: "4px",
+                }}
+              >
+                Logg inn
+              </Link>
+              <Link
+                href="/signup"
+                style={{
+                  padding: "0.5rem 1.2rem",
+                  background: "white",
+                  color: "#333",
+                  borderRadius: "4px",
+                  border: "1px solid #333",
+                }}
+              >
+                Registrer deg
+              </Link>
+            </div>
+          </section>
+        )}
 
         <div className="box-container">
           <Link href="/explore" className="info-box">
