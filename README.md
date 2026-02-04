@@ -2,23 +2,23 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+First, create a `.env.local` file in the project root with at least:
 
 ```bash
+DATABASE_URL="postgres://..."   # din Cockroach/Postgres-URL
+SESSION_SECRET="en-lang-hemmelig-nokkel"
+```
+
+Then install dependencies and run the development server:
+
+```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Du kan logge inn på `/profile` og opprette ny bruker på `/signup`. Brukere lagres i tabellen `users` med feltene `id`, `username`, `email`, `password` (bcrypt-hash), `created_at` og `avatar`.
 
 ## Learn More
 
