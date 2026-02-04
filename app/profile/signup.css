@@ -1,0 +1,63 @@
+.profile-page {
+  position: relative;
+  min-height: 100vh;
+  padding: 2rem;
+  background-image: url("/images/profilbakgrunn.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+}
+
+.profile-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 0;
+}
+
+.profile-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  width: 300px;
+}
+
+.login-form input {
+  padding: 0.75rem;
+  border-radius: 5px;
+  border: none;
+  font-size: 16px;
+}
+
+.login-form input:focus {
+  outline: 2px solid #ffffffcc;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.login-form button {
+  padding: 0.75rem;
+  border-radius: 5px;
+  border: none;
+  background-color: #ffffffcc;
+  color: #171717;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.login-form button:hover {
+  background-color: #ffffff;
+}
