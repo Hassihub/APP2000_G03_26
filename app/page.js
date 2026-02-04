@@ -5,6 +5,9 @@ import Link from "next/link";
 export default function Home() {
   return (
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
+
+
+
       <main style={{ padding: 0 }}>
         <div className="box-container">
           <Link href="/explore" className="info-box">
@@ -80,6 +83,18 @@ export default function Home() {
               }}
             />
             <span>Sosial</span>
+          </Link>
+
+          {/* Ny boks for Registrer / Sign Up */}
+          <Link href="/signup" className="info-box">
+            <Image
+              src="/images/Register.jpg" // legg til et passende bilde
+              alt="Registrer"
+              fill
+              sizes="(max-width:600px) 100vw, (max-width:1200px) 50vw, 20vw"
+              style={{ objectFit: "cover", objectPosition: "center", pointerEvents: "none" }}
+            />
+            <span>Registrer</span>
           </Link>
         </div>
 
