@@ -106,6 +106,33 @@ export default function Profile() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("Er du sikker på at du vil slette profilen din?")) {
+      return;
+    }
+
+    setError("");
+
+    try {
+      const res = await fetch("/api/auth/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Kunne ikke slette profil");
+        return;
+      }
+
+      router.push("/");
+    } catch (err) {
+      setError("Kunne ikke slette profil");
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ padding: "2rem" }}>
@@ -207,6 +234,20 @@ export default function Profile() {
           style={{ padding: "0.5rem 1rem", cursor: "pointer" }}
         >
           Logg ut
+        </button>
+        <button
+          type="button"
+          onClick={handleDeleteAccount}
+          style={{
+            padding: "0.5rem 1rem",
+            cursor: "pointer",
+            marginLeft: "1rem",
+            backgroundColor: "#b00020",
+            color: "white",
+            border: "none",
+          }}
+        >
+          Slett profil
         </button>
       </section>
     </div>

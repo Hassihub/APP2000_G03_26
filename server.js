@@ -294,6 +294,30 @@ appNext.prepare().then(() => {
     }
   });
 
+  // Delete account
+  app.post("/api/auth/delete-account", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Ikke logget inn" });
+    }
+
+    try {
+      await pool.query("DELETE FROM users WHERE id = $1", [req.user.id]);
+
+      req.logout((err) => {
+        if (err) {
+          return res.status(500).json({ error: "Kunne ikke logge ut" });
+        }
+        req.session.destroy(() => {
+          res.clearCookie("connect.sid");
+          return res.json({ ok: true });
+        });
+      });
+    } catch (err) {
+      console.error("/api/auth/delete-account error", err);
+      return res.status(500).json({ error: "Noe gikk galt" });
+    }
+  });
+
   // Let Next.js handle everything else
   app.all("*", (req, res) => handle(req, res));
 
