@@ -2,7 +2,8 @@
   display: flex;
   justify-content: center;
   padding: 40px 16px;
-  padding-top: 80px; /* 👈 ekstra luft under header */
+  padding-top: 80px; /* luft under header */
+  padding-bottom: 120px; /* 👈 viktig: hindrer footer overlap */
 }
 
 .container {
@@ -24,6 +25,7 @@
   display: grid;
   grid-template-columns: 360px 1fr;
   gap: 16px;
+  align-items: start;
 }
 
 .listCard {
@@ -54,6 +56,7 @@
   padding: 12px;
   cursor: pointer;
   transition: 0.15s ease;
+  user-select: none;
 }
 
 .listItem:hover {
@@ -120,10 +123,20 @@
   line-height: 1.6;
 }
 
+/* Actions */
 .actions {
   margin-top: 14px;
 }
 
+/* To knapper i rad (rediger / slett) */
+.actionsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* Knapper */
 .button {
   width: 100%;
   padding: 12px;
@@ -133,10 +146,39 @@
   color: white;
   font-weight: 700;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .button:hover {
   filter: brightness(0.95);
+}
+
+.buttonSecondary {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e6e6ef;
+  background: #f8fafc;
+  color: #111827;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none; /* 👈 gjør Link lik button */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.buttonSecondary:hover {
+  filter: brightness(0.98);
+}
+
+.button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .empty {
@@ -144,13 +186,26 @@
   color: #6b7280;
 }
 
-@media (max-width: 900px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
+/* Meldingsbokser */
+.errorBox {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #9f1239;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 700;
 }
 
-/* ---------- Forms (brukes av booking) ---------- */
+.successBox {
+  background: #e8fff0;
+  border: 1px solid #b7f5c8;
+  color: #14532d;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+/* ---------- Forms (brukes av booking / rediger / ny) ---------- */
 
 .form {
   display: grid;
@@ -210,52 +265,11 @@
   color: #6b7280;
 }
 
-/* Meldingsbokser */
-.errorBox {
-  background: #fff1f2;
-  border: 1px solid #fecdd3;
-  color: #9f1239;
-  padding: 12px 14px;
-  border-radius: 12px;
-  font-weight: 700;
-}
-
-.successBox {
-  background: #e8fff0;
-  border: 1px solid #b7f5c8;
-  color: #14532d;
-  padding: 12px 14px;
-  border-radius: 12px;
-  font-weight: 700;
-}
-
-/* Knapper i en rad */
-.actionsRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 8px;
-}
-
-.buttonSecondary {
-  width: 100%;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid #e6e6ef;
-  background: #f8fafc;
-  color: #111827;
-  font-weight: 700;
-  cursor: pointer;
-  text-align: center;
-}
-
-.buttonSecondary:hover {
-  filter: brightness(0.98);
-}
-
-.button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+/* Responsive */
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 520px) {
