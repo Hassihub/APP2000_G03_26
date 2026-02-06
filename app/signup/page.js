@@ -22,7 +22,7 @@ export default function SignupPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.user) {
-            router.replace("/profile");
+            router.replace("/");
           }
         }
       } catch {
@@ -54,7 +54,7 @@ export default function SignupPage() {
         return;
       }
 
-      router.push("/profile");
+      router.push("/");
     } catch (err) {
       setError("Noe gikk galt");
       setLoading(false);
