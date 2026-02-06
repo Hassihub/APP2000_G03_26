@@ -33,11 +33,6 @@ body {
   overflow-x: hidden;
 }
 
-html {
-  height: 100%;
-  /* Always reserve vertical scrollbar space to avoid layout shift */
-  overflow-y: scroll;
-}
 
 body {
   color: var(--foreground);
