@@ -31,7 +31,7 @@ export default function Home() {
   return (
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
       <main style={{ padding: 0 }}>
-          <div className="box-container">
+        <div className="box-container">
           <Link href="/explore" className="info-box">
             <Image
               src="/images/Explore.jpg"
@@ -45,6 +45,7 @@ export default function Home() {
               }}
             />
             <span>Utforsk</span>
+            <p>Utforsk diverse turer og hytter.</p>
           </Link>
 
           <Link href="/reserver" className="info-box">
