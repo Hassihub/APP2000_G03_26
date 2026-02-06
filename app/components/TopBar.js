@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function TopBar() {
   const [user, setUser] = useState(null);
   const [checkedAuth, setCheckedAuth] = useState(false);
 
-  useEffect(() => { 
+  const pathname = usePathname();
+
+  useEffect(() => {
     const checkAuth = async () => {
       try {
         const res = await fetch("/api/auth/me", {
@@ -19,17 +22,23 @@ export default function TopBar() {
           const data = await res.json();
           if (data.user) {
             setUser(data.user);
+          } else {
+            setUser(null);
           }
+        } else if (res.status === 401) {
+          // Not logged in
+          setUser(null);
         }
       } catch {
         // ignore errors, treat as not logged in
+        setUser(null);
       } finally {
         setCheckedAuth(true);
       }
     };
 
     checkAuth();
-  }, []);
+  }, [pathname]);
 
   const username = user?.username || user?.email;
 
