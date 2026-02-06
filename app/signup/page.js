@@ -120,24 +120,6 @@ export default function SignupPage() {
           {loading ? "Oppretter konto..." : "Opprett konto"}
         </button>
       </form>
-
-      <p style={{ marginTop: "1rem" }}>
-        Har du allerede konto? {" "}
-        <button
-          type="button"
-          onClick={() => router.push("/login")}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            color: "blue",
-            textDecoration: "underline",
-            cursor: "pointer",
-          }}
-        >
-          Logg inn
-        </button>
-      </p>
     </div>
   );
 }

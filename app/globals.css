@@ -33,12 +33,19 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  height: 100%;
+  /* Always reserve vertical scrollbar space to avoid layout shift */
+  overflow-y: scroll;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: var(--ui-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
 * {
@@ -60,37 +67,45 @@ a {
   top: 0;
   left: 0;
   width: 100%;
-  height: 56px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(6px);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
-  padding: 0 16px;
+  padding: 0;
   z-index: 1000;
 }
 
-/* Tekst øverst til venstre i topbar */
-.topbar-left-text {
-  position: absolute;
-  left: 16px; /* litt margin fra venstre kant */
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--foreground);
-  z-index: 1001;
-}
-
-/* Dark mode for teksten */
-@media (prefers-color-scheme: dark) {
-  .topbar-left-text {
-    color: var(--foreground);
-  }
+.topbar-warning {
+  width: 100%;
+  padding: 0px;
+  text-align: center;
+  font-size: 20px;
+  background: #ff0000;
+  color: #000000;
 }
 
 .topbar-nav {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0;
+  padding: 0 16px;
+  height: 56px;
+}
+
+.topbar-links {
+  display: flex;
   gap: 24px;
+  align-items: center;
+}
+
+.topbar-auth {
+  display: flex;
+  gap: 16px;
   align-items: center;
 }
 
@@ -262,20 +277,6 @@ main {
   );
 }
 
-/* Overlay tekst */
-.info-box .overlay-text {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  color: white;
-  font-size: 24px;
-  font-weight: 600;
-  opacity: 0;
-  transition: opacity 0.5s ease;
-  z-index: 2;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-}
-
 /* Label styling */
 .info-box span {
   position: relative;
@@ -326,34 +327,5 @@ main {
   .info-box span {
     text-shadow: none;
   }
-}
-
-.root {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 50px;
-}
-.box {
-  margin: 10px;
-  background-color: white;
-  display: flex;
-  flex-flow: column nowrap;
-  justify-content: center;
-  align-items: center;
-  width: 80vw;
-  height: 80vh;
-}
-.knapp {
-  margin-left: 50px;
-  border: none;
-  width: 100px;
-  height: 40px;
-}
-.w-search {
-  margin-left: 100px;
-  border: none;
-  width: 150px;
-  height: 40px;
 }
 

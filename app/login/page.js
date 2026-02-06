@@ -105,24 +105,6 @@ export default function LoginPage() {
           {loading ? "Logger inn..." : "Logg inn"}
         </button>
       </form>
-
-      <p style={{ marginTop: "1rem" }}>
-        Har du ikke konto? {" "}
-        <button
-          type="button"
-          onClick={() => router.push("/signup")}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            color: "blue",
-            textDecoration: "underline",
-            cursor: "pointer",
-          }}
-        >
-          Registrer deg
-        </button>
-      </p>
     </div>
   );
 }
