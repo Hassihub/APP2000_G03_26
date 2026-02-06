@@ -61,6 +61,7 @@ export default function Home() {
               }}
             />
             <span>Reserver</span>
+            <p>Reserver hytter over helle Utopia.</p>
           </Link>
 
           <Link href="/map" className="info-box">
@@ -76,6 +77,7 @@ export default function Home() {
               }}
             />
             <span>Kart</span>
+            <p>Utforsk Utopia sinne stier og hytter via vårt kart!</p>
           </Link>
 
           <Link href="/vaer" className="info-box">
@@ -91,6 +93,7 @@ export default function Home() {
               }}
             />
             <span>Vær</span>
+            <p>Sjekk ut været der du vil reise.</p>
           </Link>
 
           <Link href="/sosial" className="info-box">
@@ -106,6 +109,11 @@ export default function Home() {
               }}
             />
             <span>Sosial</span>
+            <p>
+              Snakk med dinne venner og grupper.
+              <br />
+              Planlegg turer med dine nære.
+            </p>
           </Link>
         </div>
       </main>

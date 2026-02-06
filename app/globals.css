@@ -225,7 +225,7 @@ main {
 /* Hover effekter for å skalere ned */
 .info-box:hover {
   transform: scale(1.15); /* skalerer hele boksen litt ned */
-  flex: 2; /* gir mer plass til den hoverede boksen */
+  flex: 1.35; /* gir mer plass til den hoverede boksen */
 }
 
 .info-box:last-child {
