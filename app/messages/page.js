@@ -59,9 +59,11 @@ export default function MessagesPage() {
     loadUsers();
   }, []);
 
-  const loadConversation = async (otherUserId) => {
+  const loadConversation = async (otherUserId, { silent } = {}) => {
     if (!otherUserId) return;
-    setLoadingMessages(true);
+    if (!silent) {
+      setLoadingMessages(true);
+    }
     setError("");
     try {
       const res = await fetch(`/api/messages/${otherUserId}`, {
@@ -81,7 +83,9 @@ export default function MessagesPage() {
     } catch {
       setError("Kunne ikke hente meldinger");
     } finally {
-      setLoadingMessages(false);
+      if (!silent) {
+        setLoadingMessages(false);
+      }
     }
   };
 
@@ -93,6 +97,17 @@ export default function MessagesPage() {
       loadConversation(otherId);
     }
   };
+
+  // Poll for new messages every 3 seconds when a conversation is selected
+  useEffect(() => {
+    if (!selectedUserId) return undefined;
+
+    const intervalId = setInterval(() => {
+      loadConversation(selectedUserId, { silent: true });
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [selectedUserId]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
