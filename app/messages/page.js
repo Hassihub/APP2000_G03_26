@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function MessagesPage() {
@@ -13,6 +13,7 @@ export default function MessagesPage() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState("");
+  const messagesEndRef = useRef(null);
 
   // Load logged-in user
   useEffect(() => {
@@ -104,7 +105,7 @@ export default function MessagesPage() {
 
     const intervalId = setInterval(() => {
       loadConversation(selectedUserId, { silent: true });
-    }, 3000);
+    }, 2000);
 
     return () => clearInterval(intervalId);
   }, [selectedUserId]);
@@ -135,6 +136,12 @@ export default function MessagesPage() {
       setError("Kunne ikke sende melding");
     }
   };
+
+  // Scroll to bottom whenever messages change
+  useEffect(() => {
+    if (!messagesEndRef.current) return;
+    messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   if (!currentUser) {
     return (
@@ -224,6 +231,7 @@ export default function MessagesPage() {
                 );
               })
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           <form onSubmit={handleSendMessage} style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
