@@ -53,6 +53,9 @@ export default function TopBar() {
           <Link className="topbar-item" href="/search">
             Search
           </Link>
+          <Link className="topbar-item" href="/messages">
+            Messages
+          </Link>
           <Link className="topbar-item" href="/settings">
             Settings
           </Link>

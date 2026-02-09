@@ -318,6 +318,94 @@ appNext.prepare().then(() => {
     }
   });
 
+  // Create a new one-to-one message
+  app.post("/api/messages", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Ikke logget inn" });
+    }
+
+    const { receiverId, content } = req.body || {};
+
+    if (!receiverId || !content || !content.trim()) {
+      return res
+        .status(400)
+        .json({ error: "Mottaker og meldingstekst er påkrevd" });
+    }
+
+    try {
+      const insertResult = await pool.query(
+        "INSERT INTO messages (senderid, receiverid, text) VALUES ($1, $2, $3) RETURNING *",
+        [req.user.id, receiverId, content.trim()]
+      );
+
+      const row = insertResult.rows[0];
+      const message = {
+        id: row.id,
+        sender_id: row.senderid,
+        receiver_id: row.receiverid,
+        content: row.text,
+        created_at: row.createdat,
+        read_at: row.readat,
+      };
+
+      return res.status(201).json({ message });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("/api/messages POST error", err);
+      return res.status(500).json({ error: "Kunne ikke sende melding" });
+    }
+  });
+
+  // Get all messages in a one-to-one conversation
+  app.get("/api/messages/:otherUserId", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Ikke logget inn" });
+    }
+
+    const { otherUserId } = req.params;
+
+    if (!otherUserId) {
+      return res.status(400).json({ error: "Mangler mottaker-id" });
+    }
+
+    try {
+      const result = await pool.query(
+        `SELECT m.id,
+                m.senderid,
+                m.receiverid,
+                m.text,
+                m.createdat,
+                m.readat,
+                su.username AS sender_username,
+                ru.username AS receiver_username
+         FROM messages m
+         JOIN users su ON su.id = m.senderid
+         JOIN users ru ON ru.id = m.receiverid
+         WHERE (m.senderid = $1 AND m.receiverid = $2)
+            OR (m.senderid = $2 AND m.receiverid = $1)
+         ORDER BY m.createdat ASC`,
+        [req.user.id, otherUserId]
+      );
+
+      const messages = result.rows.map((row) => ({
+        id: row.id,
+        sender_id: row.senderid,
+        receiver_id: row.receiverid,
+        content: row.text,
+        created_at: row.createdat,
+        read_at: row.readat,
+        sender_username: row.sender_username,
+        receiver_username: row.receiver_username,
+      }));
+
+      return res.json({ messages });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("/api/messages GET error", err);
+      return res.status(500).json({ error: "Kunne ikke hente meldinger" });
+    }
+  });
+
   // Let Next.js handle everything else
   app.all("*", (req, res) => handle(req, res));
 
