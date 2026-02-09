@@ -8,7 +8,20 @@ export default function MapComponent() {
   const [placing, setPlacing] = useState(false);
   const placingRef = useRef(false);
   const drawCleanupRef = useRef(null);
+  const geojsonCleanupRef = useRef(null);
   const [currentRoute, setCurrentRoute] = useState({ points: [], geometry: null });
+  const [routeToggles, setRouteToggles] = useState({
+    annenrute: false,
+    skiløype: false,
+    sykkelrute: false,
+    ruteinfopunkt: false,
+  });
+  const routeTogglesRef = useRef({
+    annenrute: false,
+    skiløype: false,
+    sykkelrute: false,
+    ruteinfopunkt: false,
+  });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -32,9 +45,10 @@ export default function MapComponent() {
     const L = Leaflet;
 
     const map = L.map("map", {
-      center: [65, 13],
+      center: [63.2, 15],
       zoom: 5,
       minZoom: 4,
+      preferCanvas: true, // bedre ytelse for mange vektorobjekter
     });
     mapRef.current = map;
 
@@ -55,8 +69,14 @@ export default function MapComponent() {
       );
     });
 
+    const getRouteToggles = () => routeTogglesRef.current;
+    import("./geojsonRoutesLayer").then(({ enableGeojsonRoutes }) => {
+      geojsonCleanupRef.current = enableGeojsonRoutes(map, L, getRouteToggles);
+    });
+
     return () => {
       if (drawCleanupRef.current) drawCleanupRef.current();
+      if (geojsonCleanupRef.current) geojsonCleanupRef.current();
       map.remove();
       mapRef.current = null;
     };
@@ -65,6 +85,10 @@ export default function MapComponent() {
   useEffect(() => {
     placingRef.current = placing;
   }, [placing]);
+
+  useEffect(() => {
+    routeTogglesRef.current = routeToggles;
+  }, [routeToggles]);
 
   // 🔹 Funksjon som sender ruten til verifisering
   const submitRoute = async () => {
@@ -126,6 +150,62 @@ export default function MapComponent() {
         <button onClick={() => setPlacing(!placing)}>
           {placing ? "Avslutt plassering" : "Plasser punkt"}
         </button>
+
+        <div style={{ marginTop: 10 }}>
+          <strong>GeoJSON-lag (zoom inn for å se)</strong>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <input
+              type="checkbox"
+              checked={routeToggles.annenrute}
+              onChange={(e) =>
+                setRouteToggles((prev) => ({
+                  ...prev,
+                  annenrute: e.target.checked,
+                }))
+              }
+            />
+            <span>Annen rute</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <input
+              type="checkbox"
+              checked={routeToggles.skiløype}
+              onChange={(e) =>
+                setRouteToggles((prev) => ({
+                  ...prev,
+                  skiløype: e.target.checked,
+                }))
+              }
+            />
+            <span>Skiløype</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <input
+              type="checkbox"
+              checked={routeToggles.sykkelrute}
+              onChange={(e) =>
+                setRouteToggles((prev) => ({
+                  ...prev,
+                  sykkelrute: e.target.checked,
+                }))
+              }
+            />
+            <span>Sykkelrute</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <input
+              type="checkbox"
+              checked={routeToggles.ruteinfopunkt}
+              onChange={(e) =>
+                setRouteToggles((prev) => ({
+                  ...prev,
+                  ruteinfopunkt: e.target.checked,
+                }))
+              }
+            />
+            <span>Rute infopunkt</span>
+          </label>
+        </div>
 
         <div style={{ marginTop: 10 }}>
           <input
