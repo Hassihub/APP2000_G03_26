@@ -91,8 +91,14 @@ appNext.prepare().then(() => {
 
   app.set("trust proxy", 1); // needed for secure cookies behind Heroku proxy
 
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  // IMPORTANT: Do NOT parse request bodies globally, because Next.js
+  // App Router API routes (in app/api) expect to read the raw body
+  // themselves via req.json(). If Express.json() consumes the body
+  // first, those handlers will fail with body/stream errors.
+
+  // Instead, apply body parsers only to the Express-handled routes.
+  const jsonParser = express.json();
+  const urlencodedParser = express.urlencoded({ extended: true });
 
   app.use(
     session({
@@ -120,6 +126,10 @@ appNext.prepare().then(() => {
 
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Use body parsers only for our Express auth + messages endpoints
+  app.use("/api/auth", jsonParser, urlencodedParser);
+  app.use("/api/messages", jsonParser, urlencodedParser);
 
   // Register
   app.post("/api/auth/register", async (req, res) => {
