@@ -51,7 +51,10 @@ export async function POST(req) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "DB error" }, { status: 500 });
+    console.error("routes-to-verification DB error:", err);
+    return NextResponse.json(
+      { error: err?.message || "DB error" },
+      { status: 500 }
+    );
   }
 }

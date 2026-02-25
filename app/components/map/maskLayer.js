@@ -1,6 +1,6 @@
 // app/components/map/maskLayer.js
 export async function addMaskLayer(map, L) {
-  const res = await fetch("/norway.geojson");
+  const res = await fetch("/geojson/norway.geojson");
   const norwayGeoJSON = await res.json();
 
   // Ytterring for hele verden

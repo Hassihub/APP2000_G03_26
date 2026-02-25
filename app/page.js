@@ -1,15 +1,40 @@
 "use client";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
 export default function Home() {
+  const [checkedAuth, setCheckedAuth] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) setIsLoggedIn(true);
+        }
+      } catch {
+        // ignore, show buttons as logged out
+      } finally {
+        setCheckedAuth(true);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
   return (
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
 
 
 
       <main style={{ padding: 0 }}>
-        <div className="box-container">
+          <div className="box-container">
           <Link href="/explore" className="info-box">
             <Image
               src="/images/Explore.jpg"
@@ -97,10 +122,6 @@ export default function Home() {
             <span>Registrer</span>
           </Link>
         </div>
-
-        <footer className="footer">
-          Dette er en footer som ligger over bildene
-        </footer>
       </main>
     </div>
   );
