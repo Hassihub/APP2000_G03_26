@@ -18,18 +18,14 @@ export default function SignupPage() {
           method: "GET",
           credentials: "include",
         });
-
         if (res.ok) {
           const data = await res.json();
-          if (data.user) {
-            router.replace("/");
-          }
+          if (data.user) router.replace("/");
         }
       } catch {
-        // ignore, just show signup form
+        // ignore
       }
     };
-
     checkLoggedIn();
   }, [router]);
 
@@ -47,79 +43,114 @@ export default function SignupPage() {
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         setError(data.error || "Kunne ikke opprette konto");
         setLoading(false);
         return;
       }
 
-      router.push("/");
-    } catch (err) {
+      router.push("/login");
+    } catch {
       setError("Noe gikk galt");
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "400px", margin: "0 auto" }}>
-      <h1>Registrer deg</h1>
-      {error && (
-        <p style={{ color: "red", marginTop: "1rem" }}>
-          {error}
-        </p>
-      )}
-      <form onSubmit={handleSubmit} style={{ marginTop: "1rem" }}>
-        <label style={{ display: "block", marginBottom: "0.5rem" }}>
-          Brukernavn
-        </label>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "0.5rem",
-            marginBottom: "0.75rem",
-          }}
-        />
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundImage: "url('/profilbakgrunn.jpg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        position: "relative",
+      }}
+    >
+      {/* Overlay */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundColor: "rgba(0,0,0,0.5)",
+          zIndex: 0,
+        }}
+      ></div>
 
-        <label style={{ display: "block", marginBottom: "0.5rem" }}>
-          E-post
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "0.5rem",
-            marginBottom: "0.75rem",
-          }}
-        />
+      {/* Form */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          backgroundColor: "rgba(0,0,0,0.7)",
+          padding: "2.5rem 2rem",
+          borderRadius: "12px",
+          width: "400px",
+          color: "white",
+          boxShadow: "0 8px 20px rgba(0,0,0,0.4)",
+        }}
+      >
+        <h1 style={{ marginBottom: "1.5rem" }}>Registrer deg</h1>
 
-        <label style={{ display: "block", marginBottom: "0.5rem" }}>
-          Passord (minst 8 tegn)
-        </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "0.5rem",
-            marginBottom: "0.75rem",
-          }}
-        />
+        {error && <p style={{ color: "red", marginBottom: "1rem" }}>{error}</p>}
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ padding: "0.5rem 1rem", cursor: "pointer" }}
-        >
-          {loading ? "Oppretter konto..." : "Opprett konto"}
-        </button>
-      </form>
-    </div>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Brukernavn"
+            style={{
+              padding: "0.75rem",
+              borderRadius: "8px",
+              border: "none",
+              fontSize: "16px",
+            }}
+          />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="E-post"
+            style={{
+              padding: "0.75rem",
+              borderRadius: "8px",
+              border: "none",
+              fontSize: "16px",
+            }}
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Passord (minst 8 tegn)"
+            style={{
+              padding: "0.75rem",
+              borderRadius: "8px",
+              border: "none",
+              fontSize: "16px",
+            }}
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              padding: "0.75rem",
+              borderRadius: "8px",
+              border: "none",
+              fontWeight: "600",
+              cursor: "pointer",
+              backgroundColor: "#ffffffcc",
+              color: "#171717",
+              transition: "background 0.2s ease",
+            }}
+          >
+            {loading ? "Oppretter konto..." : "Opprett konto"}
+          </button>
+        </form>
+      </div>
+    </main>
   );
 }
