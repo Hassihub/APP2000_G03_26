@@ -23,12 +23,12 @@ const handle = appNext.getRequestHandler();
 
 const port = process.env.PORT || 3000;
 
+const isProd = process.env.NODE_ENV === "production";
+
 // Create a separate pool for the Express server
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: true,
-  },
+  ssl: isProd ? { rejectUnauthorized: false } : false,
 });
 
 function sanitizeUser(row) {
