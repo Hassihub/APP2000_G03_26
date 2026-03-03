@@ -5,9 +5,10 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import {
   FiChevronDown,
-  FiMap,
   FiSun,
-  FiDroplet,
+  FiGlobe,
+  FiMap,
+  FiUsers,
   FiHome,
 } from "react-icons/fi";
 
@@ -55,7 +56,6 @@ export default function Home() {
   const [language, setLanguage] = useState("no");
   const [theme, setTheme] = useState("light");
 
-  /* HENT LAGREDE INNSTILLINGER */
   useEffect(() => {
     const savedLang = localStorage.getItem("language");
     const savedTheme = localStorage.getItem("theme");
@@ -64,7 +64,6 @@ export default function Home() {
     if (savedTheme) setTheme(savedTheme);
   }, []);
 
-  /* OPPDATER BODY THEME */
   useEffect(() => {
     document.body.style.backgroundColor =
       theme === "dark" ? "#121212" : "#ffffff";
@@ -166,10 +165,11 @@ export default function Home() {
               marginBottom: "2.5rem",
             }}
           >
-            <Category icon={<FiMap size={42} />} label="Fjelltur" link="/explore" />
-            <Category icon={<FiSun size={42} />} label="Skitur" link="/explore" />
-            <Category icon={<FiDroplet size={42} />} label="Padletur" link="/explore" />
-            <Category icon={<FiHome size={42} />} label="Hytte" link="/reserver" />
+            <Category icon={<FiSun size={42} />} label="Vær" link="/vaer" />
+            <Category icon={<FiGlobe size={42} />} label="Utforsk" link="/explore" />
+            <Category icon={<FiMap size={42} />} label="Kart" link="/map" />
+            <Category icon={<FiUsers size={42} />} label="Sosial" link="/social" />
+            <Category icon={<FiHome size={42} />} label="Reserver" link="/reserver" />
           </div>
 
           {/* SØK */}
@@ -280,7 +280,7 @@ export default function Home() {
             </h2>
 
             <Image
-              src="/images/Galdhøpiggen.jpg"
+              src="/images/Galdhopiggen.jpg"
               alt="Kart"
               width={600}
               height={450}
