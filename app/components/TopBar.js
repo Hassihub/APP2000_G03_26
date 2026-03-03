@@ -2,9 +2,16 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { FiSearch, FiSettings, FiLogIn, FiHome, FiMenu } from "react-icons/fi";
+import { useRouter } from "next/navigation";
+import {
+  FiSearch,
+  FiSettings,
+  FiHome,
+  FiMenu,
+  FiChevronLeft,
+  FiUser,
+} from "react-icons/fi";
 
-// Oversettelser
 const translations = {
   no: {
     search: "Søk",
@@ -14,6 +21,7 @@ const translations = {
     weather: "Vær",
     social: "Sosial",
     navigate: "Naviger",
+    home: "Hjem",
   },
   en: {
     search: "Search",
@@ -23,6 +31,7 @@ const translations = {
     weather: "Weather",
     social: "Social",
     navigate: "Navigate",
+    home: "Home",
   },
   fr: {
     search: "Recherche",
@@ -32,6 +41,7 @@ const translations = {
     weather: "Météo",
     social: "Social",
     navigate: "Naviguer",
+    home: "Accueil",
   },
   es: {
     search: "Buscar",
@@ -41,6 +51,7 @@ const translations = {
     weather: "Clima",
     social: "Social",
     navigate: "Navegar",
+    home: "Inicio",
   },
   it: {
     search: "Cerca",
@@ -50,15 +61,18 @@ const translations = {
     weather: "Meteo",
     social: "Social",
     navigate: "Naviga",
+    home: "Home",
   },
 };
 
-// Flagg for språk
 const flags = { no: "🇳🇴", en: "🇬🇧", fr: "🇫🇷", es: "🇪🇸", it: "🇮🇹" };
 
 export default function TopBar() {
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState("no");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const router = useRouter();
 
   const pages = [
     { nameKey: "explore", href: "/explore" },
@@ -70,21 +84,28 @@ export default function TopBar() {
 
   const languages = ["no", "en", "fr", "es", "it"];
 
-  // Hent lagret språk ved load
   useEffect(() => {
     const savedLang = localStorage.getItem("language");
     if (savedLang) setLanguage(savedLang);
   }, []);
 
-  // Lagre språk i localStorage når det endres
   useEffect(() => {
     localStorage.setItem("language", language);
   }, [language]);
+
+  const handleSearch = () => {
+    if (searchQuery.trim() !== "") {
+      router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+      setSearchQuery("");
+    }
+  };
 
   return (
     <header
       style={{
         width: "100%",
+        maxWidth: "100vw",
+        overflowX: "hidden",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
@@ -94,117 +115,187 @@ export default function TopBar() {
         position: "sticky",
         top: 0,
         zIndex: 1000,
+        boxSizing: "border-box",
       }}
     >
-      {/* Venstre: tom for å gi plass til midten */}
-      <div style={{ width: "24px" }} />
-
-      {/* Midten: Hjem-ikon */}
-      <div style={{ display: "flex", justifyContent: "center", flex: 1 }}>
-        <Link href="/">
-          <FiHome size={28} title="Hjem" style={{ cursor: "pointer" }} />
+      {/* Venstre: Hjem + søkefelt */}
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <Link href="/" style={{ display: "flex", alignItems: "center" }}>
+          <FiHome size={28} style={{ cursor: "pointer" }} />
         </Link>
+
+        <div style={{ position: "relative" }}>
+          <input
+            type="text"
+            value={searchQuery}
+            placeholder={translations[language].search}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch();
+            }}
+            style={{
+              padding: "0.5rem 2.5rem 0.5rem 1rem",
+              borderRadius: "6px",
+              border: "1px solid #ccc",
+              fontSize: "1rem",
+              outline: "none",
+              width: "220px",
+            }}
+          />
+
+          <FiSearch
+            size={18}
+            onClick={handleSearch}
+            style={{
+              position: "absolute",
+              right: "10px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              cursor: "pointer",
+              color: "#555",
+            }}
+          />
+        </div>
       </div>
 
       {/* Høyre: Hamburger + ikoner */}
-      <div style={{ display: "flex", alignItems: "center", gap: "1rem", position: "relative" }}>
-        {/* Hamburger-meny */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "1rem",
+          position: "relative",
+        }}
+      >
+        {/* Hamburger */}
         <div style={{ position: "relative" }}>
           <FiMenu
             size={28}
-            title="Meny"
             style={{ cursor: "pointer" }}
             onClick={() => setOpen(!open)}
           />
 
           {open && (
-            <div
-              onMouseLeave={() => setOpen(false)}
-              style={{
-                position: "fixed",
-                top: 0,
-                right: 0,
-                bottom: 0,
-                width: "300px",
-                backgroundColor: "#fff",
-                borderLeft: "1px solid #ddd",
-                boxShadow: "-5px 0 15px rgba(0,0,0,0.2)",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                zIndex: 2000,
-                overflowY: "auto",
-              }}
-            >
-              {/* Øverst: Naviger */}
-              <div style={{ padding: "2rem 2rem 1rem 2rem" }}>
-                <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#333" }}>
-                  {translations[language].navigate}
-                </h2>
-              </div>
+            <>
+              <div
+                onClick={() => setOpen(false)}
+                style={{
+                  position: "fixed",
+                  top: 0,
+                  left: 0,
+                  width: "100vw",
+                  height: "100vh",
+                  backgroundColor: "rgba(0,0,0,0.3)",
+                  zIndex: 1500,
+                }}
+              />
 
-              {/* Midt: Menylenker */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "0 2rem" }}>
-                {pages.map((p) => (
-                  <Link
-                    key={p.nameKey}
-                    href={p.href}
-                    style={{
-                      padding: "1rem 0",
-                      textDecoration: "none",
-                      color: "#333",
-                      fontWeight: 600,
-                      transition: "background 0.2s",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0f0")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
-                    onClick={() => setOpen(false)}
-                  >
-                    {translations[language][p.nameKey]}
-                  </Link>
-                ))}
-              </div>
-
-              {/* Nederst: Språkvelger med flagg */}
               <div
                 style={{
+                  position: "fixed",
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  width: "300px",
+                  backgroundColor: "#fff",
+                  borderLeft: "1px solid #ddd",
+                  boxShadow: "-5px 0 15px rgba(0,0,0,0.2)",
                   display: "flex",
-                  justifyContent: "center",
-                  gap: "0.5rem",
-                  padding: "1rem 0",
-                  borderTop: "1px solid #eee",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  zIndex: 2000,
+                  overflowY: "auto",
                 }}
               >
-                {languages.map((lang) => (
-                  <button
-                    key={lang}
-                    style={{
-                      padding: "0.5rem 0.8rem",
-                      borderRadius: "4px",
-                      border: language === lang ? "2px solid #333" : "1px solid #ccc",
-                      background: language === lang ? "#f0f0f0" : "#fff",
-                      cursor: "pointer",
-                      fontSize: "1.2rem",
-                    }}
-                    onClick={() => setLanguage(lang)}
-                  >
-                    {flags[lang]}
-                  </button>
-                ))}
+                <div
+                  style={{
+                    padding: "2rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "1rem",
+                  }}
+                >
+                  <FiChevronLeft
+                    size={28}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setOpen(false)}
+                  />
+                  <h2 style={{ fontSize: "1.5rem", fontWeight: 700 }}>
+                    {translations[language].navigate}
+                  </h2>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.5rem",
+                    padding: "0 2rem",
+                  }}
+                >
+                  {pages.map((p) => (
+                    <Link
+                      key={p.nameKey}
+                      href={p.href}
+                      style={{
+                        padding: "1rem 0",
+                        textDecoration: "none",
+                        color: "#333",
+                        fontWeight: 600,
+                      }}
+                      onClick={() => setOpen(false)}
+                    >
+                      {translations[language][p.nameKey]}
+                    </Link>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    padding: "1rem 0",
+                    borderTop: "1px solid #eee",
+                  }}
+                >
+                  {languages.map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => setLanguage(lang)}
+                      style={{
+                        padding: "0.5rem 0.8rem",
+                        borderRadius: "4px",
+                        border:
+                          language === lang
+                            ? "2px solid #333"
+                            : "1px solid #ccc",
+                        background:
+                          language === lang ? "#f0f0f0" : "#fff",
+                        cursor: "pointer",
+                        fontSize: "1.2rem",
+                      }}
+                    >
+                      {flags[lang]}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
 
-        {/* Ikoner: Søk, Innstillinger, Logg inn */}
-        <Link href="/search" title={translations[language].search}>
+        {/* Ikoner */}
+        <Link href="/profile">
+          <FiUser size={24} />
+        </Link>
+
+        <Link href="/search">
           <FiSearch size={24} />
         </Link>
-        <Link href="/settings" title="Innstillinger">
+
+        <Link href="/settings">
           <FiSettings size={24} />
-        </Link>
-        <Link href="/login" title="Logg inn">
-          <FiLogIn size={24} />
         </Link>
       </div>
     </header>

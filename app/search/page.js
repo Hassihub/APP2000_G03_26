@@ -28,8 +28,17 @@ export default function Search() {
   );
 
   return (
-    <div style={{ minHeight: "100vh", padding: "2rem", fontFamily: "'Inter', sans-serif" }}>
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "1rem" }}>Søk etter tur eller aktivitet</h1>
+    <div
+      style={{
+        minHeight: "100vh",
+        padding: "2rem",
+        fontFamily: "'Inter', sans-serif",
+        backgroundColor: "#f9f9f9",
+      }}
+    >
+      <h1 style={{ fontSize: "2.5rem", marginBottom: "1.5rem", fontWeight: 700, color: "#111" }}>
+        Søk etter tur eller aktivitet
+      </h1>
 
       <input
         type="text"
@@ -41,11 +50,12 @@ export default function Search() {
           maxWidth: "600px",
           padding: "1rem 1.5rem",
           fontSize: "1.1rem",
-          borderRadius: "30px",
-          border: "1px solid #ccc",
-          boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
+          borderRadius: "4px",
+          border: "2px solid #ccc",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
           marginBottom: "2rem",
           outline: "none",
+          backgroundColor: "#fff",
         }}
       />
 
@@ -62,24 +72,28 @@ export default function Search() {
               display: "flex",
               alignItems: "center",
               gap: "1rem",
-              padding: "1rem",
-              borderRadius: "12px",
-              background: "#f0f0f0",
-              color: "#333",
+              padding: "1rem 1.5rem",
+              borderRadius: "4px",
+              background: "#fff",
+              color: "#111",
               textDecoration: "none",
               fontWeight: 600,
-              transition: "transform 0.2s, box-shadow 0.2s",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+              border: "1px solid #e0e0e0",
+              transition: "all 0.2s ease-in-out",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "scale(1.02)";
-              e.currentTarget.style.boxShadow = "0 5px 15px rgba(0,0,0,0.2)";
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.12)";
+              e.currentTarget.style.borderColor = "#b0b0b0";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "scale(1)";
-              e.currentTarget.style.boxShadow = "none";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
+              e.currentTarget.style.borderColor = "#e0e0e0";
             }}
           >
-            <span>{icons[item.type]}</span>
+            <span style={{ display: "flex", alignItems: "center" }}>{icons[item.type]}</span>
             <span>{item.name}</span>
           </Link>
         ))}

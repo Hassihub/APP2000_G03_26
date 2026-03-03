@@ -10,15 +10,21 @@ import {
   FiMap,
   FiUsers,
   FiHome,
+  FiClock,
+  FiTrendingUp,
+  FiMapPin,
+  FiChevronLeft,
+  FiChevronRight,
 } from "react-icons/fi";
 
-/* TRANSLATIONS */
 const translations = {
   no: {
     title: "Fritt Fram",
     searchPlaceholder: "Søk etter tur, sted eller aktivitet...",
     noResults: "Ingen resultater",
     todaysTrip: "Dagens tur",
+    popularRoutes: "Populære turer",
+    cabinSuggestions: "Hytteforslag", // ← Endret her
     start: "Start",
   },
   en: {
@@ -26,28 +32,9 @@ const translations = {
     searchPlaceholder: "Search for trip, place or activity...",
     noResults: "No results",
     todaysTrip: "Today's trip",
+    popularRoutes: "Popular routes",
+    cabinSuggestions: "Cabin suggestions",
     start: "Start",
-  },
-  fr: {
-    title: "Chemin Libre",
-    searchPlaceholder: "Rechercher une randonnée ou activité...",
-    noResults: "Aucun résultat",
-    todaysTrip: "Randonnée du jour",
-    start: "Départ",
-  },
-  es: {
-    title: "Camino Libre",
-    searchPlaceholder: "Buscar ruta o actividad...",
-    noResults: "Sin resultados",
-    todaysTrip: "Ruta del día",
-    start: "Inicio",
-  },
-  it: {
-    title: "Percorso Libero",
-    searchPlaceholder: "Cerca escursione o attività...",
-    noResults: "Nessun risultato",
-    todaysTrip: "Escursione del giorno",
-    start: "Partenza",
   },
 };
 
@@ -55,11 +42,11 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [language, setLanguage] = useState("no");
   const [theme, setTheme] = useState("light");
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     const savedLang = localStorage.getItem("language");
     const savedTheme = localStorage.getItem("theme");
-
     if (savedLang) setLanguage(savedLang);
     if (savedTheme) setTheme(savedTheme);
   }, []);
@@ -68,6 +55,7 @@ export default function Home() {
     document.body.style.backgroundColor =
       theme === "dark" ? "#121212" : "#ffffff";
     document.body.style.color = theme === "dark" ? "#ffffff" : "#000000";
+    document.body.style.overflowX = "hidden";
   }, [theme]);
 
   const t = translations[language];
@@ -75,14 +63,11 @@ export default function Home() {
   const locations = [
     { name: "Foss", link: "/explore" },
     { name: "Fjelltur", link: "/explore" },
-    { name: "Fjellheimen", link: "/explore" },
     { name: "Galdhøpiggen", link: "/explore" },
     { name: "Gaustatoppen", link: "/explore" },
     { name: "Hardangervidda", link: "/explore" },
     { name: "Hytte", link: "/reserver" },
-    { name: "Padletur", link: "/explore" },
     { name: "Preikestolen", link: "/explore" },
-    { name: "Skitur", link: "/explore" },
     { name: "Trolltunga", link: "/explore" },
   ];
 
@@ -92,8 +77,52 @@ export default function Home() {
 
   const scrollToNext = () => {
     const nextSection = document.getElementById("recommended-section");
-    if (nextSection) nextSection.scrollIntoView({ behavior: "smooth" });
+    if (nextSection)
+      nextSection.scrollIntoView({ behavior: "smooth" });
   };
+
+  /* ---------------- SLIDES ---------------- */
+
+  const slides = [
+    {
+      category: t.todaysTrip,
+      title: "Galdhøpiggen",
+      img: "/images/Galdhopiggen.jpg",
+      start: "Juvasshytta",
+      difficulty: "Middels",
+      duration: "5-7 timer",
+      link: "/reserver",
+    },
+    {
+      category: t.popularRoutes,
+      title: "Populære turer",
+      img: "/images/fjell.jpg",
+      start: "Ulike startpunkter",
+      difficulty: "Variert",
+      duration: "3-8 timer",
+      link: "/explore",
+    },
+    {
+      // ✅ DENNE ER SLIDE NR 3
+      category: t.cabinSuggestions,
+      title: "Hytteforslag",
+      img: "/images/hytte.jpg", // ✅ Riktig bilde
+      start: "Flere lokasjoner",
+      difficulty: "Enkel",
+      duration: "Helgetur",
+      link: "/reserver",
+    },
+  ];
+
+  const prevSlide = () =>
+    setCurrentSlide((prev) =>
+      prev === 0 ? slides.length - 1 : prev - 1
+    );
+
+  const nextSlide = () =>
+    setCurrentSlide((prev) =>
+      prev === slides.length - 1 ? 0 : prev + 1
+    );
 
   return (
     <div
@@ -102,10 +131,11 @@ export default function Home() {
         height: "100vh",
         fontFamily: "'Inter', sans-serif",
         overflowY: "scroll",
+        overflowX: "hidden",
         scrollSnapType: "y mandatory",
       }}
     >
-      {/* VIDEO */}
+      {/* HERO VIDEO */}
       <div style={{ position: "relative", height: "100vh" }}>
         <video
           autoPlay
@@ -131,7 +161,6 @@ export default function Home() {
           }}
         />
 
-        {/* HERO */}
         <section
           style={{
             height: "100vh",
@@ -151,30 +180,29 @@ export default function Home() {
               fontSize: "4rem",
               fontWeight: 700,
               marginBottom: "2rem",
-              color: "#fff",
               textShadow: "2px 2px 10px rgba(0,0,0,0.7)",
             }}
           >
             {t.title}
           </h1>
 
-          {/* IKONER HOVEDDEL */}
           <div
             style={{
               display: "flex",
-              gap: "3rem",
-              marginBottom: "2.5rem",
+              gap: "2rem",
+              flexWrap: "wrap",
+              justifyContent: "center",
+              marginBottom: "2rem",
             }}
           >
             <Category icon={<FiSun size={42} />} label="Vær" link="/vaer" />
             <Category icon={<FiGlobe size={42} />} label="Utforsk" link="/explore" />
             <Category icon={<FiMap size={42} />} label="Kart" link="/map" />
-            <Category icon={<FiUsers size={42} />} label="Sosial" link="/social" />
+            <Category icon={<FiUsers size={42} />} label="Sosial" link="/sosial" />
             <Category icon={<FiHome size={42} />} label="Reserver" link="/reserver" />
           </div>
 
-          {/* SØK */}
-          <div style={{ width: "100%", maxWidth: "600px", position: "relative" }}>
+          <div style={{ width: "100%", maxWidth: "600px" }}>
             <input
               type="text"
               placeholder={t.searchPlaceholder}
@@ -183,51 +211,14 @@ export default function Home() {
               style={{
                 width: "100%",
                 padding: "1rem 1.5rem",
-                borderRadius: "0", // harde kanter
                 border: "none",
                 fontSize: "1.1rem",
                 boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
                 outline: "none",
               }}
             />
-
-            {search && (
-              <div
-                style={{
-                  marginTop: "0.8rem",
-                  background: "#0f1f17",
-                  borderRadius: "0", // harde kanter
-                  border: "2px solid #2e5c44",
-                  overflow: "hidden",
-                  textAlign: "left",
-                }}
-              >
-                {filteredResults.length > 0 ? (
-                  filteredResults.map((item, index) => (
-                    <Link
-                      key={index}
-                      href={item.link}
-                      style={{
-                        display: "block",
-                        padding: "1rem",
-                        borderBottom: "1px solid #1e3c2f",
-                        color: "#fff",
-                        textDecoration: "none",
-                      }}
-                    >
-                      {item.name}
-                    </Link>
-                  ))
-                ) : (
-                  <div style={{ padding: "1rem", color: "#aaa" }}>
-                    {t.noResults}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
-          {/* SCROLL PIL */}
           <button
             onClick={scrollToNext}
             style={{
@@ -236,78 +227,137 @@ export default function Home() {
               border: "none",
               color: "#fff",
               cursor: "pointer",
-              animation: "bounce 1.5s infinite",
             }}
           >
             <FiChevronDown size={50} />
           </button>
-
-          <style jsx>{`
-            @keyframes bounce {
-              0%,20%,50%,80%,100% { transform: translateY(0); }
-              40% { transform: translateY(10px); }
-              60% { transform: translateY(5px); }
-            }
-          `}</style>
         </section>
       </div>
 
-      {/* DAGENS TUR */}
+      {/* FULLSCREEN KARUSELL */}
       <section
         id="recommended-section"
         style={{
           height: "100vh",
           scrollSnapAlign: "start",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(to right, #1e3c2f, #16261d)",
-          padding: "4rem",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: "1200px",
-            display: "flex",
-            gap: "4rem",
-            alignItems: "center",
-            color: "#fff",
-          }}
-        >
-          <div style={{ flex: 1 }}>
-            <h2 style={{ marginBottom: "1rem", opacity: 0.8 }}>
-              {t.todaysTrip}
-            </h2>
-
+        {slides.map((slide, idx) => (
+          <div
+            key={idx}
+            style={{
+              position: idx === currentSlide ? "relative" : "absolute",
+              opacity: idx === currentSlide ? 1 : 0,
+              transition: "opacity 0.5s ease-in-out",
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <Image
-              src="/images/Galdhopiggen.jpg"
-              alt="Kart"
-              width={600}
-              height={450}
+              src={slide.img}
+              alt={slide.title}
+              fill
               style={{
-                borderRadius: "0", // harde kanter
-                boxShadow: "0 15px 40px rgba(0,0,0,0.5)",
                 objectFit: "cover",
+                filter: "blur(8px) brightness(0.6)",
               }}
             />
-          </div>
 
-          <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: "3rem", marginBottom: "1rem" }}>
-              Galdhøpiggen
-            </h1>
+            <div
+              style={{
+                width: "90%",
+                maxWidth: "1200px",
+                display: "flex",
+                gap: "2rem",
+                alignItems: "center",
+                color: "#fff",
+                position: "relative",
+                zIndex: 2,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <h2 style={{ opacity: 0.8 }}>{slide.category}</h2>
+                <Image
+                  src={slide.img}
+                  alt={slide.title}
+                  width={600}
+                  height={450}
+                  style={{
+                    boxShadow: "0 15px 40px rgba(0,0,0,0.5)",
+                    objectFit: "cover",
+                    maxWidth: "100%",
+                  }}
+                />
+              </div>
 
-            <p>📍 {t.start}: Juvasshytta</p>
-            <p>⛰️ 2469 moh</p>
+              <div style={{ flex: 1 }}>
+                <h1 style={{ fontSize: "3rem" }}>{slide.title}</h1>
+                <p><FiMapPin /> {slide.start}</p>
+                <p><FiClock /> {slide.duration}</p>
+                <p><FiTrendingUp /> {slide.difficulty}</p>
+
+                <Link
+                  href={slide.link}
+                  style={{
+                    marginTop: "1rem",
+                    padding: "1rem 2rem",
+                    backgroundColor: "#2e5c44",
+                    color: "#fff",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                    display: "inline-block",
+                  }}
+                >
+                  {t.start}
+                </Link>
+              </div>
+            </div>
           </div>
-        </div>
+        ))}
+
+        <button
+          onClick={prevSlide}
+          style={{
+            position: "absolute",
+            left: "1rem",
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "rgba(0,0,0,0.4)",
+            border: "none",
+            padding: "1rem",
+            borderRadius: "50%",
+            cursor: "pointer",
+          }}
+        >
+          <FiChevronLeft size={32} color="#fff" />
+        </button>
+
+        <button
+          onClick={nextSlide}
+          style={{
+            position: "absolute",
+            right: "1rem",
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "rgba(0,0,0,0.4)",
+            border: "none",
+            padding: "1rem",
+            borderRadius: "50%",
+            cursor: "pointer",
+          }}
+        >
+          <FiChevronRight size={32} color="#fff" />
+        </button>
       </section>
     </div>
   );
 }
 
-/* IKON KOMPONENT */
 function Category({ icon, label, link }) {
   return (
     <Link href={link} style={{ textDecoration: "none", color: "#fff" }}>
@@ -317,10 +367,7 @@ function Category({ icon, label, link }) {
           flexDirection: "column",
           alignItems: "center",
           cursor: "pointer",
-          transition: "transform 0.2s",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.15)")}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
       >
         {icon}
         <span style={{ marginTop: "0.5rem", fontWeight: 600 }}>
