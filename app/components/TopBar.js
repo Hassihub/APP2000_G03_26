@@ -16,53 +16,57 @@ export default function TopBar() {
   ];
 
   return (
-    <header style={{
-      width: "100%",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "1rem 2rem",
-      backgroundColor: "#fff",
-      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-      position: "sticky",
-      top: 0,
-      zIndex: 1000,
-    }}>
-      {/* Venstre: Hjem-knapp */}
-      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+    <header
+      style={{
+        width: "100%",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "1rem 2rem",
+        backgroundColor: "#fff",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+        position: "sticky",
+        top: 0,
+        zIndex: 1000,
+      }}
+    >
+      {/* Venstre: Hjem-knapp + slagord */}
+      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
         <Link href="/">
           <FiHome size={24} title="Hjem" />
         </Link>
+        <span style={{ fontWeight: 600, fontSize: "1rem", color: "#333" }}>
+          Ut på tur aldri sur
+        </span>
       </div>
 
-      {/* Høyre: Hamburger + dropdown + andre ikoner */}
-      <div style={{ display: "flex", gap: "1rem", alignItems: "center", position: "relative" }}>
-        
-        {/* Container for hover */}
-        <div 
+      {/* Høyre: Hamburger + dropdown + ikoner */}
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem", position: "relative" }}>
+        {/* Hamburger-meny */}
+        <div
           onMouseEnter={() => setOpen(true)}
           onMouseLeave={() => setOpen(false)}
           style={{ position: "relative" }}
         >
-          {/* Hamburger-ikon */}
           <FiMenu size={24} title="Meny" style={{ cursor: "pointer" }} />
 
-          {/* Dropdown-meny */}
           {open && (
-            <div style={{
-              position: "absolute",
-              top: "110%",
-              right: 0,
-              backgroundColor: "#fff",
-              border: "1px solid #ddd",
-              borderRadius: "8px",
-              boxShadow: "0 5px 15px rgba(0,0,0,0.2)",
-              display: "flex",
-              flexDirection: "column",
-              minWidth: "150px",
-              overflow: "hidden",
-              zIndex: 1000,
-            }}>
+            <div
+              style={{
+                position: "absolute",
+                top: "110%",
+                right: 0,
+                backgroundColor: "#fff",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                boxShadow: "0 5px 15px rgba(0,0,0,0.2)",
+                display: "flex",
+                flexDirection: "column",
+                minWidth: "200px",
+                overflow: "hidden",
+                zIndex: 1000,
+              }}
+            >
               {pages.map((p) => (
                 <Link
                   key={p.name}
@@ -74,8 +78,8 @@ export default function TopBar() {
                     fontWeight: 600,
                     transition: "background 0.2s",
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "#f0f0f0"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0f0")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
                 >
                   {p.name}
                 </Link>
@@ -84,7 +88,7 @@ export default function TopBar() {
           )}
         </div>
 
-        {/* Søk, Innstillinger, Logg inn */}
+        {/* Ikoner: Søk, Innstillinger, Logg inn */}
         <Link href="/search">
           <FiSearch size={24} title="Søk" />
         </Link>
