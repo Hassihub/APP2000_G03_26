@@ -22,6 +22,7 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.3);
   z-index: 0;
+  pointer-events: none;
 }
 
 /* Innhold over overlay */
@@ -90,4 +91,39 @@
   .login-form {
     width: 90%;
   }
+}
+
+/* Nye action-knapper – matcher login-form button */
+.profile-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+/* Arver samme look som .login-form button */
+.profile-actions button {
+  padding: 0.75rem;
+  border-radius: 5px;
+  border: none;
+  background-color: #ffffffcc;
+  color: #171717;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.profile-actions button:hover {
+  background-color: #ffffff;
+}
+
+/* Rød “Slett profil” */
+.profile-actions button.danger {
+  background-color: #b00020;
+  color: white;
+}
+
+.profile-actions button.danger:hover {
+  background-color: #d0002a;
 }

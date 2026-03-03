@@ -16,6 +16,7 @@ export default function TopBar() {
         const res = await fetch("/api/auth/me", {
           method: "GET",
           credentials: "include",
+          cache: "no-store",
         });
 
         if (res.ok) {

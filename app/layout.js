@@ -19,15 +19,25 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="no">
-      <body style={{ margin: 0, padding: 0 }}>
+      <body
+        style={{
+          margin: 0,
+          padding: 0,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+        }}
+>
         <TopBar />
 
-        {children}
+        <main style={{ flex: 1 }}>
+          {children}
+        </main>
 
         <footer className="footer">
           Dette er en footer som ligger over bildene
         </footer>
-      </body>
+        </body>
     </html>
   );
 }

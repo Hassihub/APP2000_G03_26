@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
+import pool from "../../../../lib/db";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-
-const pool = new Pool({
-  connectionString: process.env.COCKROACH_URL,
-  // ssl: { rejectUnauthorized: true }, // slå på hvis dere bruker det ellers
-});
 
 const COOKIE_NAME = "sid";
 const SESSION_DAYS = 7;
