@@ -151,13 +151,14 @@ export default function Home() {
               fontSize: "4rem",
               fontWeight: 700,
               marginBottom: "2rem",
+              color: "#fff",
               textShadow: "2px 2px 10px rgba(0,0,0,0.7)",
             }}
           >
             {t.title}
           </h1>
 
-          {/* IKONER */}
+          {/* IKONER HOVEDDEL */}
           <div
             style={{
               display: "flex",
@@ -182,7 +183,7 @@ export default function Home() {
               style={{
                 width: "100%",
                 padding: "1rem 1.5rem",
-                borderRadius: "40px",
+                borderRadius: "0", // harde kanter
                 border: "none",
                 fontSize: "1.1rem",
                 boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
@@ -195,7 +196,7 @@ export default function Home() {
                 style={{
                   marginTop: "0.8rem",
                   background: "#0f1f17",
-                  borderRadius: "4px",
+                  borderRadius: "0", // harde kanter
                   border: "2px solid #2e5c44",
                   overflow: "hidden",
                   textAlign: "left",
@@ -285,7 +286,7 @@ export default function Home() {
               width={600}
               height={450}
               style={{
-                borderRadius: "20px",
+                borderRadius: "0", // harde kanter
                 boxShadow: "0 15px 40px rgba(0,0,0,0.5)",
                 objectFit: "cover",
               }}
