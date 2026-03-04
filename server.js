@@ -91,8 +91,14 @@ appNext.prepare().then(() => {
 
   app.set("trust proxy", 1); // needed for secure cookies behind Heroku proxy
 
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  // IMPORTANT: Do NOT parse request bodies globally, because Next.js
+  // App Router API routes (in app/api) expect to read the raw body
+  // themselves via req.json(). If Express.json() consumes the body
+  // first, those handlers will fail with body/stream errors.
+
+  // Instead, apply body parsers only to the Express-handled routes.
+  const jsonParser = express.json();
+  const urlencodedParser = express.urlencoded({ extended: true });
 
   app.use(
     session({
@@ -120,6 +126,10 @@ appNext.prepare().then(() => {
 
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Use body parsers only for our Express auth + messages endpoints
+  app.use("/api/auth", jsonParser, urlencodedParser);
+  app.use("/api/messages", jsonParser, urlencodedParser);
 
   // Register
   app.post("/api/auth/register", async (req, res) => {
@@ -315,6 +325,94 @@ appNext.prepare().then(() => {
     } catch (err) {
       console.error("/api/auth/delete-account error", err);
       return res.status(500).json({ error: "Noe gikk galt" });
+    }
+  });
+
+  // Create a new one-to-one message
+  app.post("/api/messages", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Ikke logget inn" });
+    }
+
+    const { receiverId, content } = req.body || {};
+
+    if (!receiverId || !content || !content.trim()) {
+      return res
+        .status(400)
+        .json({ error: "Mottaker og meldingstekst er påkrevd" });
+    }
+
+    try {
+      const insertResult = await pool.query(
+        "INSERT INTO messages (senderid, receiverid, text) VALUES ($1, $2, $3) RETURNING *",
+        [req.user.id, receiverId, content.trim()]
+      );
+
+      const row = insertResult.rows[0];
+      const message = {
+        id: row.id,
+        sender_id: row.senderid,
+        receiver_id: row.receiverid,
+        content: row.text,
+        created_at: row.createdat,
+        read_at: row.readat,
+      };
+
+      return res.status(201).json({ message });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("/api/messages POST error", err);
+      return res.status(500).json({ error: "Kunne ikke sende melding" });
+    }
+  });
+
+  // Get all messages in a one-to-one conversation
+  app.get("/api/messages/:otherUserId", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Ikke logget inn" });
+    }
+
+    const { otherUserId } = req.params;
+
+    if (!otherUserId) {
+      return res.status(400).json({ error: "Mangler mottaker-id" });
+    }
+
+    try {
+      const result = await pool.query(
+        `SELECT m.id,
+                m.senderid,
+                m.receiverid,
+                m.text,
+                m.createdat,
+                m.readat,
+                su.username AS sender_username,
+                ru.username AS receiver_username
+         FROM messages m
+         JOIN users su ON su.id = m.senderid
+         JOIN users ru ON ru.id = m.receiverid
+         WHERE (m.senderid = $1 AND m.receiverid = $2)
+            OR (m.senderid = $2 AND m.receiverid = $1)
+         ORDER BY m.createdat ASC`,
+        [req.user.id, otherUserId]
+      );
+
+      const messages = result.rows.map((row) => ({
+        id: row.id,
+        sender_id: row.senderid,
+        receiver_id: row.receiverid,
+        content: row.text,
+        created_at: row.createdat,
+        read_at: row.readat,
+        sender_username: row.sender_username,
+        receiver_username: row.receiver_username,
+      }));
+
+      return res.json({ messages });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("/api/messages GET error", err);
+      return res.status(500).json({ error: "Kunne ikke hente meldinger" });
     }
   });
 
