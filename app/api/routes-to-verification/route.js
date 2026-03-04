@@ -2,26 +2,27 @@ import { NextResponse } from "next/server";
 import pool from "../../../lib/db";
 
 export async function POST(req) {
+  const body = await req.json();
+
+  const {
+    name,
+    description,
+    activity,
+    difficulty,
+    duration_minutes,
+    geometry,
+    points,
+    created_by
+  } = body;
+
+  if (!name || !activity || difficulty == null || duration_minutes == null || !geometry || !points) {
+    return NextResponse.json({ error: "Manglende påkrevde felt" }, { status: 400 });
+  }
+
+  // 🔹 Sett createdByValue korrekt
+  const createdByValue = created_by && created_by !== "" ? created_by : null;
+
   try {
-    const body = await req.json();
-
-    const {
-      name,
-      description,
-      activity,
-      difficulty,
-      duration_minutes,
-      geometry,
-      points,
-      created_by,
-    } = body;
-
-    if (!name || !activity || difficulty == null || duration_minutes == null || !geometry || !points) {
-      return NextResponse.json({ error: "Manglende påkrevde felt" }, { status: 400 });
-    }
-
-    const createdByValue = created_by && created_by !== "" ? created_by : null;
-
     await pool.query(
       `
       INSERT INTO routes_to_verification (
@@ -44,15 +45,15 @@ export async function POST(req) {
         duration_minutes,
         JSON.stringify(geometry),
         JSON.stringify(points),
-        createdByValue,
+        createdByValue
       ]
     );
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("routes-to-verification error:", err);
+    console.error("routes-to-verification DB error:", err);
     return NextResponse.json(
-      { error: err?.message || "Internal server error" },
+      { error: err?.message || "DB error" },
       { status: 500 }
     );
   }
