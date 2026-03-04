@@ -31,7 +31,7 @@ export default function page() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         postid,
-        userid: "00000000-0000-0000-0000-000000000000"
+        userid: "00000000-0000-0000-0000-000000000000" // MÅ byttes med ordentlig userID
       })
     })
 
@@ -45,7 +45,7 @@ export default function page() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       postid,
-      userid: "00000000-0000-0000-0000-000000000000" //MÅ byttes ut med userid
+      userid: "00000000-0000-0000-0000-000000000000" //Samme her
     })
   })
 
