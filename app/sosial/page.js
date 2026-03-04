@@ -1,79 +1,121 @@
-"use client";
+"use client"
 
-import { useState } from "react";
+import { useEffect, useState } from "react"
+import Image from "next/image"
+import DelKnapp from "./post_buttons/DelKnapp.png"
+import KommentarKnapp from "./post_buttons/KommentarKnapp.png"
+import LikerKnappAv from "./post_buttons/LikerKnappAv.png"
+import LikerKnappPaa from "./post_buttons/LikerKnappPaa.png"
 
-export default function Sosial() {
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      user: "Marius Nordli",
-      avatar: "/images/avatar1.jpg",
-      content: "Så glad for å dele min første opplevelse her! #bærekraft",
-      likes: 12,
-      comments: 3,
-    },
-    {
-      id: 2,
-      user: "Hasnain Malik",
-      avatar: "/images/avatar2.jpg",
-      content: "Helt enig med innlegget over. Vi må tenke grønt 🌱",
-      likes: 8,
-      comments: 2,
-    },
-  ]);
+
+
+export default function page() {
+  const [posts, setPosts] = useState([])
+  const [caption, setCaption] = useState("")
+  const [likedPosts, setLikedPosts] = useState(new Set())
+
+  async function loadPosts() {
+    const res = await fetch("/api/sosial/posts")
+    setPosts(await res.json())
+  }
+
+  useEffect(() => {
+    loadPosts()
+  }, [])
+
+  async function submitPost() {
+    if (!caption.trim()) return
+
+    await fetch("/api/sosial/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        postid,
+        userid: "00000000-0000-0000-0000-000000000000" // MÅ byttes med ordentlig userID
+      })
+    })
+
+    setCaption("")
+    loadPosts()
+  }
+
+  async function toggleLike(postid, liked) {
+  await fetch("/api/sosial/likes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      postid,
+      userid: "00000000-0000-0000-0000-000000000000" //Samme her
+    })
+  })
+
+    setLikedPosts(prev => {
+      const next = new Set(prev)
+      liked ? next.delete(postid) : next.add(postid)
+      return next
+    })
+
+    loadPosts()
+  }
+
+  function sharePost(postid) {
+    const url = `${window.location.origin}/sosial#post-${postid}`
+
+    if (navigator.share) {
+      navigator.share({ url })
+    } else {
+      navigator.clipboard.writeText(url)
+      alert("link copied")
+    }
+  }
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "'Inter', sans-serif", backgroundColor: "#f5f5f5", minHeight: "100vh" }}>
-      <h1 style={{ fontSize: "2rem", fontWeight: 700, marginBottom: "1.5rem" }}>Sosial</h1>
-      <p style={{ fontSize: "1rem", color: "#555", marginBottom: "2rem" }}>
-        Koble deg med andre og del opplevelser her.
-      </p>
+    <div>
+      <h1>sosial</h1>
 
-      {/* Nytt innlegg */}
-      <div style={{
-        display: "flex", flexDirection: "column", marginBottom: "2rem",
-        border: "1px solid #ddd", borderRadius: "0px", padding: "1rem", backgroundColor: "#fff",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
-      }}>
-        <textarea
-          placeholder="Hva tenker du på?" 
-          style={{
-            width: "100%", padding: "0.75rem", fontSize: "1rem", borderRadius: "0px", border: "1px solid #ccc",
-            resize: "none", outline: "none"
-          }}
-          rows={3}
-        />
-        <button style={{
-          alignSelf: "flex-end", marginTop: "0.5rem", padding: "0.5rem 1rem",
-          background: "linear-gradient(135deg, #4ade80, #16a34a)", border: "none", borderRadius: "0px",
-          color: "#fff", fontWeight: 600, cursor: "pointer", transition: "all 0.2s",
-        }}
-        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
-        onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-        >
-          Del
-        </button>
-      </div>
+      <textarea
+        value={caption}
+        onChange={e => setCaption(e.target.value)}
+        placeholder="posts"
+      />
 
-      {/* Liste over innlegg */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-        {posts.map(post => (
-          <div key={post.id} style={{
-            backgroundColor: "#fff", border: "1px solid #ddd", borderRadius: "0px",
-            padding: "1rem", boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
-          }}>
-            <div style={{ display: "flex", alignItems: "center", marginBottom: "0.5rem" }}>
-              <img src={post.avatar} alt={post.user} style={{ width: "40px", height: "40px", borderRadius: "50%", marginRight: "0.75rem" }} />
-              <span style={{ fontWeight: 600 }}>{post.user}</span>
-            </div>
-            <p style={{ marginBottom: "0.75rem" }}>{post.content}</p>
-            <div style={{ display: "flex", gap: "1rem", fontSize: "0.9rem", color: "#555" }}>
-              <span>👍 {post.likes}</span>
-              <span>💬 {post.comments}</span>
+      <button onClick={submitPost}>post</button>
+
+      {posts.map(p => {
+        const liked = likedPosts.has(p.postid)
+
+        return (
+          <div key={p.postid} id={`post-${p.postid}`}>
+            <p>{p.caption}</p>
+            <small>
+              {new Date(p.timestamp).toISOString()}
+            </small>
+            <div>likes: {p.likes}</div>
+
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button onClick={() => console.log("comments")}>
+                <Image src={KommentarKnapp} alt="Kommentar" width={24} height={24} />
+              </button>
+
+
+              {liked ? (
+                <button onClick={() => toggleLike(p.postid, true)}>
+                  <Image src={LikerKnappPaa} alt="Liker Paa" width={24} height={24} />
+                </button>
+              ) : (
+                <button onClick={() => toggleLike(p.postid, false)}>
+                  <Image src={LikerKnappAv} alt="Liker Av" width={24} height={24} />
+                </button>
+              )}
+
+              <button onClick={() => sharePost(p.postid)}>
+                <Image src={DelKnapp} alt="Del" width={24} height={24} />
+              </button>
+
             </div>
           </div>
-        ))}
-      </div>
+        )
+      })}
     </div>
-  );
+  )
 }

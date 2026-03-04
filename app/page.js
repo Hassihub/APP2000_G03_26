@@ -1,129 +1,8 @@
 "use client";
-
-import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
-import {
-  FiChevronDown,
-  FiSun,
-  FiGlobe,
-  FiMap,
-  FiUsers,
-  FiHome,
-  FiClock,
-  FiTrendingUp,
-  FiMapPin,
-  FiChevronLeft,
-  FiChevronRight,
-} from "react-icons/fi";
-
-const translations = {
-  no: {
-    title: "Fritt Fram",
-    searchPlaceholder: "Søk etter tur, sted eller aktivitet...",
-    noResults: "Ingen resultater",
-    todaysTrip: "Dagens tur",
-    popularRoutes: "Populære turer",
-    cabinSuggestions: "Hytteforslag", // ← Endret her
-    start: "Start",
-  },
-  en: {
-    title: "Free Path",
-    searchPlaceholder: "Search for trip, place or activity...",
-    noResults: "No results",
-    todaysTrip: "Today's trip",
-    popularRoutes: "Popular routes",
-    cabinSuggestions: "Cabin suggestions",
-    start: "Start",
-  },
-};
+import Link from "next/link";
 
 export default function Home() {
-  const [search, setSearch] = useState("");
-  const [language, setLanguage] = useState("no");
-  const [theme, setTheme] = useState("light");
-  const [currentSlide, setCurrentSlide] = useState(0);
-
-  useEffect(() => {
-    const savedLang = localStorage.getItem("language");
-    const savedTheme = localStorage.getItem("theme");
-    if (savedLang) setLanguage(savedLang);
-    if (savedTheme) setTheme(savedTheme);
-  }, []);
-
-  useEffect(() => {
-    document.body.style.backgroundColor =
-      theme === "dark" ? "#121212" : "#ffffff";
-    document.body.style.color = theme === "dark" ? "#ffffff" : "#000000";
-    document.body.style.overflowX = "hidden";
-  }, [theme]);
-
-  const t = translations[language];
-
-  const locations = [
-    { name: "Foss", link: "/explore" },
-    { name: "Fjelltur", link: "/explore" },
-    { name: "Galdhøpiggen", link: "/explore" },
-    { name: "Gaustatoppen", link: "/explore" },
-    { name: "Hardangervidda", link: "/explore" },
-    { name: "Hytte", link: "/reserver" },
-    { name: "Preikestolen", link: "/explore" },
-    { name: "Trolltunga", link: "/explore" },
-  ];
-
-  const filteredResults = locations.filter((item) =>
-    item.name.toLowerCase().startsWith(search.toLowerCase())
-  );
-
-  const scrollToNext = () => {
-    const nextSection = document.getElementById("recommended-section");
-    if (nextSection)
-      nextSection.scrollIntoView({ behavior: "smooth" });
-  };
-
-  /* ---------------- SLIDES ---------------- */
-
-  const slides = [
-    {
-      category: t.todaysTrip,
-      title: "Galdhøpiggen",
-      img: "/images/Galdhopiggen.jpg",
-      start: "Juvasshytta",
-      difficulty: "Middels",
-      duration: "5-7 timer",
-      link: "/reserver",
-    },
-    {
-      category: t.popularRoutes,
-      title: "Populære turer",
-      img: "/images/fjell.jpg",
-      start: "Ulike startpunkter",
-      difficulty: "Variert",
-      duration: "3-8 timer",
-      link: "/explore",
-    },
-    {
-      // ✅ DENNE ER SLIDE NR 3
-      category: t.cabinSuggestions,
-      title: "Hytteforslag",
-      img: "/images/hytte.jpg", // ✅ Riktig bilde
-      start: "Flere lokasjoner",
-      difficulty: "Enkel",
-      duration: "Helgetur",
-      link: "/reserver",
-    },
-  ];
-
-  const prevSlide = () =>
-    setCurrentSlide((prev) =>
-      prev === 0 ? slides.length - 1 : prev - 1
-    );
-
-  const nextSlide = () =>
-    setCurrentSlide((prev) =>
-      prev === slides.length - 1 ? 0 : prev + 1
-    );
-
   return (
     <div
       style={{
@@ -209,12 +88,9 @@ export default function Home() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
-                width: "100%",
-                padding: "1rem 1.5rem",
-                border: "none",
-                fontSize: "1.1rem",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
-                outline: "none",
+                objectFit: "cover",
+                objectPosition: "center",
+                pointerEvents: "none",
               }}
             />
           </div>
@@ -355,25 +231,5 @@ export default function Home() {
         </button>
       </section>
     </div>
-  );
-}
-
-function Category({ icon, label, link }) {
-  return (
-    <Link href={link} style={{ textDecoration: "none", color: "#fff" }}>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          cursor: "pointer",
-        }}
-      >
-        {icon}
-        <span style={{ marginTop: "0.5rem", fontWeight: 600 }}>
-          {label}
-        </span>
-      </div>
-    </Link>
   );
 }
