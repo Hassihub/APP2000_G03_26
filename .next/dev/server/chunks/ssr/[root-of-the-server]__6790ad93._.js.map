@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["file:///Users/kody/Documents/Github/APP2000_G03_26/Uten%20navn/app/utforsk/page.js"],"sourcesContent":["export default function Utforsk() {\n  return (\n    <div style={{ padding: \"2rem\" }}>\n      <h1>Utforsk</h1>\n      <p>Her kan du utforske spennende steder og opplevelser.</p>\n    </div>\n  );\n}\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBACE,8OAAC;QAAI,OAAO;YAAE,SAAS;QAAO;;0BAC5B,8OAAC;0BAAG;;;;;;0BACJ,8OAAC;0BAAE;;;;;;;;;;;;AAGT"}}]
+}
