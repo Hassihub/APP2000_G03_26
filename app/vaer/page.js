@@ -29,9 +29,7 @@ export default function VaerPage() {
           placeholder="Søk etter sted"
           style={{ padding: "10px", width: "300px" }}
         />
-        <button type="submit" style={{ padding: "10px", cursor: "pointer" }}>
-          Søk
-        </button>
+        <button type="submit">Søk</button>
       </form>
 
       <div>

@@ -11,7 +11,7 @@ export async function GET(request) {
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5`,
       {
-        headers: {
+        hearders: {
           "User-Agent": "appfrittfram/1.0 (chhjort@proton.me)",
         },
       },
