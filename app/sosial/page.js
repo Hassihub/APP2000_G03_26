@@ -30,9 +30,8 @@ export default function page() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        userid: "00000000-0000-0000-0000-000000000000",
-        tripid: null,
-        caption
+        postid,
+        userid: "00000000-0000-0000-0000-000000000000"
       })
     })
 
@@ -41,14 +40,14 @@ export default function page() {
   }
 
   async function toggleLike(postid, liked) {
-    await fetch("/api/sosial/posts/like", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        postid,
-        delta: liked ? -1 : 1
-      })
+  await fetch("/api/sosial/likes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      postid,
+      userid: "00000000-0000-0000-0000-000000000000"
     })
+  })
 
     setLikedPosts(prev => {
       const next = new Set(prev)
@@ -77,7 +76,7 @@ export default function page() {
       <textarea
         value={caption}
         onChange={e => setCaption(e.target.value)}
-        placeholder="post noe spicy"
+        placeholder="posts"
       />
 
       <button onClick={submitPost}>post</button>
@@ -88,7 +87,9 @@ export default function page() {
         return (
           <div key={p.postid} id={`post-${p.postid}`}>
             <p>{p.caption}</p>
-            <small>{new Date(p.timestamp).toLocaleString()}</small>
+            <small>
+              {new Date(p.timestamp).toISOString()}
+            </small>
             <div>likes: {p.likes}</div>
 
             <div style={{ display: "flex", gap: "8px" }}>
