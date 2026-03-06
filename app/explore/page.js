@@ -32,7 +32,7 @@ export default function ExplorePage() {
         onlyTiu: onlyTiu ? "true" : "false",
       });
 
-      const res = await fetch(`/api/users/trips?${params.toString()}`);
+      const res = await fetch(`/api/trips?${params.toString()}`);
       if (!res.ok) throw new Error("Kunne ikke hente turer");
 
       const data = await res.json();
@@ -71,7 +71,7 @@ export default function ExplorePage() {
         vanskelighetsgrad: newTrip.vanskelighetsgrad,
       };
 
-      const res = await fetch("/api/users/trips", {
+      const res = await fetch("/api/trips", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

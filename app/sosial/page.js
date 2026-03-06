@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-    export default function Sosial() {
-  return (
-    <div style={{ padding: "2rem" }}>
-      <h1>Sosial</h1>
-      <p>Koble deg med andre og del opplevelser her.</p>
-=======
 "use client"
 
 import { useEffect, useState } from "react"
@@ -123,7 +116,6 @@ export default function page() {
           </div>
         )
       })}
->>>>>>> 2f804230de360196562cde543f1cc9a690393c9f
     </div>
   );
 }
