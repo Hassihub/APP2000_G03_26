@@ -1,15 +1,17 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Profile() {
   const router = useRouter();
+  const fileInputRef = useRef(null);
 
-  // Brukerdata
-  const user = {
+  const defaultUser = {
     name: "Marius Nordli",
+    dob: "1999-01-01",
     age: 24,
     phone: "+47 123 45 678",
+    email: "marius@example.com",
     bio: "Friluftsinteressert student som elsker fjellturer og natur.",
     lastTrip: "Gaustatoppen",
     profileImage: "/images/profil.jpg",
@@ -23,159 +25,161 @@ export default function Profile() {
 
   const [activeCategory, setActiveCategory] = useState("account");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [profileImage, setProfileImage] = useState(defaultUser.profileImage);
+  const [isEditing, setIsEditing] = useState(false);
+  const [userData, setUserData] = useState({ ...defaultUser });
+  const [editFields, setEditFields] = useState({ ...defaultUser });
+  const [sidebarOpen, setSidebarOpen] = useState(true); // ny: om menyen er åpen
+
+  // Escape lukker redigeringsmodus
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setIsEditing(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  function handleImageClick() { fileInputRef.current.click(); }
+
+  async function handleFileChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok) setProfileImage(data.filePath);
+      else alert("Opplasting feilet");
+    } catch (err) { console.error(err); alert("Noe gikk galt"); }
+  }
+
+  function handleSaveEdit() {
+    setUserData({ ...editFields });
+    setIsEditing(false);
+  }
 
   async function handleLogout() {
     try {
-      const res = await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-      if (res.ok) {
-        router.push("/login");
-      } else {
-        alert("Kunne ikke logge ut");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Noe gikk galt");
-    }
+      const res = await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      if (res.ok) router.push("/login");
+      else alert("Kunne ikke logge ut");
+    } catch (err) { console.error(err); alert("Noe gikk galt"); }
   }
 
-  // Sidebar styling
   const sidebarItemStyle = (category) => ({
-    padding: "1rem 1.2rem",
-    borderRadius: "10px",
+    padding: "1rem",
     cursor: "pointer",
-    marginBottom: "0.5rem",
+    borderRadius: "8px",
     fontWeight: activeCategory === category ? 600 : 500,
-    background: activeCategory === category ? "#e0e0e0" : "#f7f7f7",
-    border: activeCategory === category ? "2px solid #171717" : "1px solid #ddd",
-    transition: "all 0.2s ease",
+    marginBottom: "10px",
+    transition: "all 0.2s",
+    background: activeCategory === category ? "#e0e0e0" : "#f9f9f9",
   });
 
-  const sidebarStyle = {
-    width: "250px",
-    display: "flex",
-    flexDirection: "column",
-    padding: "2rem 1rem",
-    background: "#ffffff",
-    boxShadow: "2px 0 10px rgba(0,0,0,0.1)",
-    height: "100vh",
-    position: "sticky",
-    top: 0,
-  };
-
-  const contentStyle = {
-    flex: 1,
-    padding: "2rem",
-    background: "#f9f9f9",
-    minHeight: "100vh",
-  };
-
-  const sectionStyle = {
-    background: "#ffffff",
-    padding: "1.5rem",
-    borderRadius: "10px",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
-  };
+  const cardStyle = { background: "#fff", padding: "1.5rem", borderRadius: "12px", marginBottom: "2rem", boxShadow: "0 6px 15px rgba(0,0,0,0.05)" };
 
   return (
-    <main style={{ display: "flex", width: "100%", minHeight: "100vh", fontFamily: "Poppins, Arial, sans-serif" }}>
+    <main style={{ display: "flex", minHeight: "100vh", fontFamily: "Poppins, sans-serif", background: "#f5f5f5" }}>
       
-      {/* VENSTRE SIDEBAR */}
-      <div style={sidebarStyle}>
-        <h2 style={{ marginBottom: "2rem", fontWeight: 700, fontSize: "1.2rem" }}>Kategorier</h2>
-
-        <div style={{ flex: 1 }}>
-          <div style={sidebarItemStyle("account")} onClick={() => setActiveCategory("account")}>Min konto</div>
-          <div style={sidebarItemStyle("transactions")} onClick={() => setActiveCategory("transactions")}>Transaksjoner</div>
-          <div style={sidebarItemStyle("payment")} onClick={() => setActiveCategory("payment")}>Betalingsinformasjon</div>
-          <div style={sidebarItemStyle("trips")} onClick={() => setActiveCategory("trips")}>Mine turer</div>
-          <div style={sidebarItemStyle("settings")} onClick={() => setActiveCategory("settings")}>Innstillinger</div>
+      {/* SIDEBAR */}
+      <aside style={{
+        width: sidebarOpen ? "250px" : "60px",
+        transition: "width 0.3s",
+        padding: "2rem 1rem",
+        borderRight: "1px solid #ddd",
+        background: "#fafafa",
+        position: "relative"
+      }}>
+        {/* HAMBURGER */}
+        <div onClick={() => setSidebarOpen(!sidebarOpen)} style={{ cursor: "pointer", marginBottom:"2rem", fontSize:"22px" }}>
+          ☰
         </div>
 
-        {/* LOGG UT */}
-        <button
-          onClick={() => setShowLogoutModal(true)}
-          style={{
-            width: "100%",
-            padding: "0.8rem",
-            borderRadius: "10px",
-            border: "none",
-            background: "#171717",
-            color: "white",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          Logg ut
-        </button>
-      </div>
-
-      {/* HØYRE HOVEDINNHOLD */}
-      <div style={contentStyle}>
-        {activeCategory === "account" && (
-          <div style={sectionStyle}>
-            <h2>Min konto</h2>
-            <img src={user.profileImage} alt="Profilbilde" style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover", border: "3px solid #eee", marginBottom: "1rem" }} />
-            <p><strong>Navn:</strong> {user.name}</p>
-            <p><strong>Alder:</strong> {user.age}</p>
-            <p><strong>Telefon:</strong> {user.phone}</p>
-            <p><strong>Biografi:</strong> {user.bio}</p>
-            <p><strong>Siste tur:</strong> {user.lastTrip}</p>
-          </div>
+        {sidebarOpen && (
+          <>
+            <h2 style={{ marginBottom: "2rem" }}>Kategorier</h2>
+            {["account","transactions","payment","trips","settings"].map(cat => (
+              <div key={cat} style={sidebarItemStyle(cat)} onClick={() => setActiveCategory(cat)}>
+                {cat==="account" ? "Min konto" : cat==="transactions" ? "Transaksjoner" : cat==="payment" ? "Betaling" : cat==="trips" ? "Turer" : "Innstillinger"}
+              </div>
+            ))}
+            <button onClick={() => setShowLogoutModal(true)} style={{ marginTop:"2rem", width:"100%", padding:"0.8rem", border:"none", borderRadius:"8px", background:"#171717", color:"#fff", cursor:"pointer" }}>Logg ut</button>
+          </>
         )}
+      </aside>
 
-        {activeCategory === "transactions" && (
-          <div style={sectionStyle}>
-            <h2>Transaksjoner</h2>
-            {user.transactions.length === 0 ? <p>Ingen transaksjoner</p> :
-              <ul>
-                {user.transactions.map((tx, i) => (
-                  <li key={i}>{tx.date} - {tx.desc} - {tx.amount}</li>
-                ))}
-              </ul>
-            }
-          </div>
-        )}
+      {/* HOVED */}
+      <section style={{ flex:1, padding:"2rem" }}>
+        
+        {/* ACCOUNT */}
+        {activeCategory==="account" && (
+          <div style={{ display:"grid", gridTemplateColumns:"250px 1fr", gap:"2rem" }}>
+            
+            {/* PROFILBILDE */}
+            <div onClick={handleImageClick} style={{ width:"250px", height:"250px", borderRadius:"50%", overflow:"hidden", cursor:"pointer", position:"relative", border:"3px solid #ddd", background:"#f0f0f0" }}>
+              <img src={profileImage} alt="Profilbilde" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+              <div style={{ position:"absolute", top:"5px", right:"5px", width:"40px", height:"40px", borderRadius:"50%", background:"#171717", color:"#fff", display:"flex", justifyContent:"center", alignItems:"center", fontSize:"20px", cursor:"pointer" }}>📷</div>
+            </div>
 
-        {activeCategory === "payment" && (
-          <div style={sectionStyle}>
-            <h2>Betalingsinformasjon</h2>
-            <p><strong>Kort:</strong> {user.payment.card}</p>
-            <p><strong>Fakturaperiode:</strong> {user.payment.billing}</p>
-          </div>
-        )}
+            {/* DETALJER */}
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <h2>{userData.name}</h2>
+                {!isEditing && <span style={{ cursor:"pointer", fontSize:"20px" }} onClick={() => setIsEditing(true)}>✏️</span>}
+              </div>
 
-        {activeCategory === "trips" && (
-          <div style={sectionStyle}>
-            <h2>Mine turer</h2>
-            <p>Siste tur: {user.lastTrip}</p>
-            <p>Se flere turer i historikken din.</p>
-          </div>
-        )}
-
-        {activeCategory === "settings" && (
-          <div style={sectionStyle}>
-            <h2>Innstillinger</h2>
-            <p><strong>Varslinger:</strong> {user.settings.notifications ? "På" : "Av"}</p>
-            <p><strong>Tema:</strong> {user.settings.theme}</p>
-          </div>
-        )}
-      </div>
-
-      {/* LOGG UT MODAL */}
-      {showLogoutModal && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999 }}>
-          <div style={{ background: "white", padding: "2rem", borderRadius: "12px", width: "300px", textAlign: "center", boxShadow: "0 8px 20px rgba(0,0,0,0.3)" }}>
-            <h2 style={{ marginBottom: "1rem" }}>Er du sikker på at du vil logge ut?</h2>
-            <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-              <button onClick={() => setShowLogoutModal(false)} style={{ padding: "0.5rem 1rem", borderRadius: "8px", border: "1px solid #ccc", background: "#f7f7f7", cursor: "pointer" }}>Avbryt</button>
-              <button onClick={handleLogout} style={{ padding: "0.5rem 1rem", borderRadius: "8px", border: "none", background: "#171717", color: "white", cursor: "pointer" }}>Logg ut</button>
+              {/* REDIGERINGSOVERLAY */}
+              {isEditing ? (
+                <div style={{ background:"#fff", padding:"1rem", borderRadius:"10px", boxShadow:"0 6px 15px rgba(0,0,0,0.1)", marginTop:"1rem" }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem" }}>
+                    <div><label>Navn:</label><input type="text" value={editFields.name} onChange={e=>setEditFields({...editFields,name:e.target.value})} style={{ width:"100%", padding:"5px", borderRadius:"6px", border:"1px solid #ccc" }} /></div>
+                    <div><label>Fødselsdato:</label><input type="date" value={editFields.dob} onChange={e=>setEditFields({...editFields,dob:e.target.value})} style={{ width:"100%", padding:"5px", borderRadius:"6px", border:"1px solid #ccc" }} /></div>
+                    <div><label>Alder:</label><input type="number" value={editFields.age} onChange={e=>setEditFields({...editFields,age:e.target.value})} style={{ width:"100%", padding:"5px", borderRadius:"6px", border:"1px solid #ccc" }} /></div>
+                    <div><label>Telefon:</label><input type="text" value={editFields.phone} onChange={e=>setEditFields({...editFields,phone:e.target.value})} style={{ width:"100%", padding:"5px", borderRadius:"6px", border:"1px solid #ccc" }} /></div>
+                    <div style={{ gridColumn:"1 / -1" }}><label>Email:</label><input type="email" value={editFields.email} onChange={e=>setEditFields({...editFields,email:e.target.value})} style={{ width:"100%", padding:"5px", borderRadius:"6px", border:"1px solid #ccc" }} /></div>
+                    <div style={{ gridColumn:"1 / -1" }}><label>Bio:</label><textarea value={editFields.bio} onChange={e=>setEditFields({...editFields,bio:e.target.value})} rows={3} style={{ width:"100%", padding:"5px", borderRadius:"6px", border:"1px solid #ccc" }} /></div>
+                  </div>
+                  <div style={{ marginTop:"0.5rem", display:"flex", gap:"1rem" }}>
+                    <button onClick={handleSaveEdit} style={{ padding:"0.5rem 1rem", borderRadius:"6px", border:"none", background:"#171717", color:"#fff", cursor:"pointer" }}>Lagre</button>
+                    <button onClick={()=>setIsEditing(false)} style={{ padding:"0.5rem 1rem", borderRadius:"6px", border:"1px solid #ccc", background:"#f7f7f7", cursor:"pointer" }}>Avbryt</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"1rem" }}>
+                    <div style={cardStyle}><strong>Bio</strong><p>{userData.bio}</p></div>
+                    <div style={cardStyle}><strong>Detaljer</strong><p>Alder: {userData.age}</p><p>Telefon: {userData.phone}</p><p>Email: {userData.email}</p></div>
+                  </div>
+                  <div style={{ ...cardStyle, marginTop:"1rem" }}><strong>Siste tur</strong><p>{userData.lastTrip}</p></div>
+                </>
+              )}
             </div>
           </div>
+        )}
+
+        {/* RESTEN AV KATEGORIER */}
+        {activeCategory==="transactions" && <div style={cardStyle}><h2>Transaksjoner</h2><ul>{userData.transactions.map((tx,i)=><li key={i}>{tx.date} - {tx.desc} - {tx.amount}</li>)}</ul></div>}
+        {activeCategory==="payment" && <div style={cardStyle}><h2>Betalingsinformasjon</h2><p>{userData.payment.card}</p><p>{userData.payment.billing}</p></div>}
+        {activeCategory==="trips" && <div style={cardStyle}><h2>Mine turer</h2><p>{userData.lastTrip}</p></div>}
+        {activeCategory==="settings" && <div style={cardStyle}><h2>Innstillinger</h2><p>Varslinger: {userData.settings.notifications ? "På":"Av"}</p><p>Tema: {userData.settings.theme}</p></div>}
+
+      </section>
+
+      <input type="file" accept="image/*" ref={fileInputRef} style={{ display:"none" }} onChange={handleFileChange} />
+
+      {/* LOGOUT MODAL */}
+      {showLogoutModal && <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", display:"flex", justifyContent:"center", alignItems:"center" }}>
+        <div style={{ background:"#fff", padding:"2rem", borderRadius:"8px" }}>
+          <h3>Er du sikker?</h3>
+          <div style={{ display:"flex", gap:"1rem", marginTop:"1rem" }}>
+            <button onClick={()=>setShowLogoutModal(false)}>Avbryt</button>
+            <button onClick={handleLogout}>Logg ut</button>
+          </div>
         </div>
-      )}
+      </div>}
+
     </main>
   );
 }
