@@ -23,7 +23,8 @@ function noStoreJson(body, status) {
 
 export async function GET() {
   try {
-    const sid = cookies().get(COOKIE_NAME)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(COOKIE_NAME)?.value;
     if (!sid) {
       return noStoreJson({ error: "Ikke innlogget" }, 401);
     }

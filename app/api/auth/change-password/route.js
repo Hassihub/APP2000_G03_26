@@ -15,7 +15,8 @@ function noStoreJson(body, status) {
 }
 
 async function getUserIdFromSession() {
-  const sid = cookies().get(COOKIE_NAME)?.value;
+  const cookieStore = await cookies();
+  const sid = cookieStore.get(COOKIE_NAME)?.value;
   if (!sid) return null;
 
   const sessRes = await pool.query(

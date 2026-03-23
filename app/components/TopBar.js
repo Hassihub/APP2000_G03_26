@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { ROLE_ADMIN } from "../../lib/roles";
 
 export default function TopBar() {
   const [user, setUser] = useState(null);
@@ -57,6 +58,11 @@ export default function TopBar() {
           <Link className="topbar-item" href="/settings">
             Settings
           </Link>
+          {user?.role === ROLE_ADMIN ? (
+            <Link className="topbar-item" href="/admin">
+              Admin
+            </Link>
+          ) : null}
         </div>
         <div className="topbar-auth">
           {checkedAuth && user ? (

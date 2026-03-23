@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "../../../../lib/db";
+import { requireAuth, requireRole } from "../../../../lib/auth";
+import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../../lib/roles";
 
 function badRequest(message) {
   return NextResponse.json({ error: message }, { status: 400 });
@@ -33,6 +35,40 @@ export async function PUT(req, { params }) {
   try {
     const { id } = await params;
     if (!id) return badRequest("Mangler id");
+
+    const { user, response } = await requireAuth();
+    if (response) return response;
+
+    const roleError = requireRole(user, [ROLE_UTLEIER, ROLE_ADMIN]);
+    if (roleError) return roleError;
+
+    // Sørg for at utleier kun kan endre egne hytter (hvis det finnes en owner_id-kolonne)
+    let cabinOwnerId = null;
+    try {
+      const cabinRes = await db.query(
+        `SELECT owner_id FROM public.cabins WHERE id = $1 LIMIT 1`,
+        [id]
+      );
+
+      if (cabinRes.rowCount === 0) {
+        return NextResponse.json({ error: "Fant ikke hytta" }, { status: 404 });
+      }
+
+      cabinOwnerId = cabinRes.rows[0]?.owner_id;
+    } catch (err) {
+      // Hvis owner_id-kolonnen ikke finnes, kan vi ikke sjekke eierskap.
+      // La flyte gjennom slik at eksisterende funksjonalitet ikke bryter.
+      if (err?.code !== "42703" && !err?.message?.includes("owner_id")) {
+        throw err;
+      }
+    }
+
+    if (user.role === ROLE_UTLEIER) {
+      // UTLEIER can only edit their own cabins
+      if (!cabinOwnerId || String(cabinOwnerId) !== String(user.id)) {
+        return NextResponse.json({ error: "Ingen tilgang" }, { status: 403 });
+      }
+    }
 
     const body = await req.json();
 
@@ -81,6 +117,40 @@ export async function DELETE(_req, { params }) {
   try {
     const { id } = await params;
     if (!id) return badRequest("Mangler id");
+
+    const { user, response } = await requireAuth();
+    if (response) return response;
+
+    const roleError = requireRole(user, [ROLE_UTLEIER, ROLE_ADMIN]);
+    if (roleError) return roleError;
+
+    // Sørg for at utleier kun kan slette egne hytter (hvis owner_id finnes)
+    let cabinOwnerId = null;
+    try {
+      const cabinRes = await db.query(
+        `SELECT owner_id FROM public.cabins WHERE id = $1 LIMIT 1`,
+        [id]
+      );
+
+      if (cabinRes.rowCount === 0) {
+        return NextResponse.json({ error: "Fant ikke hytta" }, { status: 404 });
+      }
+
+      cabinOwnerId = cabinRes.rows[0]?.owner_id;
+    } catch (err) {
+      // Hvis owner_id-kolonnen ikke finnes, kan vi ikke sjekke eierskap.
+      // Fortsett for å unngå å bryte funksjonalitet.
+      if (err?.code !== "42703" && !err?.message?.includes("owner_id")) {
+        throw err;
+      }
+    }
+
+    if (user.role === ROLE_UTLEIER) {
+      // UTLEIER can only delete their own cabins
+      if (!cabinOwnerId || String(cabinOwnerId) !== String(user.id)) {
+        return NextResponse.json({ error: "Ingen tilgang" }, { status: 403 });
+      }
+    }
 
     const sql = `
       DELETE FROM public.cabins

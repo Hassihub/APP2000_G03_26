@@ -6,7 +6,8 @@ const COOKIE_NAME = "sid";
 
 export async function POST() {
   try {
-    const sid = cookies().get(COOKIE_NAME)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(COOKIE_NAME)?.value;
 
     if (sid) {
       await pool.query(`DELETE FROM public."session" WHERE sid = $1`, [sid]);

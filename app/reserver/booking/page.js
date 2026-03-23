@@ -20,6 +20,8 @@ export default function BookingPage() {
   const [guest_name, setName] = useState("");
   const [guest_email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
+  const [userRole, setUserRole] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -28,6 +30,36 @@ export default function BookingPage() {
   // Hent hytta basert på cabinId (bruker eksisterende GET /api/cabins)
   useEffect(() => {
     let alive = true;
+
+    async function loadUser() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!alive) return;
+
+        if (!res.ok) {
+          setAuthChecked(true);
+          return;
+        }
+
+        const data = await res.json().catch(() => ({}));
+        setAuthChecked(true);
+
+        if (data?.user) {
+          setName(data.user.username || "");
+          setEmail(data.user.email || "");
+          setUserRole(data.user.role);
+        }
+      } catch {
+        if (alive) setAuthChecked(true);
+      }
+    }
+
+    loadUser();
 
     async function loadCabin() {
       try {

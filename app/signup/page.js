@@ -8,6 +8,7 @@ export default function SignupPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("USER");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -43,7 +44,7 @@ export default function SignupPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ username, email, password, role }),
       });
 
       const data = await res.json();
@@ -97,6 +98,32 @@ export default function SignupPage() {
             marginBottom: "0.75rem",
           }}
         />
+
+        <fieldset style={{ marginBottom: "0.75rem" }}>
+          <legend style={{ marginBottom: "0.25rem" }}>Velg rolle</legend>
+          <label style={{ display: "block", marginBottom: "0.25rem" }}>
+            <input
+              type="radio"
+              name="role"
+              value="USER"
+              checked={role === "USER"}
+              onChange={() => setRole("USER")}
+              style={{ marginRight: 4 }}
+            />
+            Bruker
+          </label>
+          <label style={{ display: "block" }}>
+            <input
+              type="radio"
+              name="role"
+              value="UTLEIER"
+              checked={role === "UTLEIER"}
+              onChange={() => setRole("UTLEIER")}
+              style={{ marginRight: 4 }}
+            />
+            Utleier
+          </label>
+        </fieldset>
 
         <label style={{ display: "block", marginBottom: "0.5rem" }}>
           Passord (minst 8 tegn)

@@ -3,10 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import styles from "./Reserver.module.css";
+import { ROLE_UTLEIER, ROLE_ADMIN } from "../../lib/roles";
 
 export default function ReserverPage() {
   const [cabins, setCabins] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+  const [userId, setUserId] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -34,10 +37,53 @@ export default function ReserverPage() {
     fetchCabins();
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+
+    async function loadUser() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!alive) return;
+
+        if (!res.ok) {
+          setUserRole(null);
+          setUserId(null);
+          return;
+        }
+
+        const data = await res.json().catch(() => ({}));
+        setUserRole(data?.user?.role ?? null);
+        setUserId(data?.user?.id ?? null);
+      } catch {
+        if (alive) {
+          setUserRole(null);
+          setUserId(null);
+        }
+      }
+    }
+
+    loadUser();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const selectedCabin = useMemo(
     () => cabins.find((c) => c.id === selectedId) || null,
     [cabins, selectedId]
   );
+
+  const hasManageAccess = useMemo(() => {
+    if (!selectedCabin || !userRole) return false;
+    if (userRole === ROLE_ADMIN) return true;
+    if (userRole === ROLE_UTLEIER) return selectedCabin.owner_id === userId;
+    return false;
+  }, [selectedCabin, userRole, userId]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
@@ -79,11 +125,13 @@ export default function ReserverPage() {
                   </ul>
                 )}
 
-                <div style={{ marginTop: 12 }}>
-                  <Link className={styles.button} href="/reserver/ny">
-                    ➕ Legg til hytte
-                  </Link>
-                </div>
+                {(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN) && (
+                  <div style={{ marginTop: 12 }}>
+                    <Link className={styles.button} href="/reserver/ny">
+                      ➕ Legg til hytte
+                    </Link>
+                  </div>
+                )}
               </div>
 
               {/* HØYRE: DETALJER */}
@@ -115,47 +163,60 @@ export default function ReserverPage() {
                       <div className={styles.actions}>
                         <div className={styles.actionsRow}>
                           <Link
-                            className={styles.buttonSecondary}
-                            href={`/reserver/edit?cabinId=${encodeURIComponent(
+                            className={styles.button}
+                            href={`/reserver/booking?cabinId=${encodeURIComponent(
                               selectedCabin.id
                             )}`}
                           >
-                            ✏️ Rediger
+                            🗓️ Reserver
                           </Link>
-
-                          <button
-                            className={styles.buttonSecondary}
-                            type="button"
-                            onClick={async () => {
-                              const id = selectedCabin.id;
-
-                              if (!confirm(`Slette "${selectedCabin.name}"? Dette kan ikke angres.`))
-                                return;
-
-                              const res = await fetch(`/api/cabins/${id}`, { method: "DELETE" });
-                              const json = await res.json().catch(() => ({}));
-
-                              if (!res.ok) {
-                                alert(json?.error || "Kunne ikke slette hytta.");
-                                return;
-                              }
-
-                              // Fjern + oppdater selectedId basert på NY liste (unngår stale state)
-                              setCabins((prev) => {
-                                const next = prev.filter((c) => c.id !== id);
-
-                                setSelectedId((curr) => {
-                                  if (curr !== id) return curr;
-                                  return next[0]?.id ?? null;
-                                });
-
-                                return next;
-                              });
-                            }}
-                          >
-                            🗑️ Slett
-                          </button>
                         </div>
+
+                        {hasManageAccess && (
+                          <div className={styles.actionsRow}>
+                            <Link
+                              className={styles.buttonSecondary}
+                              href={`/reserver/edit?cabinId=${encodeURIComponent(
+                                selectedCabin.id
+                              )}`}
+                            >
+                              ✏️ Rediger
+                            </Link>
+
+                            <button
+                              className={styles.buttonSecondary}
+                              type="button"
+                              onClick={async () => {
+                                const id = selectedCabin.id;
+
+                                if (!confirm(`Slette "${selectedCabin.name}"? Dette kan ikke angres.`))
+                                  return;
+
+                                const res = await fetch(`/api/cabins/${id}`, { method: "DELETE", credentials: "include" });
+                                const json = await res.json().catch(() => ({}));
+
+                                if (!res.ok) {
+                                  alert(json?.error || "Kunne ikke slette hytta.");
+                                  return;
+                                }
+
+                                // Fjern + oppdater selectedId basert på NY liste (unngår stale state)
+                                setCabins((prev) => {
+                                  const next = prev.filter((c) => c.id !== id);
+
+                                  setSelectedId((curr) => {
+                                    if (curr !== id) return curr;
+                                    return next[0]?.id ?? null;
+                                  });
+
+                                  return next;
+                                });
+                              }}
+                            >
+                              🗑️ Slett
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

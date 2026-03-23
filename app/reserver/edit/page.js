@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styles from "../Reserver.module.css";
+import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
 
 export default function EditCabinPage() {
   const router = useRouter();
@@ -20,6 +21,41 @@ export default function EditCabinPage() {
   });
 
   const [status, setStatus] = useState({ type: "idle", message: "" });
+  const [userRole, setUserRole] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadUser() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        if (!alive) return;
+
+        if (!res.ok) {
+          setUserRole(null);
+          return;
+        }
+
+        const data = await res.json().catch(() => ({}));
+        setUserRole(data?.user?.role ?? null);
+      } catch {
+        if (alive) setUserRole(null);
+      } finally {
+        if (alive) setAuthLoading(false);
+      }
+    }
+
+    loadUser();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -87,6 +123,7 @@ export default function EditCabinPage() {
     const res = await fetch(`/api/cabins/${encodeURIComponent(cabinId)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(payload),
     });
 
@@ -99,6 +136,26 @@ export default function EditCabinPage() {
 
     setStatus({ type: "success", message: "✅ Endringer lagret!" });
     setTimeout(() => router.push("/reserver"), 600);
+  }
+
+  if (authLoading) {
+    return (
+      <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
+        <p>Laster tilgang...</p>
+      </div>
+    );
+  }
+
+  if (!(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN)) {
+    return (
+      <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
+        <h1>Ingen tilgang</h1>
+        <p>Du må være utleier for å redigere hytter.</p>
+        <Link href="/reserver" className={styles.button}>
+          Tilbake til oversikt
+        </Link>
+      </div>
+    );
   }
 
   return (

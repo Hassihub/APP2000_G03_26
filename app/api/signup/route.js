@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Pool } from "pg";
 import bcrypt from "bcryptjs";
+import { isSignupRole, ROLE_USER } from "../../../lib/roles";
 
 const pool = new Pool({
   connectionString: process.env.COCKROACH_URL,
@@ -9,11 +10,12 @@ const pool = new Pool({
 
 export async function POST(req) {
   try {
-    const { username, email, password } = await req.json();
+    const { username, email, password, role } = await req.json();
 
     const cleanUsername = String(username ?? "").trim();
     const cleanEmail = String(email ?? "").trim().toLowerCase();
     const cleanPassword = String(password ?? "");
+    const cleanRole = String(role ?? "").trim().toUpperCase();
 
     if (!cleanUsername || !cleanEmail || !cleanPassword) {
       return NextResponse.json(
@@ -31,8 +33,8 @@ export async function POST(req) {
 
     const hashedPassword = await bcrypt.hash(cleanPassword, 10);
 
-    // SERVER bestemmer rolle
-    const role = "USER";
+    // Sørg for at brukeren ikke kan registrere seg som ADMIN
+    const roleValue = isSignupRole(cleanRole) ? cleanRole : ROLE_USER;
 
     const query = `
       INSERT INTO public.users (username, email, password, role)
@@ -40,7 +42,7 @@ export async function POST(req) {
       RETURNING id, username, email, role, avatar, created_at
     `;
 
-    const values = [cleanUsername, cleanEmail, hashedPassword, role];
+    const values = [cleanUsername, cleanEmail, hashedPassword, roleValue];
 
     const result = await pool.query(query, values);
 

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "../../../lib/db";
+import { requireAuth, requireRole } from "../../../lib/auth";
+import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
 
 function badRequest(message) {
   return NextResponse.json({ error: message }, { status: 400 });
@@ -8,7 +10,7 @@ function badRequest(message) {
 export async function GET() {
   try {
     const sql = `
-      SELECT id, name, description, location, price_per_night, capacity, amenities, created_at
+      SELECT id, name, description, location, price_per_night, capacity, amenities, created_at, owner_id
       FROM public.cabins
       ORDER BY created_at DESC
     `;
@@ -21,6 +23,12 @@ export async function GET() {
 
 export async function POST(req) {
   try {
+    const { user, response } = await requireAuth();
+    if (response) return response;
+
+    const roleError = requireRole(user, [ROLE_UTLEIER, ROLE_ADMIN]);
+    if (roleError) return roleError;
+
     const body = await req.json();
 
     const name = String(body.name ?? "").trim();
@@ -39,15 +47,30 @@ export async function POST(req) {
       ? body.amenities.map((x) => String(x).trim()).filter(Boolean)
       : null; // 👈 kan være NULL i tabellen
 
-    const sql = `
-      INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, name, description, location, price_per_night, capacity, amenities, created_at
+    const insertSqlWithOwner = `
+      INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities, owner_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, name, description, location, price_per_night, capacity, amenities, owner_id, created_at
     `;
-    const values = [name, description, location, price_per_night, capacity, amenities];
+    const valuesWithOwner = [name, description, location, price_per_night, capacity, amenities, user.id];
 
-    const result = await db.query(sql, values);
-    return NextResponse.json({ cabin: result.rows[0] }, { status: 201 });
+    try {
+      const result = await db.query(insertSqlWithOwner, valuesWithOwner);
+      return NextResponse.json({ cabin: result.rows[0] }, { status: 201 });
+    } catch (err) {
+      // Hvis DB ikke har owner_id-kolonne, fall tilbake til gammel insert (bakoverkompatibel)
+      if (err?.code === "42703" || err?.message?.includes("column \"owner_id\"")) {
+        const insertSql = `
+          INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING id, name, description, location, price_per_night, capacity, amenities, created_at
+        `;
+        const values = [name, description, location, price_per_night, capacity, amenities];
+        const result = await db.query(insertSql, values);
+        return NextResponse.json({ cabin: result.rows[0] }, { status: 201 });
+      }
+      throw err;
+    }
   } catch (e) {
     return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
   }
