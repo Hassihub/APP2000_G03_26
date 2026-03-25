@@ -239,12 +239,19 @@
 .textarea,
 .select {
   width: 100%;
+  min-width: 0;
   padding: 11px 12px;
   border-radius: 12px;
   border: 1px solid #e6e6ef;
   background: #fafaff;
   outline: none;
   font-size: 14px;
+}
+
+.input[type="file"] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .textarea {
@@ -263,6 +270,123 @@
 .helper {
   font-size: 12px;
   color: #6b7280;
+  overflow-wrap: anywhere;
+}
+
+.field,
+.form,
+.card,
+.listCard {
+  min-width: 0;
+}
+
+.cabinGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.cabinTile {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e6e6ef;
+  box-shadow: 0 6px 18px rgba(10, 10, 20, 0.06);
+  overflow: hidden;
+}
+
+.cabinLink {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.tileImageWrap {
+  width: 100%;
+  background: #f4f5f9;
+}
+
+.tileImage {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+}
+
+.tileImageFallback {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.tileBody {
+  padding: 12px;
+}
+
+.tileTitle {
+  margin: 0;
+  font-size: 18px;
+}
+
+.tileMeta {
+  margin-top: 6px;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.tileStats {
+  margin-top: 8px;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+  color: #111827;
+}
+
+.imageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+  min-width: 0;
+}
+
+.imageCard {
+  border: 1px solid #e6e6ef;
+  background: #fafaff;
+  border-radius: 12px;
+  padding: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cabinImage {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.imageRemoveButton {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #e6e6ef;
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.imageRemoveButton:hover {
+  background: #f8fafc;
 }
 
 /* Responsive */
@@ -277,6 +401,9 @@
     grid-template-columns: 1fr;
   }
   .actionsRow {
+    grid-template-columns: 1fr;
+  }
+  .cabinGrid {
     grid-template-columns: 1fr;
   }
 }

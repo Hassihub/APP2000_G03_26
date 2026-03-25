@@ -10,7 +10,6 @@ const { Pool } = require("pg");
 // Optional: load .env in development
 try {
   if (process.env.NODE_ENV !== "production") {
-    // eslint-disable-next-line global-require
     require("dotenv").config();
   }
 } catch (e) {
@@ -348,7 +347,6 @@ appNext.prepare().then(() => {
 
   app.listen(port, (err) => {
     if (err) throw err;
-    // eslint-disable-next-line no-console
     console.log(`> Ready on http://localhost:${port}`);
   });
 });

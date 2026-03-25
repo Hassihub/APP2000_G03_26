@@ -1,10 +1,74 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styles from "../Reserver.module.css";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
+
+const STANDARD_IMAGE_WIDTH = 1200;
+const STANDARD_IMAGE_HEIGHT = 900;
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const imageUrl = URL.createObjectURL(file);
+    const img = new window.Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(imageUrl);
+      resolve(img);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(imageUrl);
+      reject(new Error(`Kunne ikke lese bildet: ${file.name}`));
+    };
+
+    img.src = imageUrl;
+  });
+}
+
+async function normalizeImageFile(file, index) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error(`Filen ${file.name} er ikke et bilde.`);
+  }
+
+  const img = await loadImageFromFile(file);
+  const canvas = document.createElement("canvas");
+  canvas.width = STANDARD_IMAGE_WIDTH;
+  canvas.height = STANDARD_IMAGE_HEIGHT;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Kunne ikke klargjore bildebehandling.");
+
+  const scale = Math.max(
+    STANDARD_IMAGE_WIDTH / img.width,
+    STANDARD_IMAGE_HEIGHT / img.height
+  );
+  const drawWidth = img.width * scale;
+  const drawHeight = img.height * scale;
+  const dx = (STANDARD_IMAGE_WIDTH - drawWidth) / 2;
+  const dy = (STANDARD_IMAGE_HEIGHT - drawHeight) / 2;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, STANDARD_IMAGE_WIDTH, STANDARD_IMAGE_HEIGHT);
+  ctx.drawImage(img, dx, dy, drawWidth, drawHeight);
+
+  const blob = await new Promise((resolve) => {
+    canvas.toBlob(resolve, "image/jpeg", 0.9);
+  });
+
+  if (!blob) throw new Error(`Kunne ikke konvertere bildet: ${file.name}`);
+
+  const baseName =
+    file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9-_]/g, "-").toLowerCase() ||
+    "hyttebilde";
+
+  return new File([blob], `${baseName}-${index + 1}.jpg`, {
+    type: "image/jpeg",
+  });
+}
 
 export default function EditCabinPage() {
   const router = useRouter();
@@ -23,6 +87,10 @@ export default function EditCabinPage() {
   const [status, setStatus] = useState({ type: "idle", message: "" });
   const [userRole, setUserRole] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [existingImageUrls, setExistingImageUrls] = useState([]);
+  const [newImageFiles, setNewImageFiles] = useState([]);
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     let alive = true;
@@ -85,6 +153,7 @@ export default function EditCabinPage() {
         capacity: String(c?.capacity ?? ""),
         amenities: Array.isArray(c?.amenities) ? c.amenities.join(", ") : "",
       });
+      setExistingImageUrls(Array.isArray(c?.image_urls) ? c.image_urls : []);
 
       setStatus({ type: "idle", message: "" });
     }
@@ -100,42 +169,111 @@ export default function EditCabinPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  async function handleImageChange(e) {
+    const files = Array.from(e.target.files || []).slice(0, 8);
+    if (!files.length) {
+      setNewImageFiles([]);
+      return;
+    }
+
+    setIsProcessingImages(true);
+    try {
+      const normalizedFiles = await Promise.all(
+        files.map((file, index) => normalizeImageFile(file, index))
+      );
+      setNewImageFiles(normalizedFiles);
+    } catch (err) {
+      setStatus({
+        type: "error",
+        message: err?.message || "Kunne ikke tilpasse bilder.",
+      });
+      setNewImageFiles([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } finally {
+      setIsProcessingImages(false);
+    }
+  }
+
+  function removeExistingImage(imageUrl) {
+    setExistingImageUrls((prev) => prev.filter((url) => url !== imageUrl));
+  }
+
+  async function uploadImages(files) {
+    if (!files.length) return [];
+
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("images", file);
+    }
+
+    const res = await fetch("/api/cabins/upload", {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json?.error || "Kunne ikke laste opp bilder.");
+    }
+
+    return Array.isArray(json?.image_urls) ? json.image_urls : [];
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!cabinId) return;
 
-    setStatus({ type: "loading", message: "Lagrer..." });
-
-    const payload = {
-      name: form.name.trim(),
-      description: form.description.trim() ? form.description.trim() : null,
-      location: form.location.trim(),
-      price_per_night: Number(form.price_per_night),
-      capacity: Number(form.capacity),
-      amenities: form.amenities
-        ? form.amenities
-            .split(",")
-            .map((a) => a.trim())
-            .filter(Boolean)
-        : null,
-    };
-
-    const res = await fetch(`/api/cabins/${encodeURIComponent(cabinId)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
-
-    const json = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      setStatus({ type: "error", message: json?.error || "Kunne ikke lagre endringer." });
+    if (isProcessingImages) {
+      setStatus({
+        type: "error",
+        message: "Venter pa at bildene blir ferdig tilpasset (1200x900).",
+      });
       return;
     }
 
-    setStatus({ type: "success", message: "✅ Endringer lagret!" });
-    setTimeout(() => router.push("/reserver"), 600);
+    setStatus({ type: "loading", message: "Lagrer..." });
+
+    try {
+      const uploadedImageUrls = await uploadImages(newImageFiles);
+      const image_urls = [...existingImageUrls, ...uploadedImageUrls];
+
+      const payload = {
+        name: form.name.trim(),
+        description: form.description.trim() ? form.description.trim() : null,
+        location: form.location.trim(),
+        price_per_night: Number(form.price_per_night),
+        capacity: Number(form.capacity),
+        amenities: form.amenities
+          ? form.amenities
+              .split(",")
+              .map((a) => a.trim())
+              .filter(Boolean)
+          : null,
+        image_urls,
+      };
+
+      const res = await fetch(`/api/cabins/${encodeURIComponent(cabinId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setStatus({ type: "error", message: json?.error || "Kunne ikke lagre endringer." });
+        return;
+      }
+
+      setStatus({ type: "success", message: "✅ Endringer lagret!" });
+      setNewImageFiles([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setTimeout(() => router.push("/reserver"), 600);
+    } catch (err) {
+      setStatus({ type: "error", message: err?.message || "Kunne ikke lagre endringer." });
+    }
   }
 
   if (authLoading) {
@@ -262,7 +400,65 @@ export default function EditCabinPage() {
                         </div>
                       </div>
 
-                      <button className={styles.button} type="submit" disabled={status.type === "loading"}>
+                      <div className={styles.field}>
+                        <label className={styles.label}>Eksisterende bilder</label>
+                        {existingImageUrls.length === 0 ? (
+                          <div className={styles.helper}>Ingen bilder registrert.</div>
+                        ) : (
+                          <div className={styles.imageGrid}>
+                            {existingImageUrls.map((url) => (
+                              <div className={styles.imageCard} key={url}>
+                                <Image
+                                  src={url}
+                                  alt="Hyttebilde"
+                                  className={styles.cabinImage}
+                                  width={640}
+                                  height={480}
+                                />
+                                <button
+                                  type="button"
+                                  className={styles.imageRemoveButton}
+                                  onClick={() => removeExistingImage(url)}
+                                >
+                                  Fjern
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className={styles.field}>
+                        <label className={styles.label}>Legg til nye bilder</label>
+                        <input
+                          ref={fileInputRef}
+                          className={styles.input}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          multiple
+                          onChange={handleImageChange}
+                        />
+                        <div className={styles.helper}>
+                          Maks 8 bilder per opplasting. JPG, PNG eller WEBP.
+                        </div>
+                        <div className={styles.helper}>
+                          Nye bilder tilpasses automatisk til 1200x900 (4:3).
+                        </div>
+                        {isProcessingImages ? (
+                          <div className={styles.helper}>Tilpasser bilder...</div>
+                        ) : null}
+                        {newImageFiles.length > 0 ? (
+                          <div className={styles.helper}>
+                            Nye filer: {newImageFiles.length} bilde{newImageFiles.length > 1 ? "r" : ""}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <button
+                        className={styles.button}
+                        type="submit"
+                        disabled={status.type === "loading" || isProcessingImages}
+                      >
                         {status.type === "loading" ? "Lagrer..." : "Lagre endringer"}
                       </button>
                     </form>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styles from "../Reserver.module.css";
@@ -20,14 +21,12 @@ export default function BookingPage() {
   const [guest_name, setName] = useState("");
   const [guest_email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
-  const [userRole, setUserRole] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
 
-  // Hent hytta basert på cabinId (bruker eksisterende GET /api/cabins)
+  // Hent hytta basert på cabinId
   useEffect(() => {
     let alive = true;
 
@@ -42,20 +41,17 @@ export default function BookingPage() {
         if (!alive) return;
 
         if (!res.ok) {
-          setAuthChecked(true);
           return;
         }
 
         const data = await res.json().catch(() => ({}));
-        setAuthChecked(true);
 
         if (data?.user) {
           setName(data.user.username || "");
           setEmail(data.user.email || "");
-          setUserRole(data.user.role);
         }
       } catch {
-        if (alive) setAuthChecked(true);
+        // Ikke blokkér reservasjonsskjema hvis auth-endepunkt feiler.
       }
     }
 
@@ -66,13 +62,11 @@ export default function BookingPage() {
         setLoadingCabin(true);
         setError("");
 
-        const res = await fetch("/api/cabins");
+        const res = await fetch(`/api/cabins/${encodeURIComponent(cabinId)}`);
         const json = await res.json().catch(() => ({}));
 
-        if (!res.ok) throw new Error(json?.error || "Kunne ikke hente hytter.");
-        const list = Array.isArray(json?.cabins) ? json.cabins : [];
-
-        const found = list.find((c) => String(c.id) === String(cabinId)) ?? null;
+        if (!res.ok) throw new Error(json?.error || "Kunne ikke hente hytteinfo.");
+        const found = json?.cabin ?? null;
 
         if (!alive) return;
         setCabin(found);
@@ -324,6 +318,26 @@ export default function BookingPage() {
                       </div>
                     ) : (
                       <>
+                        {Array.isArray(cabin.image_urls) && cabin.image_urls.length > 0 ? (
+                          <div className={styles.imageGrid}>
+                            {cabin.image_urls.map((url) => (
+                              <div className={styles.imageCard} key={url}>
+                                <Image
+                                  src={url}
+                                  alt={`Bilde av ${cabin.name}`}
+                                  className={styles.cabinImage}
+                                  width={640}
+                                  height={480}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className={styles.helper} style={{ marginBottom: 10 }}>
+                            Ingen bilder registrert for denne hytta ennå.
+                          </div>
+                        )}
+
                         <div className={styles.meta}>
                           <b>{cabin.name}</b>
                           <br />
@@ -333,6 +347,10 @@ export default function BookingPage() {
                           <br />
                           💰 {cabin.price_per_night} kr/natt
                         </div>
+
+                        {cabin.description ? (
+                          <p style={{ marginTop: 10 }}>{cabin.description}</p>
+                        ) : null}
 
                         <div className={styles.meta} style={{ marginTop: 10 }}>
                           🗓️ Netter: <b>{nights}</b>

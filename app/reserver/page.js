@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import styles from "./Reserver.module.css";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../lib/roles";
 
 export default function ReserverPage() {
   const [cabins, setCabins] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [userId, setUserId] = useState(null);
   const [error, setError] = useState(null);
@@ -26,7 +26,6 @@ export default function ReserverPage() {
 
         const list = data.cabins || [];
         setCabins(list);
-        setSelectedId((prev) => prev ?? list[0]?.id ?? null);
       } catch (err) {
         setError(err?.message || "Ukjent feil");
       } finally {
@@ -73,157 +72,117 @@ export default function ReserverPage() {
     };
   }, []);
 
-  const selectedCabin = useMemo(
-    () => cabins.find((c) => c.id === selectedId) || null,
-    [cabins, selectedId]
-  );
-
-  const hasManageAccess = useMemo(() => {
-    if (!selectedCabin || !userRole) return false;
+  function hasManageAccess(cabin) {
+    if (!cabin || !userRole) return false;
     if (userRole === ROLE_ADMIN) return true;
-    if (userRole === ROLE_UTLEIER) return selectedCabin.owner_id === userId;
+    if (userRole === ROLE_UTLEIER) return cabin.owner_id === userId;
     return false;
-  }, [selectedCabin, userRole, userId]);
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
       <main>
         <div className={styles.page}>
           <div className={styles.container}>
-            <div className={styles.notice}>🏡 Hytter</div>
+            <div className={styles.notice}>🏡 Velg hytte</div>
 
             {error ? <div className={styles.errorBox}>❌ {error}</div> : null}
 
-            <div className={styles.layout}>
-              {/* VENSTRE: LISTE */}
-              <div className={styles.listCard}>
-                <h3 className={styles.listTitle}>Alle hytter</h3>
-
-                {loading ? (
-                  <div className={styles.empty}>Laster...</div>
-                ) : cabins.length === 0 ? (
-                  <div className={styles.empty}>Ingen hytter enda.</div>
-                ) : (
-                  <ul className={styles.list}>
-                    {cabins.map((cabin) => (
-                      <li
-                        key={cabin.id}
-                        className={`${styles.listItem} ${
-                          cabin.id === selectedId ? styles.active : ""
-                        }`}
-                        onClick={() => setSelectedId(cabin.id)}
-                      >
-                        <div className={styles.listItemTop}>
-                          <span className={styles.cabinName}>{cabin.name}</span>
-                          <span className={styles.price}>
-                            {Number(cabin.price_per_night)} kr
-                          </span>
-                        </div>
-                        <div className={styles.listItemMeta}>{cabin.location}</div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN) && (
-                  <div style={{ marginTop: 12 }}>
-                    <Link className={styles.button} href="/reserver/ny">
-                      ➕ Legg til hytte
-                    </Link>
-                  </div>
-                )}
+            {(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN) && (
+              <div style={{ marginBottom: 12 }}>
+                <Link className={styles.button} href="/reserver/ny">
+                  ➕ Legg til hytte
+                </Link>
               </div>
+            )}
 
-              {/* HØYRE: DETALJER */}
+            {loading ? (
               <div className={styles.card}>
                 <div className={styles.cardContent}>
-                  {!selectedCabin ? (
-                    <div className={styles.empty}>Velg en hytte fra listen.</div>
-                  ) : (
-                    <div className={styles.info}>
-                      <h2>{selectedCabin.name}</h2>
-
-                      <div className={styles.meta}>
-                        <div>📍 {selectedCabin.location}</div>
-                        <div>👥 {Number(selectedCabin.capacity)} personer</div>
-                        <div>💰 {Number(selectedCabin.price_per_night)} kr / natt</div>
-                      </div>
-
-                      {selectedCabin.description ? (
-                        <p style={{ marginTop: 10 }}>{selectedCabin.description}</p>
-                      ) : null}
-
-                      {Array.isArray(selectedCabin.amenities) &&
-                      selectedCabin.amenities.length > 0 ? (
-                        <p style={{ marginTop: 10 }}>
-                          <strong>Fasiliteter:</strong> {selectedCabin.amenities.join(", ")}
-                        </p>
-                      ) : null}
-
-                      <div className={styles.actions}>
-                        <div className={styles.actionsRow}>
-                          <Link
-                            className={styles.button}
-                            href={`/reserver/booking?cabinId=${encodeURIComponent(
-                              selectedCabin.id
-                            )}`}
-                          >
-                            🗓️ Reserver
-                          </Link>
-                        </div>
-
-                        {hasManageAccess && (
-                          <div className={styles.actionsRow}>
-                            <Link
-                              className={styles.buttonSecondary}
-                              href={`/reserver/edit?cabinId=${encodeURIComponent(
-                                selectedCabin.id
-                              )}`}
-                            >
-                              ✏️ Rediger
-                            </Link>
-
-                            <button
-                              className={styles.buttonSecondary}
-                              type="button"
-                              onClick={async () => {
-                                const id = selectedCabin.id;
-
-                                if (!confirm(`Slette "${selectedCabin.name}"? Dette kan ikke angres.`))
-                                  return;
-
-                                const res = await fetch(`/api/cabins/${id}`, { method: "DELETE", credentials: "include" });
-                                const json = await res.json().catch(() => ({}));
-
-                                if (!res.ok) {
-                                  alert(json?.error || "Kunne ikke slette hytta.");
-                                  return;
-                                }
-
-                                // Fjern + oppdater selectedId basert på NY liste (unngår stale state)
-                                setCabins((prev) => {
-                                  const next = prev.filter((c) => c.id !== id);
-
-                                  setSelectedId((curr) => {
-                                    if (curr !== id) return curr;
-                                    return next[0]?.id ?? null;
-                                  });
-
-                                  return next;
-                                });
-                              }}
-                            >
-                              🗑️ Slett
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <div className={styles.empty}>Laster hytter...</div>
                 </div>
               </div>
-              {/* slutt høyre */}
-            </div>
+            ) : cabins.length === 0 ? (
+              <div className={styles.card}>
+                <div className={styles.cardContent}>
+                  <div className={styles.empty}>Ingen hytter enda.</div>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.cabinGrid}>
+                {cabins.map((cabin) => {
+                  const previewImage = Array.isArray(cabin.image_urls) && cabin.image_urls.length > 0
+                    ? cabin.image_urls[0]
+                    : null;
+
+                  return (
+                    <article key={cabin.id} className={styles.cabinTile}>
+                      <Link
+                        href={`/reserver/booking?cabinId=${encodeURIComponent(cabin.id)}`}
+                        className={styles.cabinLink}
+                      >
+                        <div className={styles.tileImageWrap}>
+                          {previewImage ? (
+                            <Image
+                              src={previewImage}
+                              alt={`Forsidebilde av ${cabin.name}`}
+                              className={styles.tileImage}
+                              width={640}
+                              height={480}
+                            />
+                          ) : (
+                            <div className={styles.tileImageFallback}>Ingen bilde</div>
+                          )}
+                        </div>
+
+                        <div className={styles.tileBody}>
+                          <h3 className={styles.tileTitle}>{cabin.name}</h3>
+                          <div className={styles.tileMeta}>📍 {cabin.location}</div>
+                          <div className={styles.tileStats}>
+                            <span>💰 {Number(cabin.price_per_night)} kr / natt</span>
+                            <span>👥 {Number(cabin.capacity)} personer</span>
+                          </div>
+                        </div>
+                      </Link>
+
+                      {hasManageAccess(cabin) && (
+                        <div className={styles.actionsRow} style={{ padding: "0 12px 12px" }}>
+                          <Link
+                            className={styles.buttonSecondary}
+                            href={`/reserver/edit?cabinId=${encodeURIComponent(cabin.id)}`}
+                          >
+                            ✏️ Rediger
+                          </Link>
+
+                          <button
+                            className={styles.buttonSecondary}
+                            type="button"
+                            onClick={async () => {
+                              if (!confirm(`Slette "${cabin.name}"? Dette kan ikke angres.`)) return;
+
+                              const res = await fetch(`/api/cabins/${cabin.id}`, {
+                                method: "DELETE",
+                                credentials: "include",
+                              });
+                              const json = await res.json().catch(() => ({}));
+
+                              if (!res.ok) {
+                                alert(json?.error || "Kunne ikke slette hytta.");
+                                return;
+                              }
+
+                              setCabins((prev) => prev.filter((c) => c.id !== cabin.id));
+                            }}
+                          >
+                            🗑️ Slett
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </main>
