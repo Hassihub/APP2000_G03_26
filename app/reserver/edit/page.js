@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styles from "../Reserver.module.css";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
@@ -70,7 +70,7 @@ async function normalizeImageFile(file, index) {
   });
 }
 
-export default function EditCabinPage() {
+function EditCabinContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const cabinId = searchParams.get("cabinId");
@@ -470,5 +470,13 @@ export default function EditCabinPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function EditCabinPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: "2rem" }}>Laster redigering...</div>}>
+      <EditCabinContent />
+    </Suspense>
   );
 }
