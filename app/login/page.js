@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,18 +18,12 @@ export default function LoginPage() {
           method: "GET",
           credentials: "include",
         });
-
         if (res.ok) {
           const data = await res.json();
-          if (data.user) {
-            router.replace("/");
-          }
+          if (data.user) router.replace("/");
         }
-      } catch {
-        // ignore, just show login form
-      }
+      } catch {}
     };
-
     checkLoggedIn();
   }, [router]);
 
@@ -46,7 +41,6 @@ export default function LoginPage() {
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         setError(data.error || "Kunne ikke logge inn");
         setLoading(false);
@@ -54,57 +48,70 @@ export default function LoginPage() {
       }
 
       router.push("/");
-    } catch (err) {
+    } catch {
       setError("Noe gikk galt");
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "400px", margin: "0 auto" }}>
-      <h1>Logg inn</h1>
-      {error && (
-        <p style={{ color: "red", marginTop: "1rem" }}>
-          {error}
+    <main style={{
+      minHeight: "100vh",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundImage: "url('/images/profilbakgrunn.jpg')",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      position: "relative",
+      fontFamily: "'Inter', sans-serif",
+    }}>
+      <div style={{ position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 0 }} />
+      
+      <div style={{
+        position: "relative",
+        zIndex: 1,
+        backdropFilter: "blur(12px)",
+        backgroundColor: "rgba(255,255,255,0.1)",
+        borderRadius: "0px", 
+        width: "400px",
+        maxWidth: "90%",
+        color: "#fff",
+        padding: "2.5rem 2rem",
+        boxShadow: "0 8px 30px rgba(0,0,0,0.4)",
+        border: "1px solid rgba(255,255,255,0.2)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1.5rem",
+      }}>
+        <h1 style={{ textAlign: "center", fontSize: "2rem", fontWeight: 700 }}>Logg inn</h1>
+        {error && <p style={{ color: "#ff6b6b", textAlign: "center" }}>{error}</p>}
+
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="E-post" style={{
+            padding: "0.85rem 1rem", borderRadius: "0px", border: "none",
+            fontSize: "16px", outline: "none", backgroundColor: "rgba(255,255,255,0.15)",
+            color: "#fff",
+          }} />
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Passord" style={{
+            padding: "0.85rem 1rem", borderRadius: "0px", border: "none",
+            fontSize: "16px", outline: "none", backgroundColor: "rgba(255,255,255,0.15)",
+            color: "#fff",
+          }} />
+          <button type="submit" disabled={loading} style={{
+            padding: "0.85rem", borderRadius: "0px", border: "none",
+            fontWeight: 600, cursor: "pointer",
+            background: "linear-gradient(135deg, #4ade80, #16a34a)",
+            color: "#fff", fontSize: "16px", boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+          }}>
+            {loading ? "Logger inn..." : "Logg inn"}
+          </button>
+        </form>
+
+        <p style={{ textAlign: "center", color: "rgba(255,255,255,0.7)" }}>
+          Har du ikke konto? <Link href="/signup" style={{ color: "#4ade80", fontWeight: 600 }}>Registrer deg</Link>
         </p>
-      )}
-      <form onSubmit={handleSubmit} style={{ marginTop: "1rem" }}>
-        <label style={{ display: "block", marginBottom: "0.5rem" }}>
-          E-post
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "0.5rem",
-            marginBottom: "0.75rem",
-          }}
-        />
-
-        <label style={{ display: "block", marginBottom: "0.5rem" }}>
-          Passord
-        </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "0.5rem",
-            marginBottom: "0.75rem",
-          }}
-        />
-
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ padding: "0.5rem 1rem", cursor: "pointer" }}
-        >
-          {loading ? "Logger inn..." : "Logg inn"}
-        </button>
-      </form>
-    </div>
+      </div>
+    </main>
   );
 }
