@@ -1,15 +1,31 @@
 import { NextResponse } from "next/server";
 import db from "../../../lib/db"; // default export (Pool)
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const sql = `
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search")?.trim() || "";
+
+    let sql = `
       SELECT id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at
       FROM public.cabins
-      ORDER BY created_at DESC
     `;
 
-    const result = await db.query(sql);
+    const values = [];
+
+    if (search) {
+      sql += `
+        WHERE
+          name ILIKE $1 OR
+          location ILIKE $1 OR
+          COALESCE(description, '') ILIKE $1
+      `;
+      values.push(`%${search}%`);
+    }
+
+    sql += ` ORDER BY created_at DESC`;
+
+    const result = await db.query(sql, values);
     return NextResponse.json({ cabins: result.rows }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });

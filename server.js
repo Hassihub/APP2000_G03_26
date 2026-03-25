@@ -10,12 +10,13 @@ const { Pool } = require("pg");
 // Optional: load .env in development
 try {
   if (process.env.NODE_ENV !== "production") {
-    // eslint-disable-next-line global-require
     require("dotenv").config();
   }
 } catch (e) {
   // ignore if dotenv is not installed
 }
+
+const { getDatabaseConfig } = require("./lib/db-config.cjs");
 
 const dev = process.env.NODE_ENV !== "production";
 const appNext = next({ dev });
@@ -23,18 +24,187 @@ const handle = appNext.getRequestHandler();
 
 const port = process.env.PORT || 3000;
 
-const isProd = process.env.NODE_ENV === "production";
+const pool = new Pool(getDatabaseConfig());
 
-// Create a separate pool for the Express server
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: isProd ? { rejectUnauthorized: false } : false,
-});
+let userColumnsPromise = null;
 
 function sanitizeUser(row) {
   if (!row) return null;
   const { password, ...safe } = row;
   return safe;
+}
+
+function clearSessionCookie(res) {
+  res.clearCookie("connect.sid", {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+}
+
+async function getUserColumns() {
+  if (!userColumnsPromise) {
+    userColumnsPromise = pool
+      .query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'users'`
+      )
+      .then((result) => new Set(result.rows.map((row) => row.column_name)))
+      .catch((error) => {
+        userColumnsPromise = null;
+        throw error;
+      });
+  }
+
+  return userColumnsPromise;
+}
+
+function pickFirstValue(source, keys, fallback = null) {
+  for (const key of keys) {
+    const value = source?.[key];
+    if (value !== undefined && value !== null && value !== "") {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
+function toBoolean(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (value === "true") return true;
+    if (value === "false") return false;
+  }
+  if (typeof value === "number") return value !== 0;
+  return fallback;
+}
+
+function calculateAge(dob) {
+  if (!dob) return "";
+
+  const birthDate = new Date(dob);
+  if (Number.isNaN(birthDate.getTime())) return "";
+
+  const now = new Date();
+  let age = now.getFullYear() - birthDate.getFullYear();
+  const monthDiff = now.getMonth() - birthDate.getMonth();
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && now.getDate() < birthDate.getDate())
+  ) {
+    age -= 1;
+  }
+
+  return age;
+}
+
+async function buildProfilePayload(user) {
+  const fullUser = await findUserById(user.id);
+
+  let latestTrip = null;
+  let transactions = [];
+
+  try {
+    const latestTripResult = await pool.query(
+      `SELECT navn, beskrivelse, bilde_url, vanskelighetsgrad, lengde_km
+       FROM public.trips
+       ORDER BY id DESC
+       LIMIT 1`
+    );
+
+    latestTrip = latestTripResult.rows[0] || null;
+  } catch (error) {
+    console.error("buildProfilePayload latestTrip error", error);
+  }
+
+  try {
+    if (fullUser?.email) {
+      const reservationsResult = await pool.query(
+        `SELECT r.start_date,
+                c.name AS cabin_name,
+                c.price_per_night
+         FROM public.reservations r
+         LEFT JOIN public.cabins c ON c.id = r.cabin_id
+         WHERE r.guest_email = $1
+         ORDER BY r.created_at DESC
+         LIMIT 10`,
+        [fullUser.email]
+      );
+
+      transactions = reservationsResult.rows.map((row) => ({
+        date: row.start_date,
+        amount: row.price_per_night
+          ? `${row.price_per_night} NOK`
+          : "Ukjent pris",
+        desc: row.cabin_name || "Reservasjon",
+      }));
+    }
+  } catch (error) {
+    console.error("buildProfilePayload reservations error", error);
+  }
+
+  const dob = pickFirstValue(fullUser, ["dob", "birth_date", "date_of_birth"], "");
+  const age = pickFirstValue(fullUser, ["age"], calculateAge(dob));
+  const profileImage = pickFirstValue(
+    fullUser,
+    ["profile_image", "avatar_url", "avatar", "image_url"],
+    "/images/profil.jpg"
+  );
+
+  return {
+    id: fullUser.id,
+    name: pickFirstValue(fullUser, ["username", "name", "full_name"], "Bruker"),
+    dob,
+    age,
+    phone: pickFirstValue(fullUser, ["phone", "phone_number"], ""),
+    email: fullUser.email || "",
+    bio: pickFirstValue(fullUser, ["bio", "about"], ""),
+    profileImage,
+    lastTrip: latestTrip
+      ? {
+          title: latestTrip.navn,
+          date: "Siste registrerte tur",
+          description:
+            latestTrip.beskrivelse || "Ingen beskrivelse registrert for turen.",
+          image: latestTrip.bilde_url || "/images/fjell.jpg",
+          difficulty: latestTrip.vanskelighetsgrad || "Ukjent",
+          distance: latestTrip.lengde_km
+            ? `${latestTrip.lengde_km} km`
+            : "Ukjent",
+          duration: "Ikke oppgitt",
+          elevation: "Ikke oppgitt",
+          rating: 4,
+          location: latestTrip.navn,
+        }
+      : {
+          title: "Ingen tur registrert",
+          date: "",
+          description: "Du har ingen registrerte turer ennå.",
+          image: "/images/fjell.jpg",
+          difficulty: "Ukjent",
+          distance: "Ukjent",
+          duration: "Ukjent",
+          elevation: "Ukjent",
+          rating: 0,
+          location: "",
+        },
+    transactions,
+    payment: {
+      card: "Ikke registrert",
+      billing: transactions[0]?.date || "Ingen fakturaperiode",
+    },
+    settings: {
+      notifications: toBoolean(
+        pickFirstValue(fullUser, ["notifications", "notifications_enabled"], true),
+        true
+      ),
+      theme: pickFirstValue(fullUser, ["theme"], "Lys"),
+    },
+  };
 }
 
 async function findUserByEmail(email) {
@@ -130,6 +300,7 @@ appNext.prepare().then(() => {
   // Use body parsers only for our Express auth + messages endpoints
   app.use("/api/auth", jsonParser, urlencodedParser);
   app.use("/api/messages", jsonParser, urlencodedParser);
+  app.use("/api/profile", jsonParser, urlencodedParser);
 
   // Register
   app.post("/api/auth/register", async (req, res) => {
@@ -202,7 +373,8 @@ appNext.prepare().then(() => {
     req.logout((err) => {
       if (err) return next(err);
       req.session.destroy(() => {
-        res.clearCookie("connect.sid");
+        clearSessionCookie(res);
+        res.set("Cache-Control", "no-store");
         res.json({ ok: true });
       });
     });
@@ -214,6 +386,144 @@ appNext.prepare().then(() => {
       return res.status(401).json({ user: null });
     }
     return res.json({ user: req.user });
+  });
+
+  app.get("/api/profile", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Ikke logget inn" });
+    }
+
+    try {
+      const profile = await buildProfilePayload(req.user);
+      return res.json({ profile });
+    } catch (err) {
+      console.error("/api/profile GET error", err);
+      return res.status(500).json({ error: "Kunne ikke hente profil" });
+    }
+  });
+
+  app.put("/api/profile", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Ikke logget inn" });
+    }
+
+    try {
+      const body = req.body || {};
+      const settings = body.settings && typeof body.settings === "object"
+        ? body.settings
+        : {};
+      const userColumns = await getUserColumns();
+      const updates = [];
+      const values = [];
+
+      const addUpdate = (column, value) => {
+        updates.push(`${column} = $${values.length + 1}`);
+        values.push(value);
+      };
+
+      const findColumn = (candidates) =>
+        candidates.find((candidate) => userColumns.has(candidate));
+
+      const usernameColumn = findColumn(["username", "name", "full_name"]);
+      const profileImageColumn = findColumn([
+        "profile_image",
+        "avatar_url",
+        "avatar",
+        "image_url",
+      ]);
+      const phoneColumn = findColumn(["phone", "phone_number"]);
+      const dobColumn = findColumn(["dob", "birth_date", "date_of_birth"]);
+      const bioColumn = findColumn(["bio", "about"]);
+      const notificationsColumn = findColumn([
+        "notifications",
+        "notifications_enabled",
+      ]);
+      const themeColumn = findColumn(["theme"]);
+      const ageColumn = findColumn(["age"]);
+
+      const nextName = typeof body.name === "string" ? body.name.trim() : "";
+      const nextEmail = typeof body.email === "string" ? body.email.trim() : "";
+
+      if (nextName && usernameColumn === "username") {
+        const existing = await pool.query(
+          "SELECT 1 FROM users WHERE username = $1 AND id <> $2",
+          [nextName, req.user.id]
+        );
+
+        if (existing.rowCount > 0) {
+          return res.status(400).json({ error: "Brukernavn er allerede i bruk" });
+        }
+      }
+
+      if (nextEmail && userColumns.has("email")) {
+        const existing = await pool.query(
+          "SELECT 1 FROM users WHERE email = $1 AND id <> $2",
+          [nextEmail, req.user.id]
+        );
+
+        if (existing.rowCount > 0) {
+          return res.status(400).json({ error: "E-post er allerede i bruk" });
+        }
+      }
+
+      if (nextName && usernameColumn) addUpdate(usernameColumn, nextName);
+      if (nextEmail && userColumns.has("email")) addUpdate("email", nextEmail);
+
+      if (typeof body.phone === "string" && phoneColumn) {
+        addUpdate(phoneColumn, body.phone.trim());
+      }
+
+      if (typeof body.bio === "string" && bioColumn) {
+        addUpdate(bioColumn, body.bio.trim());
+      }
+
+      if (typeof body.dob === "string" && dobColumn) {
+        addUpdate(dobColumn, body.dob.trim());
+      }
+
+      if (body.age !== undefined && ageColumn) {
+        const numericAge = Number(body.age);
+        addUpdate(ageColumn, Number.isFinite(numericAge) ? numericAge : null);
+      }
+
+      if (typeof body.profileImage === "string" && profileImageColumn) {
+        addUpdate(profileImageColumn, body.profileImage.trim());
+      }
+
+      if (settings.notifications !== undefined && notificationsColumn) {
+        addUpdate(notificationsColumn, toBoolean(settings.notifications, true));
+      }
+
+      if (typeof settings.theme === "string" && themeColumn) {
+        addUpdate(themeColumn, settings.theme.trim());
+      }
+
+      if (updates.length > 0) {
+        values.push(req.user.id);
+        const updateResult = await pool.query(
+          `UPDATE users SET ${updates.join(", ")} WHERE id = $${values.length} RETURNING *`,
+          values
+        );
+
+        const nextUser = sanitizeUser(updateResult.rows[0]);
+        req.login(nextUser, async (loginErr) => {
+          if (loginErr) {
+            return res.status(500).json({ error: "Kunne ikke oppdatere sesjon" });
+          }
+
+          const profile = await buildProfilePayload(nextUser);
+          return res.json({ profile });
+        });
+
+        return;
+      }
+
+      const profile = await buildProfilePayload(req.user);
+      return res.json({ profile });
+    } catch (err) {
+      console.error("/api/profile PUT error", err);
+      return res.status(500).json({ error: "Kunne ikke oppdatere profil" });
+    }
   });
 
   // Update username
@@ -318,7 +628,7 @@ appNext.prepare().then(() => {
           return res.status(500).json({ error: "Kunne ikke logge ut" });
         }
         req.session.destroy(() => {
-          res.clearCookie("connect.sid");
+          clearSessionCookie(res);
           return res.json({ ok: true });
         });
       });
@@ -360,7 +670,6 @@ appNext.prepare().then(() => {
 
       return res.status(201).json({ message });
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error("/api/messages POST error", err);
       return res.status(500).json({ error: "Kunne ikke sende melding" });
     }
@@ -410,7 +719,6 @@ appNext.prepare().then(() => {
 
       return res.json({ messages });
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error("/api/messages GET error", err);
       return res.status(500).json({ error: "Kunne ikke hente meldinger" });
     }
@@ -421,7 +729,6 @@ appNext.prepare().then(() => {
 
   app.listen(port, (err) => {
     if (err) throw err;
-    // eslint-disable-next-line no-console
     console.log(`> Ready on http://localhost:${port}`);
   });
 });

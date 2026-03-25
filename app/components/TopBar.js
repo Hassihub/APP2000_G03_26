@@ -71,6 +71,7 @@ export default function TopBar() {
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState("no");
   const [searchQuery, setSearchQuery] = useState("");
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   const router = useRouter();
 
@@ -85,13 +86,41 @@ export default function TopBar() {
   const languages = ["no", "en", "fr", "es", "it"];
 
   useEffect(() => {
-    const savedLang = localStorage.getItem("language");
-    if (savedLang) setLanguage(savedLang);
+    let cancelled = false;
+
+    async function loadPreferences() {
+      try {
+        const res = await fetch("/api/preferences", { cache: "no-store" });
+        const json = await res.json().catch(() => ({}));
+
+        if (!cancelled && res.ok && json?.language) {
+          setLanguage(json.language);
+        }
+      } finally {
+        if (!cancelled) {
+          setPreferencesLoaded(true);
+        }
+      }
+    }
+
+    loadPreferences();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("language", language);
-  }, [language]);
+    if (!preferencesLoaded) {
+      return;
+    }
+
+    fetch("/api/preferences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language }),
+    }).catch(() => {});
+  }, [language, preferencesLoaded]);
 
   const handleSearch = () => {
     if (searchQuery.trim() !== "") {

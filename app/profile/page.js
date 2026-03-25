@@ -1,65 +1,97 @@
 "use client";
+import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+
+const emptyProfile = {
+  name: "",
+  dob: "",
+  age: "",
+  phone: "",
+  email: "",
+  bio: "",
+  profileImage: "/images/profil.jpg",
+  lastTrip: {
+    title: "Ingen tur registrert",
+    date: "",
+    description: "Ingen turdata tilgjengelig.",
+    image: "/images/fjell.jpg",
+    difficulty: "Ukjent",
+    distance: "Ukjent",
+    duration: "Ukjent",
+    elevation: "Ukjent",
+    rating: 0,
+    location: "",
+  },
+  transactions: [],
+  payment: { card: "Ikke registrert", billing: "Ingen fakturaperiode" },
+  settings: { notifications: true, theme: "Lys" },
+};
 
 export default function Profile() {
   const router = useRouter();
   const fileInputRef = useRef(null);
 
-  const defaultUser = {
-    name: "Marius Nordli",
-    dob: "1999-01-01",
-    age: 24,
-    phone: "+47 123 45 678",
-    email: "marius@example.com",
-    bio: "Friluftsinteressert student som elsker fjellturer og natur.",
-    lastTrip: {
-      title: "Helgetur til Gaustatoppen",
-      date: "Februar 2026",
-      description: "En fantastisk vintertur med utsikt over halve Norge. Startet tidlig på morgenen og nådde toppen i solnedgang.",
-      image: "/images/gaustatoppen.jpg",
-      difficulty: "Middels",
-      distance: "12.5 km",
-      duration: "5 timer",
-      elevation: "1000 m",
-      rating: 5,
-      location: "Gaustatoppen, Telemark"
-    },
-    profileImage: "/images/profil.jpg",
-    transactions: [
-      { date: "2026-02-01", amount: "450 NOK", desc: "Hyttebooking" },
-      { date: "2026-01-20", amount: "150 NOK", desc: "Padletur-utstyr" },
-    ],
-    payment: { card: "Visa **** 1234", billing: "Januar 2026" },
-    settings: { notifications: true, theme: "Lys" },
-  };
-
   const [activeCategory, setActiveCategory] = useState("account");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [userData, setUserData] = useState({ ...defaultUser });
-  const [editFields, setEditFields] = useState({ ...defaultUser });
-  const [profileImage, setProfileImage] = useState(() => {
-    return localStorage.getItem("profileImage") || defaultUser.profileImage;
-  });
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem("notifications");
-    return saved !== null ? JSON.parse(saved) : defaultUser.settings.notifications;
-  });
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem("theme") || defaultUser.settings.theme;
-  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [userData, setUserData] = useState({ ...emptyProfile });
+  const [editFields, setEditFields] = useState({ ...emptyProfile });
+  const [profileImage, setProfileImage] = useState(emptyProfile.profileImage);
+  const [notifications, setNotifications] = useState(
+    emptyProfile.settings.notifications
+  );
+  const [theme, setTheme] = useState(emptyProfile.settings.theme);
   const [showThemeModal, setShowThemeModal] = useState(false);
 
-  // Lagre innstillinger i localStorage når de endres
   useEffect(() => {
-    localStorage.setItem("notifications", JSON.stringify(notifications));
-  }, [notifications]);
+    let cancelled = false;
 
-  useEffect(() => {
-    localStorage.setItem("theme", theme);
-  }, [theme]);
+    async function loadProfile() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const res = await fetch("/api/profile", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          if (res.status === 401) {
+            router.push("/login");
+            return;
+          }
+
+          throw new Error(json?.error || "Kunne ikke hente profil.");
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        syncProfileState(json.profile);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || "Kunne ikke hente profil.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   // Escape lukker redigeringsmodus og modal
   useEffect(() => {
@@ -77,6 +109,33 @@ export default function Profile() {
     fileInputRef.current.click();
   }
 
+  function syncProfileState(profile) {
+    const nextProfile = profile || emptyProfile;
+    setUserData(nextProfile);
+    setEditFields(nextProfile);
+    setProfileImage(nextProfile.profileImage || emptyProfile.profileImage);
+    setNotifications(Boolean(nextProfile.settings?.notifications));
+    setTheme(nextProfile.settings?.theme || "Lys");
+  }
+
+  async function updateProfile(patch) {
+    const res = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(patch),
+    });
+
+    const json = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(json?.error || "Kunne ikke oppdatere profil.");
+    }
+
+    syncProfileState(json.profile);
+    return json.profile;
+  }
+
   async function handleFileChange(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -87,8 +146,7 @@ export default function Profile() {
       const res = await fetch("/api/upload-avatar", { method: "POST", body: formData });
       const data = await res.json();
       if (res.ok && data.filePath) {
-        setProfileImage(data.filePath);
-        localStorage.setItem("profileImage", data.filePath);
+        await updateProfile({ profileImage: data.filePath });
       } else {
         alert("Opplasting feilet");
       }
@@ -98,18 +156,36 @@ export default function Profile() {
     }
   }
 
-  function handleSaveEdit() {
-    setUserData({ ...editFields });
-    setIsEditing(false);
+  async function handleSaveEdit() {
+    try {
+      await updateProfile({
+        name: editFields.name,
+        dob: editFields.dob,
+        age: editFields.age,
+        phone: editFields.phone,
+        email: editFields.email,
+        bio: editFields.bio,
+      });
+      setIsEditing(false);
+    } catch (err) {
+      alert(err.message || "Kunne ikke lagre profil.");
+    }
   }
 
   // ✅ FUNGERENDE LOGOUT
   async function handleLogout() {
     try {
-      localStorage.removeItem("token");
-      localStorage.removeItem("profileImage");
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-      router.push("/login");
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        throw new Error("Kunne ikke logge ut");
+      }
+
+      window.location.assign("/login");
     } catch (err) {
       console.error(err);
       alert("Noe gikk galt ved utlogging");
@@ -117,17 +193,43 @@ export default function Profile() {
   }
 
   // Håndter varslinger toggle
-  function handleToggleNotifications() {
+  async function handleToggleNotifications() {
     const newValue = !notifications;
-    setNotifications(newValue);
-    setUserData({ ...userData, settings: { ...userData.settings, notifications: newValue } });
+
+    try {
+      await updateProfile({
+        settings: {
+          ...userData.settings,
+          notifications: newValue,
+          theme,
+        },
+      });
+    } catch (err) {
+      alert(err.message || "Kunne ikke oppdatere varslinger.");
+    }
   }
 
   // Håndter tema-valg
-  function handleSelectTheme(selectedTheme) {
-    setTheme(selectedTheme);
-    setUserData({ ...userData, settings: { ...userData.settings, theme: selectedTheme } });
-    setShowThemeModal(false);
+  async function handleSelectTheme(selectedTheme) {
+    try {
+      await Promise.all([
+        updateProfile({
+          settings: {
+            ...userData.settings,
+            notifications,
+            theme: selectedTheme,
+          },
+        }),
+        fetch("/api/preferences", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ theme: selectedTheme }),
+        }),
+      ]);
+      setShowThemeModal(false);
+    } catch (err) {
+      alert(err.message || "Kunne ikke oppdatere tema.");
+    }
   }
 
   // Tema farger
@@ -215,6 +317,8 @@ export default function Profile() {
 
       {/* HOVED */}
       <section style={{ flex: 1, padding: "2rem", background: themeColors.bg, color: themeColors.text, transition: "background 0.3s ease, color 0.3s ease" }}>
+        {loading ? <p>Laster profil fra API...</p> : null}
+        {error ? <p style={{ color: "#b42318" }}>{error}</p> : null}
 
         {/* ACCOUNT */}
         {activeCategory === "account" && (
@@ -231,7 +335,13 @@ export default function Profile() {
               border: `3px solid ${themeColors.border}`,
               background: themeColors.bg
             }}>
-              <img src={profileImage} alt="Profilbilde" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <Image
+                src={profileImage}
+                alt="Profilbilde"
+                fill
+                unoptimized
+                style={{ objectFit: "cover" }}
+              />
               <div style={{
                 position: "absolute",
                 top: "5px",
@@ -318,12 +428,12 @@ export default function Profile() {
                       height: "250px",
                       background: "#f0f0f0"
                     }}>
-                      <img
+                      <Image
                         src={userData.lastTrip.image}
                         alt="Siste tur"
+                        fill
+                        unoptimized
                         style={{
-                          width: "100%",
-                          height: "100%",
                           objectFit: "cover"
                         }}
                       />
@@ -514,7 +624,14 @@ export default function Profile() {
                 height: "200px",
                 overflow: "hidden"
               }}>
-                <img src={userData.lastTrip.image} alt="Siste tur" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <Image
+                  src={userData.lastTrip.image}
+                  alt="Siste tur"
+                  width={1200}
+                  height={400}
+                  unoptimized
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
               </div>
               <div style={{ padding: "1.5rem" }}>
                 <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.3rem" }}>{userData.lastTrip.title}</h3>

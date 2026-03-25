@@ -1,12 +1,16 @@
 import pool from "../../../../lib/db";
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+
     const { rows } = await pool.query(`
       SELECT 
         p.postid,
         p.caption,
         p.timestamp,
+        p.userid,
         COUNT(l.likeid) AS likes
       FROM posts p
       LEFT JOIN post_liked l
@@ -15,7 +19,23 @@ export async function GET() {
       ORDER BY p.timestamp DESC
     `);
 
-    return Response.json(rows);
+    let likedPostIds = new Set();
+
+    if (userId) {
+      const likedRows = await pool.query(
+        `SELECT postid FROM post_liked WHERE userid = $1`,
+        [userId]
+      );
+      likedPostIds = new Set(likedRows.rows.map((row) => row.postid));
+    }
+
+    return Response.json(
+      rows.map((row) => ({
+        ...row,
+        likes: Number(row.likes) || 0,
+        likedByCurrentUser: likedPostIds.has(row.postid),
+      }))
+    );
   } catch (err) {
     console.error(err);
     return new Response("DB error", { status: 500 });
@@ -24,16 +44,23 @@ export async function GET() {
 
 export async function POST(req) {
   try {
-    const body = await req.json()
-    console.log("BODY:", body)
+    const body = await req.json();
+    const { userid, caption, tripid = null } = body;
 
-    const { postid, userid } = body
+    if (!userid) {
+      return Response.json({ error: "Mangler userid" }, { status: 400 });
+    }
+
+    if (!String(caption || "").trim()) {
+      return Response.json({ error: "Tekst er påkrevd" }, { status: 400 });
+    }
+
     await pool.query(
       `
       INSERT INTO posts (userid, tripid, caption)
       VALUES ($1, $2, $3)
       `,
-      [userid, tripid, caption]
+      [userid, tripid, String(caption).trim()]
     );
 
     return Response.json({ success: true });

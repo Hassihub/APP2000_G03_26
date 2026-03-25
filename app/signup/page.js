@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function SignUp() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     username: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const checkLoggedIn = async () => {
@@ -74,8 +77,10 @@ export default function SignUp() {
         </label>
         <input
           type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          value={formData.username}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, username: e.target.value }))
+          }
           style={{
             width: "100%",
             padding: "0.5rem",
@@ -88,8 +93,10 @@ export default function SignUp() {
         </label>
         <input
           type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={formData.email}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, email: e.target.value }))
+          }
           style={{
             width: "100%",
             padding: "0.5rem",
@@ -102,8 +109,10 @@ export default function SignUp() {
         </label>
         <input
           type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={formData.password}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, password: e.target.value }))
+          }
           style={{
             width: "100%",
             padding: "0.5rem",
@@ -118,6 +127,25 @@ export default function SignUp() {
         >
           {loading ? "Oppretter konto..." : "Opprett konto"}
         </button>
+
+        <label style={{ display: "block", margin: "0.75rem 0 0.5rem" }}>
+          Bekreft passord
+        </label>
+        <input
+          type="password"
+          value={formData.confirmPassword}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              confirmPassword: e.target.value,
+            }))
+          }
+          style={{
+            width: "100%",
+            padding: "0.5rem",
+            marginBottom: "0.75rem",
+          }}
+        />
       </form>
     </div>
   );

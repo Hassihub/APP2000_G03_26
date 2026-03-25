@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import DelKnapp from "./post_buttons/DelKnapp.png"
 import KommentarKnapp from "./post_buttons/KommentarKnapp.png"
 import LikerKnappAv from "./post_buttons/LikerKnappAv.png"
@@ -9,45 +10,109 @@ import LikerKnappPaa from "./post_buttons/LikerKnappPaa.png"
 
 
 
-export default function page() {
+export default function SosialPage() {
+  const router = useRouter()
+  const [currentUser, setCurrentUser] = useState(null)
   const [posts, setPosts] = useState([])
   const [caption, setCaption] = useState("")
   const [likedPosts, setLikedPosts] = useState(new Set())
-
-  async function loadPosts() {
-    const res = await fetch("/api/sosial/posts")
-    setPosts(await res.json())
-  }
+  const [error, setError] = useState("")
 
   useEffect(() => {
-    loadPosts()
+    let cancelled = false
+
+    async function loadCurrentUser() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+        })
+
+        if (res.status === 401) {
+          router.push("/login")
+          return
+        }
+
+        const data = await res.json()
+        if (!cancelled) {
+          setCurrentUser(data.user)
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Kunne ikke hente innlogget bruker")
+        }
+      }
+    }
+
+    loadCurrentUser()
+
+    return () => {
+      cancelled = true
+    }
+  }, [router])
+
+  const loadPosts = useCallback(async (userId) => {
+    const suffix = userId
+      ? `?userId=${encodeURIComponent(userId)}`
+      : ""
+
+    const res = await fetch(`/api/sosial/posts${suffix}`)
+    const data = await res.json()
+
+    setPosts(Array.isArray(data) ? data : [])
+    setLikedPosts(
+      new Set(
+        (Array.isArray(data) ? data : [])
+          .filter((post) => post.likedByCurrentUser)
+          .map((post) => post.postid)
+      )
+    )
   }, [])
+
+  useEffect(() => {
+    if (!currentUser?.id) return
+
+    loadPosts(currentUser.id)
+  }, [currentUser, loadPosts])
 
   async function submitPost() {
     if (!caption.trim()) return
+    if (!currentUser?.id) return
 
-    await fetch("/api/sosial/posts", {
+    const res = await fetch("/api/sosial/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caption,
+        userid: currentUser.id,
+      })
+    })
+
+    if (!res.ok) {
+      setError("Kunne ikke publisere innlegg")
+      return
+    }
+
+    setCaption("")
+    loadPosts(currentUser.id)
+  }
+
+  async function toggleLike(postid, liked) {
+    if (!currentUser?.id) return
+
+    const res = await fetch("/api/sosial/likes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         postid,
-        userid: "00000000-0000-0000-0000-000000000000"
+        userid: currentUser.id,
       })
     })
 
-    setCaption("")
-    loadPosts()
-  }
-
-  async function toggleLike(postid, liked) {
-  await fetch("/api/sosial/likes", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      postid,
-      userid: "00000000-0000-0000-0000-000000000000" //MÅ byttes ut med userid
-    })
-  })
+    if (!res.ok) {
+      setError("Kunne ikke oppdatere likerstatus")
+      return
+    }
 
     setLikedPosts(prev => {
       const next = new Set(prev)
@@ -55,7 +120,7 @@ export default function page() {
       return next
     })
 
-    loadPosts()
+    loadPosts(currentUser.id)
   }
 
   function sharePost(postid) {
@@ -72,6 +137,8 @@ export default function page() {
   return (
     <div>
       <h1>sosial</h1>
+
+      {error ? <p style={{ color: "red" }}>{error}</p> : null}
 
       <textarea
         value={caption}

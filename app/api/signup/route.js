@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-import bcrypt from "bcryptjs";
-
-// Database-tilkobling
-const pool = new Pool({
-  connectionString: process.env.COCKROACH_URL,
-});
+import bcrypt from "bcrypt";
+import pool from "../../../lib/db";
 
 export async function POST(req) {
   try {

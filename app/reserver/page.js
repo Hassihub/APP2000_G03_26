@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import styles from "./Reserver.module.css";
 
 export default function CabinsPage() {
+  const searchParams = useSearchParams();
+  const cabinIdFromUrl = searchParams.get("cabinId");
   const [cabins, setCabins] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,8 +33,16 @@ export default function CabinsPage() {
         const list = Array.isArray(json.cabins) ? json.cabins : [];
         setCabins(list);
 
-        // velg første automatisk
-        setSelectedId((prev) => prev ?? (list[0]?.id ?? null));
+        setSelectedId((prev) => {
+          if (cabinIdFromUrl) {
+            const match = list.find((item) => String(item.id) === cabinIdFromUrl);
+            if (match) {
+              return match.id;
+            }
+          }
+
+          return prev ?? (list[0]?.id ?? null);
+        });
       } catch (e) {
         if (!alive) return;
         setErrorMsg(e?.message || "Ukjent feil ved henting av hytter.");
@@ -46,7 +57,18 @@ export default function CabinsPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [cabinIdFromUrl]);
+
+  useEffect(() => {
+    if (!cabinIdFromUrl || cabins.length === 0) {
+      return;
+    }
+
+    const match = cabins.find((item) => String(item.id) === cabinIdFromUrl);
+    if (match) {
+      setSelectedId(match.id);
+    }
+  }, [cabins, cabinIdFromUrl]);
 
   const selectedCabin = useMemo(() => {
     if (!selectedId) return null;

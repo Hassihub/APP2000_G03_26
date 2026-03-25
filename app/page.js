@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   FiChevronDown,
   FiSun,
@@ -41,17 +42,55 @@ const translations = {
 };
 
 export default function Home() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [language, setLanguage] = useState("no");
   const [theme, setTheme] = useState("light");
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [trips, setTrips] = useState([]);
+  const [cabins, setCabins] = useState([]);
 
   useEffect(() => {
-    const savedLang = localStorage.getItem("language");
-    const savedTheme = localStorage.getItem("theme");
+    let cancelled = false;
 
-    if (savedLang) setLanguage(savedLang);
-    if (savedTheme) setTheme(savedTheme);
+    async function loadData() {
+      try {
+        const [preferencesRes, tripsRes, cabinsRes] = await Promise.all([
+          fetch("/api/preferences", { cache: "no-store" }),
+          fetch("/api/trips", { cache: "no-store" }),
+          fetch("/api/cabins", { cache: "no-store" }),
+        ]);
+
+        const [preferencesJson, tripsJson, cabinsJson] = await Promise.all([
+          preferencesRes.json().catch(() => ({})),
+          tripsRes.json().catch(() => []),
+          cabinsRes.json().catch(() => ({})),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        if (preferencesRes.ok && preferencesJson?.language) {
+          setLanguage(preferencesJson.language);
+        }
+
+        if (preferencesRes.ok && preferencesJson?.theme) {
+          setTheme(normalizeHomeTheme(preferencesJson.theme));
+        }
+
+        setTrips(Array.isArray(tripsJson) ? tripsJson : []);
+        setCabins(Array.isArray(cabinsJson?.cabins) ? cabinsJson.cabins : []);
+      } catch (error) {
+        console.error("Home data load error:", error);
+      }
+    }
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -63,20 +102,24 @@ export default function Home() {
 
   const t = translations[language];
 
-  const locations = [
-    { name: "Foss", link: "/explore" },
-    { name: "Fjelltur", link: "/explore" },
-    { name: "Galdhøpiggen", link: "/explore" },
-    { name: "Gaustatoppen", link: "/explore" },
-    { name: "Hardangervidda", link: "/explore" },
-    { name: "Hytte", link: "/reserver" },
-    { name: "Preikestolen", link: "/explore" },
-    { name: "Trolltunga", link: "/explore" },
-  ];
+  const locations = buildLocationSuggestions(trips, cabins);
 
   const filteredResults = locations.filter((item) =>
     item.name.toLowerCase().startsWith(search.toLowerCase())
   );
+
+  const handleSearchSubmit = (event) => {
+    if (event) {
+      event.preventDefault();
+    }
+
+    const trimmedSearch = search.trim();
+    if (!trimmedSearch) {
+      return;
+    }
+
+    router.push(`/search?q=${encodeURIComponent(trimmedSearch)}`);
+  };
 
   const scrollToNext = () => {
     const nextSection = document.getElementById("recommended-section");
@@ -85,41 +128,34 @@ export default function Home() {
     }
   };
 
-  const slides = [
-    {
-      category: t.todaysTrip,
-      title: "Galdhøpiggen",
-      img: "/images/Galdhopiggen.jpg",
-      start: "Juvasshytta",
-      difficulty: "Middels",
-      duration: "5-7 timer",
-      link: "/reserver",
-    },
-    {
-      category: t.popularRoutes,
-      title: "Populære turer",
-      img: "/images/fjell.jpg",
-      start: "Ulike startpunkter",
-      difficulty: "Variert",
-      duration: "3-8 timer",
-      link: "/explore",
-    },
-    {
-      category: t.cabinSuggestions,
-      title: "Hytteforslag",
-      img: "/images/hytte.jpg",
-      start: "Flere lokasjoner",
-      difficulty: "Enkel",
-      duration: "Helgetur",
-      link: "/reserver",
-    },
-  ];
+  const slides = buildSlides(trips, cabins, t);
 
-  const prevSlide = () =>
+  useEffect(() => {
+    if (slides.length === 0) {
+      setCurrentSlide(0);
+      return;
+    }
+
+    if (currentSlide >= slides.length) {
+      setCurrentSlide(0);
+    }
+  }, [slides, currentSlide]);
+
+  const prevSlide = () => {
+    if (slides.length === 0) {
+      return;
+    }
+
     setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
+  };
 
-  const nextSlide = () =>
+  const nextSlide = () => {
+    if (slides.length === 0) {
+      return;
+    }
+
     setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+  };
 
   return (
     <div
@@ -212,21 +248,92 @@ export default function Home() {
             <Category icon={<FiHome size={42} />} label="Reserver" link="/reserver" />
           </div>
 
-          <div style={{ width: "100%", maxWidth: "600px" }}>
-            <input
-              type="text"
-              placeholder={t.searchPlaceholder}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "1rem 1.5rem",
-                border: "none",
-                fontSize: "1.1rem",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
-                outline: "none",
-              }}
-            />
+          <div style={{ width: "100%", maxWidth: "600px", padding: "0 1rem", boxSizing: "border-box" }}>
+            <form
+              onSubmit={handleSearchSubmit}
+              style={{ position: "relative", width: "100%" }}
+            >
+              <input
+                type="text"
+                placeholder={t.searchPlaceholder}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  width: "100%",
+                  display: "block",
+                  padding: "1rem 7rem 1rem 1.5rem",
+                  border: "none",
+                  borderRadius: "999px",
+                  fontSize: "1.1rem",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+
+              <button
+                type="submit"
+                style={{
+                  position: "absolute",
+                  right: "0.6rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  border: "none",
+                  borderRadius: "999px",
+                  background: "#2e5c44",
+                  color: "#fff",
+                  padding: "0.7rem 1rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Søk
+              </button>
+            </form>
+
+            {search.trim() ? (
+              <div
+                style={{
+                  marginTop: "0.75rem",
+                  display: "flex",
+                  gap: "0.6rem",
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                }}
+              >
+                {filteredResults.slice(0, 5).map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.link}
+                    style={{
+                      background: "rgba(255,255,255,0.16)",
+                      color: "#fff",
+                      padding: "0.45rem 0.8rem",
+                      borderRadius: "999px",
+                      textDecoration: "none",
+                      backdropFilter: "blur(8px)",
+                    }}
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={handleSearchSubmit}
+                  style={{
+                    background: "rgba(46,92,68,0.92)",
+                    color: "#fff",
+                    border: "none",
+                    padding: "0.45rem 0.8rem",
+                    borderRadius: "999px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Se alle treff
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <button
@@ -254,128 +361,213 @@ export default function Home() {
           overflow: "hidden",
         }}
       >
-        {slides.map((slide, idx) => (
+        {slides.length > 0 ? (
+          <>
+            {slides.map((slide, idx) => (
+              <div
+                key={idx}
+                style={{
+                  position: idx === currentSlide ? "relative" : "absolute",
+                  opacity: idx === currentSlide ? 1 : 0,
+                  transition: "opacity 0.5s ease-in-out",
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Image
+                  src={slide.img}
+                  alt={slide.title}
+                  fill
+                  style={{
+                    objectFit: "cover",
+                    filter: "blur(8px) brightness(0.6)",
+                  }}
+                />
+
+                <div
+                  style={{
+                    width: "90%",
+                    maxWidth: "1200px",
+                    display: "flex",
+                    gap: "2rem",
+                    alignItems: "center",
+                    color: "#fff",
+                    position: "relative",
+                    zIndex: 2,
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <h2 style={{ opacity: 0.8 }}>{slide.category}</h2>
+
+                    <Image
+                      src={slide.img}
+                      alt={slide.title}
+                      width={600}
+                      height={450}
+                      style={{
+                        boxShadow: "0 15px 40px rgba(0,0,0,0.5)",
+                        objectFit: "cover",
+                        maxWidth: "100%",
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <h1 style={{ fontSize: "3rem" }}>{slide.title}</h1>
+
+                    <p>
+                      <FiMapPin /> {slide.start}
+                    </p>
+
+                    <p>
+                      <FiClock /> {slide.duration}
+                    </p>
+
+                    <p>
+                      <FiTrendingUp /> {slide.difficulty}
+                    </p>
+
+                    <Link
+                      href={slide.link}
+                      style={{
+                        marginTop: "1rem",
+                        padding: "1rem 2rem",
+                        backgroundColor: "#2e5c44",
+                        color: "#fff",
+                        fontWeight: 700,
+                        textDecoration: "none",
+                        display: "inline-block",
+                      }}
+                    >
+                      {t.start}
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={prevSlide}
+              style={{
+                position: "absolute",
+                left: "1rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "rgba(0,0,0,0.4)",
+                border: "none",
+                padding: "1rem",
+                borderRadius: "50%",
+                cursor: "pointer",
+              }}
+            >
+              <FiChevronLeft size={32} color="#fff" />
+            </button>
+
+            <button
+              onClick={nextSlide}
+              style={{
+                position: "absolute",
+                right: "1rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "rgba(0,0,0,0.4)",
+                border: "none",
+                padding: "1rem",
+                borderRadius: "50%",
+                cursor: "pointer",
+              }}
+            >
+              <FiChevronRight size={32} color="#fff" />
+            </button>
+          </>
+        ) : (
           <div
-            key={idx}
             style={{
-              position: idx === currentSlide ? "relative" : "absolute",
-              opacity: idx === currentSlide ? 1 : 0,
-              transition: "opacity 0.5s ease-in-out",
-              width: "100%",
               height: "100%",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              color: "#fff",
+              fontSize: "1.4rem",
             }}
           >
-            <Image
-              src={slide.img}
-              alt={slide.title}
-              fill
-              style={{
-                objectFit: "cover",
-                filter: "blur(8px) brightness(0.6)",
-              }}
-            />
-
-            <div
-              style={{
-                width: "90%",
-                maxWidth: "1200px",
-                display: "flex",
-                gap: "2rem",
-                alignItems: "center",
-                color: "#fff",
-                position: "relative",
-                zIndex: 2,
-              }}
-            >
-              <div style={{ flex: 1 }}>
-                <h2 style={{ opacity: 0.8 }}>{slide.category}</h2>
-
-                <Image
-                  src={slide.img}
-                  alt={slide.title}
-                  width={600}
-                  height={450}
-                  style={{
-                    boxShadow: "0 15px 40px rgba(0,0,0,0.5)",
-                    objectFit: "cover",
-                    maxWidth: "100%",
-                  }}
-                />
-              </div>
-
-              <div style={{ flex: 1 }}>
-                <h1 style={{ fontSize: "3rem" }}>{slide.title}</h1>
-
-                <p>
-                  <FiMapPin /> {slide.start}
-                </p>
-
-                <p>
-                  <FiClock /> {slide.duration}
-                </p>
-
-                <p>
-                  <FiTrendingUp /> {slide.difficulty}
-                </p>
-
-                <Link
-                  href={slide.link}
-                  style={{
-                    marginTop: "1rem",
-                    padding: "1rem 2rem",
-                    backgroundColor: "#2e5c44",
-                    color: "#fff",
-                    fontWeight: 700,
-                    textDecoration: "none",
-                    display: "inline-block",
-                  }}
-                >
-                  {t.start}
-                </Link>
-              </div>
-            </div>
+            Laster anbefalinger fra API...
           </div>
-        ))}
-
-        <button
-          onClick={prevSlide}
-          style={{
-            position: "absolute",
-            left: "1rem",
-            top: "50%",
-            transform: "translateY(-50%)",
-            background: "rgba(0,0,0,0.4)",
-            border: "none",
-            padding: "1rem",
-            borderRadius: "50%",
-            cursor: "pointer",
-          }}
-        >
-          <FiChevronLeft size={32} color="#fff" />
-        </button>
-
-        <button
-          onClick={nextSlide}
-          style={{
-            position: "absolute",
-            right: "1rem",
-            top: "50%",
-            transform: "translateY(-50%)",
-            background: "rgba(0,0,0,0.4)",
-            border: "none",
-            padding: "1rem",
-            borderRadius: "50%",
-            cursor: "pointer",
-          }}
-        >
-          <FiChevronRight size={32} color="#fff" />
-        </button>
+        )}
       </section>
     </div>
   );
+}
+
+function normalizeHomeTheme(theme) {
+  if (theme === "dark" || theme === "Mørk") return "dark";
+  return "light";
+}
+
+function buildLocationSuggestions(trips, cabins) {
+  const suggestions = [
+    ...trips.map((trip) => ({
+      name: trip.navn,
+      link: `/explore?search=${encodeURIComponent(trip.navn)}`,
+    })),
+    ...cabins.map((cabin) => ({
+      name: cabin.name,
+      link: `/reserver?cabinId=${encodeURIComponent(cabin.id)}`,
+    })),
+  ];
+
+  const seen = new Set();
+  const uniqueSuggestions = [];
+
+  for (const suggestion of suggestions) {
+    const key = suggestion.name.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    uniqueSuggestions.push(suggestion);
+
+    if (uniqueSuggestions.length === 8) {
+      break;
+    }
+  }
+
+  return uniqueSuggestions;
+}
+
+function buildSlides(trips, cabins, translationsForLanguage) {
+  const tripSlides = trips.slice(0, 2).map((trip, index) => ({
+    category:
+      index === 0
+        ? translationsForLanguage.todaysTrip
+        : translationsForLanguage.popularRoutes,
+    title: trip.navn,
+    img: trip.bilde_url || "/images/fjell.jpg",
+    start: trip.beskrivelse || "Se turdetaljer i utforsk",
+    difficulty: trip.vanskelighetsgrad || "Ukjent",
+    duration: trip.lengde_km ? `${trip.lengde_km} km` : "Lengde ikke oppgitt",
+    link: `/explore?search=${encodeURIComponent(trip.navn)}`,
+  }));
+
+  const cabinSlide = cabins[0]
+    ? {
+        category: translationsForLanguage.cabinSuggestions,
+        title: cabins[0].name,
+        img: "/images/hytte.jpg",
+        start: cabins[0].location || "Se detaljer i reserver",
+        difficulty: `${cabins[0].capacity || "?"} personer`,
+        duration: cabins[0].price_per_night
+          ? `${cabins[0].price_per_night} kr/natt`
+          : "Pris ikke oppgitt",
+        link: `/reserver?cabinId=${encodeURIComponent(cabins[0].id)}`,
+      }
+    : null;
+
+  return cabinSlide ? [...tripSlides, cabinSlide] : tripSlides;
 }
 
 function Category({ icon, label, link }) {

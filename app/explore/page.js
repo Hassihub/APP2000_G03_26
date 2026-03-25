@@ -1,16 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import styles from "./explore.module.css";
 
 export default function ExplorePage() {
+  const searchParams = useSearchParams();
   const [trips, setTrips] = useState([]);
 
   // Filters
-  const [search, setSearch] = useState("");
-  const [type, setType] = useState("alle");
-  const [difficulty, setDifficulty] = useState("alle");
-  const [onlyTiu, setOnlyTiu] = useState(false);
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [type, setType] = useState(searchParams.get("type") || "alle");
+  const [difficulty, setDifficulty] = useState(
+    searchParams.get("difficulty") || "alle"
+  );
+  const [onlyTiu, setOnlyTiu] = useState(
+    searchParams.get("onlyTiu") === "true"
+  );
 
   // Create modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -34,7 +41,7 @@ export default function ExplorePage() {
     turleder_navn: "",
   });
 
-  const fetchTrips = async () => {
+  const fetchTrips = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         search,
@@ -53,11 +60,18 @@ export default function ExplorePage() {
       console.error(err);
       setTrips([]);
     }
-  };
+  }, [difficulty, onlyTiu, search, type]);
 
   useEffect(() => {
     fetchTrips();
-  }, [search, type, difficulty, onlyTiu]);
+  }, [fetchTrips]);
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setType(searchParams.get("type") || "alle");
+    setDifficulty(searchParams.get("difficulty") || "alle");
+    setOnlyTiu(searchParams.get("onlyTiu") === "true");
+  }, [searchParams]);
 
   const openCreate = () => {
     setCreateStatus({ loading: false, error: "" });
@@ -403,10 +417,13 @@ function TripCard({ trip }) {
   return (
     <article className={styles.card}>
       {trip.bilde_url ? (
-        <img
+        <Image
           src={trip.bilde_url}
           alt={trip.navn}
           className={styles.tripImage}
+          width={480}
+          height={320}
+          unoptimized
         />
       ) : (
         <div className={styles.imagePlaceholder} />
