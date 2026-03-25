@@ -61,7 +61,7 @@ export default function Search() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
         {filteredItems.length === 0 && query && (
-          <p style={{ color: "#555", fontStyle: "italic" }}>Ingen treff for "{query}"</p>
+          <p style={{ color: "#555", fontStyle: "italic" }}>Ingen treff for &quot;{query}&quot;</p>
         )}
 
         {filteredItems.map((item) => (
