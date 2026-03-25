@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./explore.module.css";
 
 export default function ExplorePage() {
@@ -25,14 +25,18 @@ export default function ExplorePage() {
     lengde_km: "",
     type: "fottur",
     vanskelighetsgrad: "lett",
-    start_lat: "",
-    start_lng: "",
-    end_lat: "",
-    end_lng: "",
     bilde_url: "",
     isTiu: false,
     turleder_navn: "",
   });
+
+  // Kart/route-tegning for ny tur
+  const [Leaflet, setLeaflet] = useState(null);
+  const mapRef = useRef(null);
+  const [placing, setPlacing] = useState(false);
+  const placingRef = useRef(false);
+  const drawCleanupRef = useRef(null);
+  const [currentRoute, setCurrentRoute] = useState({ points: [], geometry: null });
 
   const fetchTrips = async () => {
     try {
@@ -59,6 +63,72 @@ export default function ExplorePage() {
     fetchTrips();
   }, [search, type, difficulty, onlyTiu]);
 
+  // Last inn Leaflet kun i browser
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (Leaflet) return;
+
+    import("leaflet").then((L) => {
+      import("leaflet/dist/leaflet.css");
+      setLeaflet(L);
+    });
+  }, [Leaflet]);
+
+  // Opprett lite kart inne i opprett-tur-modal
+  useEffect(() => {
+    // Bare prøv å lage kart når modal er åpen og Leaflet er lastet
+    if (!Leaflet || !isCreateOpen || mapRef.current) return;
+
+    const container = document.getElementById("new-trip-map");
+    if (!container) return;
+
+    const L = Leaflet;
+    const map = L.map(container, {
+      center: [63.2, 15],
+      zoom: 5,
+      minZoom: 4,
+    });
+    mapRef.current = map;
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+    }).addTo(map);
+
+    import("../components/map/maskLayer").then(({ addMaskLayer }) => {
+      try {
+        addMaskLayer(map, L);
+      } catch (e) {
+        console.error("Kunne ikke legge til maske for Norge på ny tur-kart:", e);
+      }
+    });
+
+    const getPlacing = () => placingRef.current;
+
+    import("../components/map/drawRoutes").then(({ enableRouteDrawing }) => {
+      drawCleanupRef.current = enableRouteDrawing(
+        map,
+        L,
+        (route) => setCurrentRoute(route),
+        getPlacing
+      );
+    });
+
+    return () => {
+      if (drawCleanupRef.current) {
+        drawCleanupRef.current();
+        drawCleanupRef.current = null;
+      }
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [Leaflet, isCreateOpen]);
+
+  useEffect(() => {
+    placingRef.current = placing;
+  }, [placing]);
+
   const openCreate = () => {
     setCreateStatus({ loading: false, error: "" });
     setIsCreateOpen(true);
@@ -80,14 +150,15 @@ export default function ExplorePage() {
         lengde_km: Number(newTrip.lengde_km),
         type: newTrip.type,
         vanskelighetsgrad: newTrip.vanskelighetsgrad,
-        start_lat: newTrip.start_lat === "" ? null : Number(newTrip.start_lat),
-        start_lng: newTrip.start_lng === "" ? null : Number(newTrip.start_lng),
-        end_lat: newTrip.end_lat === "" ? null : Number(newTrip.end_lat),
-        end_lng: newTrip.end_lng === "" ? null : Number(newTrip.end_lng),
         bilde_url: newTrip.bilde_url || null,
+        geometry: currentRoute.geometry || null,
         isTiu: newTrip.isTiu,
         turleder_navn: newTrip.isTiu ? newTrip.turleder_navn : null,
       };
+
+      if (!payload.geometry) {
+        throw new Error("Du må tegne en rute på kartet for turen.");
+      }
 
       const res = await fetch("/api/trips", {
         method: "POST",
@@ -109,14 +180,11 @@ export default function ExplorePage() {
         lengde_km: "",
         type: "fottur",
         vanskelighetsgrad: "lett",
-        start_lat: "",
-        start_lng: "",
-        end_lat: "",
-        end_lng: "",
         bilde_url: "",
         isTiu: false,
         turleder_navn: "",
       });
+      setCurrentRoute({ points: [], geometry: null });
 
       closeCreate();
       await fetchTrips();
@@ -292,56 +360,37 @@ export default function ExplorePage() {
                 </label>
               </div>
 
-              <div className={styles.row}>
-                <label className={styles.field}>
-                  <span>Start lat</span>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={newTrip.start_lat}
-                    onChange={(e) =>
-                      setNewTrip({ ...newTrip, start_lat: e.target.value })
-                    }
-                  />
-                </label>
-
-                <label className={styles.field}>
-                  <span>Start lng</span>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={newTrip.start_lng}
-                    onChange={(e) =>
-                      setNewTrip({ ...newTrip, start_lng: e.target.value })
-                    }
-                  />
-                </label>
-              </div>
-
-              <div className={styles.row}>
-                <label className={styles.field}>
-                  <span>Slutt lat</span>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={newTrip.end_lat}
-                    onChange={(e) =>
-                      setNewTrip({ ...newTrip, end_lat: e.target.value })
-                    }
-                  />
-                </label>
-
-                <label className={styles.field}>
-                  <span>Slutt lng</span>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={newTrip.end_lng}
-                    onChange={(e) =>
-                      setNewTrip({ ...newTrip, end_lng: e.target.value })
-                    }
-                  />
-                </label>
+              <div className={styles.field}>
+                <span>Rute på kart</span>
+                <div
+                  id="new-trip-map"
+                  style={{
+                    width: "100%",
+                    height: 260,
+                    borderRadius: 12,
+                    border: "1px solid #e6e6ef",
+                    overflow: "hidden",
+                    marginBottom: 8,
+                  }}
+                />
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => setPlacing((p) => !p)}
+                  >
+                    {placing ? "Avslutt punktplassering" : "Plasser punkter"}
+                  </button>
+                  <span style={{ fontSize: 12, color: "#6b7280" }}>
+                    Klikk på kartet for å legge til punkter. Minst to punkter
+                    kreves for en rute.
+                  </span>
+                </div>
+                {currentRoute.geometry && (
+                  <div style={{ marginTop: 4, fontSize: 12, color: "#10b981" }}>
+                    Rute valgt med {currentRoute.points.length} punkt(er).
+                  </div>
+                )}
               </div>
 
               <label className={styles.checkbox}>

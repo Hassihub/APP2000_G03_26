@@ -12,6 +12,8 @@ export default function MapComponent() {
   const gpxLayerRef = useRef(null);
   const [showCabins, setShowCabins] = useState(false);
   const cabinsLayerRef = useRef(null);
+  const [showTrips, setShowTrips] = useState(false);
+  const tripsLayerRef = useRef(null);
   const [currentRoute, setCurrentRoute] = useState({ points: [], geometry: null });
   const [routeToggles, setRouteToggles] = useState({
     annenrute: false,
@@ -85,6 +87,10 @@ export default function MapComponent() {
       if (cabinsLayerRef.current) {
         map.removeLayer(cabinsLayerRef.current);
         cabinsLayerRef.current = null;
+      }
+      if (tripsLayerRef.current) {
+        map.removeLayer(tripsLayerRef.current);
+        tripsLayerRef.current = null;
       }
       map.remove();
       mapRef.current = null;
@@ -171,6 +177,95 @@ export default function MapComponent() {
       map.removeLayer(cabinsLayerRef.current);
     }
   }, [showCabins, Leaflet]);
+
+  // 🔹 Vis lagrede trips (fra /api/trips) på kartet
+  useEffect(() => {
+    if (!Leaflet || !mapRef.current) return;
+
+    const L = Leaflet;
+    const map = mapRef.current;
+
+    async function ensureTripsLayer() {
+      if (tripsLayerRef.current) {
+        if (!map.hasLayer(tripsLayerRef.current)) {
+          tripsLayerRef.current.addTo(map);
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/trips");
+        const json = await res.json().catch(() => []);
+
+        if (!res.ok) {
+          console.warn("Kunne ikke hente trips:", json?.error);
+          return;
+        }
+
+        const trips = Array.isArray(json) ? json : [];
+        if (!trips.length) return;
+
+        const features = trips
+          .filter((trip) =>
+            trip && trip.geometry && typeof trip.geometry === "object"
+          )
+          .map((trip) => ({
+            type: "Feature",
+            geometry: trip.geometry,
+            properties: {
+              id: trip.id,
+              navn: trip.navn,
+              type: trip.type,
+              vanskelighetsgrad: trip.vanskelighetsgrad,
+              lengde_km: trip.lengde_km,
+              tiu_trip_id: trip.tiu_trip_id,
+              turleder_navn: trip.turleder_navn,
+            },
+          }));
+
+        if (!features.length) return;
+
+        const layer = L.geoJSON(
+          { type: "FeatureCollection", features },
+          {
+            style: (feature) => {
+              const type = feature?.properties?.type;
+              // Enkel fargekoding basert på type tur
+              if (type === "skitur") return { color: "#1f77b4", weight: 4 };
+              if (type === "sykkel") return { color: "#2ca02c", weight: 4 };
+              return { color: "#ff4d4d", weight: 4 };
+            },
+            onEachFeature: (feature, layer) => {
+              const p = feature.properties || {};
+              const lines = [];
+              if (p.navn) lines.push(`<strong>${p.navn}</strong>`);
+              if (p.lengde_km)
+                lines.push(`Lengde: ${p.lengde_km.toFixed?.(1) ?? p.lengde_km} km`);
+              if (p.vanskelighetsgrad)
+                lines.push(`Vanskelighetsgrad: ${p.vanskelighetsgrad}`);
+              if (p.turleder_navn)
+                lines.push(`Turleder: ${p.turleder_navn}`);
+
+              if (lines.length) {
+                layer.bindPopup(lines.join("<br/>"));
+              }
+            },
+          }
+        );
+
+        layer.addTo(map);
+        tripsLayerRef.current = layer;
+      } catch (e) {
+        console.error("Feil ved lasting av trips:", e);
+      }
+    }
+
+    if (showTrips) {
+      ensureTripsLayer();
+    } else if (tripsLayerRef.current && map.hasLayer(tripsLayerRef.current)) {
+      map.removeLayer(tripsLayerRef.current);
+    }
+  }, [showTrips, Leaflet]);
 
   // 🔹 Hent høydedata for manuelt tegnede ruter (ikke GPX)
   useEffect(() => {
@@ -490,6 +585,14 @@ export default function MapComponent() {
               onChange={(e) => setShowCabins(e.target.checked)}
             />
             <span>Vis hytter</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <input
+              type="checkbox"
+              checked={showTrips}
+              onChange={(e) => setShowTrips(e.target.checked)}
+            />
+            <span>Vis turer</span>
           </label>
         </div>
 

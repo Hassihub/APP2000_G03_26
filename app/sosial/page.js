@@ -12,7 +12,6 @@ import LikerKnappPaa from "./post_buttons/LikerKnappPaa.png"
 export default function SosialPage() {
   const [posts, setPosts] = useState([])
   const [caption, setCaption] = useState("")
-  const [likedPosts, setLikedPosts] = useState(new Set())
 
   async function loadPosts() {
     const res = await fetch("/api/sosial/posts")
@@ -48,13 +47,7 @@ export default function SosialPage() {
       userid: "00000000-0000-0000-0000-000000000000" //MÅ byttes ut med userid
     })
   })
-
-    setLikedPosts(prev => {
-      const next = new Set(prev)
-      liked ? next.delete(postid) : next.add(postid)
-      return next
-    })
-
+  
     loadPosts()
   }
 
@@ -82,7 +75,7 @@ export default function SosialPage() {
       <button onClick={submitPost}>post</button>
 
       {posts.map(p => {
-        const liked = likedPosts.has(p.postid)
+        const liked = p.liked
 
         return (
           <div key={p.postid} id={`post-${p.postid}`}>

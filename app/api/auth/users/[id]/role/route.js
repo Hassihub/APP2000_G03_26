@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import pool from "../../../../../lib/db";
-import { requireAuth, requireRole } from "../../../../../lib/auth";
-import { isValidRole, ROLE_ADMIN } from "../../../../../lib/roles";
+import pool from "../../../../../../lib/db";
+import { requireAuth, requireRole } from "../../../../../../lib/auth";
+import { isValidRole, ROLE_ADMIN } from "../../../../../../lib/roles";
 
 export async function POST(req, { params }) {
   const { user, response } = await requireAuth();
