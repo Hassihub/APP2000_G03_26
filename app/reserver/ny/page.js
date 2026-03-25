@@ -55,6 +55,15 @@ export default function NewCabinPage() {
       attribution: "© OpenStreetMap",
     }).addTo(map);
 
+    // Legg til maske som skjuler alt utenfor Norge (samme som hovedkartet)
+    import("../../components/map/maskLayer").then(({ addMaskLayer }) => {
+      try {
+        addMaskLayer(map, L);
+      } catch (e) {
+        console.error("Kunne ikke legge til maske for Norge på nytt hytte-kart:", e);
+      }
+    });
+
     const cabinIcon = L.icon({
       iconUrl: "/images/pinEnd.png",
       iconSize: [32, 32],
@@ -68,6 +77,15 @@ export default function NewCabinPage() {
 
       if (!markerRef.current) {
         markerRef.current = L.marker([lat, lng], { icon: cabinIcon }).addTo(map);
+
+        // Klikk på pinnen fjerner den igjen og nullstiller koordinater
+        markerRef.current.on("click", () => {
+          if (markerRef.current) {
+            map.removeLayer(markerRef.current);
+            markerRef.current = null;
+            setCoords(null);
+          }
+        });
       } else {
         markerRef.current.setLatLng([lat, lng]);
       }
