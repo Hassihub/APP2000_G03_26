@@ -10,6 +10,8 @@ export default function MapComponent() {
   const drawCleanupRef = useRef(null);
   const geojsonCleanupRef = useRef(null);
   const gpxLayerRef = useRef(null);
+  const [showCabins, setShowCabins] = useState(false);
+  const cabinsLayerRef = useRef(null);
   const [currentRoute, setCurrentRoute] = useState({ points: [], geometry: null });
   const [routeToggles, setRouteToggles] = useState({
     annenrute: false,
@@ -80,6 +82,10 @@ export default function MapComponent() {
     return () => {
       if (drawCleanupRef.current) drawCleanupRef.current();
       if (geojsonCleanupRef.current) geojsonCleanupRef.current();
+      if (cabinsLayerRef.current) {
+        map.removeLayer(cabinsLayerRef.current);
+        cabinsLayerRef.current = null;
+      }
       map.remove();
       mapRef.current = null;
     };
@@ -92,6 +98,79 @@ export default function MapComponent() {
   useEffect(() => {
     routeTogglesRef.current = routeToggles;
   }, [routeToggles]);
+
+  // 🔹 Vis hytter fra databasen ved hjelp av lagrede koordinater
+  useEffect(() => {
+    if (!Leaflet || !mapRef.current) return;
+
+    const L = Leaflet;
+    const map = mapRef.current;
+
+    async function ensureCabinsLayer() {
+      if (cabinsLayerRef.current) {
+        if (!map.hasLayer(cabinsLayerRef.current)) {
+          cabinsLayerRef.current.addTo(map);
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/cabins");
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          console.warn("Kunne ikke hente hytter:", json?.error);
+          return;
+        }
+
+        const cabins = Array.isArray(json.cabins) ? json.cabins : [];
+        if (!cabins.length) return;
+
+        const layer = L.layerGroup();
+
+        const cabinIcon = L.icon({
+          iconUrl: "/images/pinEnd.png",
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32],
+        });
+
+        for (const cabin of cabins) {
+          const lat = Number(cabin.latitude);
+          const lon = Number(cabin.longitude);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+          const marker = L.marker([lat, lon], { icon: cabinIcon });
+
+          const popupLines = [];
+          popupLines.push(`<strong>${cabin.name ?? "Hytte"}</strong>`);
+          if (cabin.location) popupLines.push(`📍 ${cabin.location}`);
+          if (Number.isFinite(cabin.price_per_night)) {
+            popupLines.push(`💰 ${cabin.price_per_night} kr/natt`);
+          }
+          if (Number.isFinite(cabin.capacity)) {
+            popupLines.push(`👥 ${cabin.capacity} pers`);
+          }
+
+          marker.bindPopup(popupLines.join("<br/>"));
+          layer.addLayer(marker);
+        }
+
+        if (layer.getLayers().length === 0) return;
+
+        layer.addTo(map);
+        cabinsLayerRef.current = layer;
+      } catch (e) {
+        console.error("Feil ved lasting av hytter:", e);
+      }
+    }
+
+    if (showCabins) {
+      ensureCabinsLayer();
+    } else if (cabinsLayerRef.current && map.hasLayer(cabinsLayerRef.current)) {
+      map.removeLayer(cabinsLayerRef.current);
+    }
+  }, [showCabins, Leaflet]);
 
   // 🔹 Hent høydedata for manuelt tegnede ruter (ikke GPX)
   useEffect(() => {
@@ -403,6 +482,14 @@ export default function MapComponent() {
               }
             />
             <span>Rute infopunkt</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <input
+              type="checkbox"
+              checked={showCabins}
+              onChange={(e) => setShowCabins(e.target.checked)}
+            />
+            <span>Vis hytter</span>
           </label>
         </div>
 
