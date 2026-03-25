@@ -9,7 +9,7 @@ import LikerKnappPaa from "./post_buttons/LikerKnappPaa.png"
 
 
 
-export default function page() {
+export default function SosialPage() {
   const [posts, setPosts] = useState([])
   const [caption, setCaption] = useState("")
 

@@ -10,7 +10,6 @@ const { Pool } = require("pg");
 // Optional: load .env in development
 try {
   if (process.env.NODE_ENV !== "production") {
-    // eslint-disable-next-line global-require
     require("dotenv").config();
   }
 } catch (e) {
@@ -91,14 +90,11 @@ appNext.prepare().then(() => {
 
   app.set("trust proxy", 1); // needed for secure cookies behind Heroku proxy
 
-  // IMPORTANT: Do NOT parse request bodies globally, because Next.js
-  // App Router API routes (in app/api) expect to read the raw body
-  // themselves via req.json(). If Express.json() consumes the body
-  // first, those handlers will fail with body/stream errors.
-
-  // Instead, apply body parsers only to the Express-handled routes.
-  const jsonParser = express.json();
-  const urlencodedParser = express.urlencoded({ extended: true });
+  // Only parse JSON/urlencoded for auth routes handled by Express
+  // Next.js app router routes will handle their own body parsing
+  const authRouter = express.Router();
+  authRouter.use(express.json());
+  authRouter.use(express.urlencoded({ extended: true }));
 
   app.use(
     session({
@@ -124,16 +120,26 @@ appNext.prepare().then(() => {
     })
   );
 
+  // Mirror the session ID into a separate cookie so Next.js route handlers (app router) can
+  // authenticate using the same session store.
+  app.use((req, res, next) => {
+    if (req.sessionID) {
+      res.cookie("sid", req.sessionID, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dager
+      });
+    }
+    next();
+  });
+
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Use body parsers only for our Express auth + messages endpoints
-  app.use("/api/auth", jsonParser, urlencodedParser);
-  app.use("/api/messages", jsonParser, urlencodedParser);
-
-  // Register
-  app.post("/api/auth/register", async (req, res) => {
-    const { username, email, password } = req.body || {};
+  // Apply body parsing middleware only to /api/auth routes
+  authRouter.post("/register", async (req, res) => {
+    const { username, email, password, role } = req.body || {};
 
     if (!username || !email || !password) {
       return res
@@ -146,6 +152,10 @@ appNext.prepare().then(() => {
         .status(400)
         .json({ error: "Passord må være minst 8 tegn" });
     }
+
+    const cleanRole = String(role ?? "").trim().toUpperCase();
+    const allowedRoles = ["USER", "UTLEIER"];
+    const roleValue = allowedRoles.includes(cleanRole) ? cleanRole : "USER";
 
     try {
       const existing = await pool.query(
@@ -162,8 +172,8 @@ appNext.prepare().then(() => {
       const hash = await bcrypt.hash(password, 10);
 
       const insertResult = await pool.query(
-        "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *",
-        [username, email, hash]
+        "INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *",
+        [username, email, hash, roleValue]
       );
 
       const user = sanitizeUser(insertResult.rows[0]);
@@ -181,7 +191,7 @@ appNext.prepare().then(() => {
   });
 
   // Login
-  app.post("/api/auth/login", (req, res, next) => {
+  authRouter.post("/login", (req, res, next) => {
     passport.authenticate("local", (err, user, info) => {
       if (err) return next(err);
       if (!user) {
@@ -198,18 +208,19 @@ appNext.prepare().then(() => {
   });
 
   // Logout
-  app.post("/api/auth/logout", (req, res, next) => {
+  authRouter.post("/logout", (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
       req.session.destroy(() => {
         res.clearCookie("connect.sid");
+        res.clearCookie("sid");
         res.json({ ok: true });
       });
     });
   });
 
   // Current user
-  app.get("/api/auth/me", (req, res) => {
+  authRouter.get("/me", (req, res) => {
     if (!req.isAuthenticated || !req.isAuthenticated()) {
       return res.status(401).json({ user: null });
     }
@@ -217,7 +228,7 @@ appNext.prepare().then(() => {
   });
 
   // Update username
-  app.post("/api/auth/update-profile", async (req, res) => {
+  authRouter.post("/update-profile", async (req, res) => {
     if (!req.isAuthenticated || !req.isAuthenticated()) {
       return res.status(401).json({ error: "Ikke logget inn" });
     }
@@ -260,7 +271,7 @@ appNext.prepare().then(() => {
   });
 
   // Change password
-  app.post("/api/auth/change-password", async (req, res) => {
+  authRouter.post("/change-password", async (req, res) => {
     if (!req.isAuthenticated || !req.isAuthenticated()) {
       return res.status(401).json({ error: "Ikke logget inn" });
     }
@@ -305,7 +316,7 @@ appNext.prepare().then(() => {
   });
 
   // Delete account
-  app.post("/api/auth/delete-account", async (req, res) => {
+  authRouter.post("/delete-account", async (req, res) => {
     if (!req.isAuthenticated || !req.isAuthenticated()) {
       return res.status(401).json({ error: "Ikke logget inn" });
     }
@@ -328,100 +339,14 @@ appNext.prepare().then(() => {
     }
   });
 
-  // Create a new one-to-one message
-  app.post("/api/messages", async (req, res) => {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
-      return res.status(401).json({ error: "Ikke logget inn" });
-    }
-
-    const { receiverId, content } = req.body || {};
-
-    if (!receiverId || !content || !content.trim()) {
-      return res
-        .status(400)
-        .json({ error: "Mottaker og meldingstekst er påkrevd" });
-    }
-
-    try {
-      const insertResult = await pool.query(
-        "INSERT INTO messages (senderid, receiverid, text) VALUES ($1, $2, $3) RETURNING *",
-        [req.user.id, receiverId, content.trim()]
-      );
-
-      const row = insertResult.rows[0];
-      const message = {
-        id: row.id,
-        sender_id: row.senderid,
-        receiver_id: row.receiverid,
-        content: row.text,
-        created_at: row.createdat,
-        read_at: row.readat,
-      };
-
-      return res.status(201).json({ message });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("/api/messages POST error", err);
-      return res.status(500).json({ error: "Kunne ikke sende melding" });
-    }
-  });
-
-  // Get all messages in a one-to-one conversation
-  app.get("/api/messages/:otherUserId", async (req, res) => {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
-      return res.status(401).json({ error: "Ikke logget inn" });
-    }
-
-    const { otherUserId } = req.params;
-
-    if (!otherUserId) {
-      return res.status(400).json({ error: "Mangler mottaker-id" });
-    }
-
-    try {
-      const result = await pool.query(
-        `SELECT m.id,
-                m.senderid,
-                m.receiverid,
-                m.text,
-                m.createdat,
-                m.readat,
-                su.username AS sender_username,
-                ru.username AS receiver_username
-         FROM messages m
-         JOIN users su ON su.id = m.senderid
-         JOIN users ru ON ru.id = m.receiverid
-         WHERE (m.senderid = $1 AND m.receiverid = $2)
-            OR (m.senderid = $2 AND m.receiverid = $1)
-         ORDER BY m.createdat ASC`,
-        [req.user.id, otherUserId]
-      );
-
-      const messages = result.rows.map((row) => ({
-        id: row.id,
-        sender_id: row.senderid,
-        receiver_id: row.receiverid,
-        content: row.text,
-        created_at: row.createdat,
-        read_at: row.readat,
-        sender_username: row.sender_username,
-        receiver_username: row.receiver_username,
-      }));
-
-      return res.json({ messages });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("/api/messages GET error", err);
-      return res.status(500).json({ error: "Kunne ikke hente meldinger" });
-    }
-  });
+  // Mount auth router with body parsing middleware
+  app.use("/api/auth", authRouter);
 
   // Let Next.js handle everything else
   app.all("*", (req, res) => handle(req, res));
 
   app.listen(port, (err) => {
     if (err) throw err;
-    // eslint-disable-next-line no-console
     console.log(`> Ready on http://localhost:${port}`);
   });
 });
