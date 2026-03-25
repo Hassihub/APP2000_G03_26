@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   FiSearch,
   FiSettings,
@@ -10,117 +10,132 @@ import {
   FiMenu,
   FiChevronLeft,
   FiUser,
+  FiLogIn,
+  FiLogOut,
 } from "react-icons/fi";
-
-const translations = {
-  no: {
-    search: "Søk",
-    explore: "Utforsk",
-    reserve: "Reserver",
-    map: "Kart",
-    weather: "Vær",
-    social: "Sosial",
-    navigate: "Naviger",
-    home: "Hjem",
-  },
-  en: {
-    search: "Search",
-    explore: "Explore",
-    reserve: "Reserve",
-    map: "Map",
-    weather: "Weather",
-    social: "Social",
-    navigate: "Navigate",
-    home: "Home",
-  },
-  fr: {
-    search: "Recherche",
-    explore: "Explorer",
-    reserve: "Réserver",
-    map: "Carte",
-    weather: "Météo",
-    social: "Social",
-    navigate: "Naviguer",
-    home: "Accueil",
-  },
-  es: {
-    search: "Buscar",
-    explore: "Explorar",
-    reserve: "Reservar",
-    map: "Mapa",
-    weather: "Clima",
-    social: "Social",
-    navigate: "Navegar",
-    home: "Inicio",
-  },
-  it: {
-    search: "Cerca",
-    explore: "Esplora",
-    reserve: "Prenota",
-    map: "Mappa",
-    weather: "Meteo",
-    social: "Social",
-    navigate: "Naviga",
-    home: "Home",
-  },
-};
+import { useLanguage, useTranslations } from "./LanguageProvider";
 
 const flags = { no: "🇳🇴", en: "🇬🇧", fr: "🇫🇷", es: "🇪🇸", it: "🇮🇹" };
 
 export default function TopBar() {
   const [open, setOpen] = useState(false);
-  const [language, setLanguage] = useState("no");
   const [searchQuery, setSearchQuery] = useState("");
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const { language, setLanguage, languages } = useLanguage();
+  const translations = useTranslations("topBar");
 
   const router = useRouter();
+  const pathname = usePathname();
 
-  const pages = [
-    { nameKey: "explore", href: "/explore" },
-    { nameKey: "reserve", href: "/reserver" },
-    { nameKey: "map", href: "/map" },
-    { nameKey: "weather", href: "/vaer" },
-    { nameKey: "social", href: "/sosial" },
-  ];
-
-  const languages = ["no", "en", "fr", "es", "it"];
+  const pages = useMemo(
+    () => [
+      { nameKey: "home", href: "/" },
+      { nameKey: "explore", href: "/explore" },
+      { nameKey: "reserve", href: "/reserver" },
+      { nameKey: "map", href: "/map" },
+      { nameKey: "weather", href: "/vaer" },
+      { nameKey: "social", href: "/sosial" },
+    ],
+    []
+  );
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadPreferences() {
+    async function loadCurrentUser() {
       try {
-        const res = await fetch("/api/preferences", { cache: "no-store" });
-        const json = await res.json().catch(() => ({}));
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
 
-        if (!cancelled && res.ok && json?.language) {
-          setLanguage(json.language);
-        }
-      } finally {
+        const data = await res.json().catch(() => ({}));
         if (!cancelled) {
-          setPreferencesLoaded(true);
+          setCurrentUser(res.ok ? data.user || null : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentUser(null);
         }
       }
     }
 
-    loadPreferences();
+    loadCurrentUser();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
-    if (!preferencesLoaded) {
-      return;
+    setOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
     }
 
-    fetch("/api/preferences", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ language }),
-    }).catch(() => {});
-  }, [language, preferencesLoaded]);
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
+
+  const quickActions = useMemo(() => {
+    const items = [
+      {
+        key: "profile",
+        label: translations.profile,
+        icon: <FiUser size={16} />,
+        action: () => router.push(currentUser ? "/profile" : "/login"),
+      },
+      {
+        key: "search",
+        label: translations.search,
+        icon: <FiSearch size={16} />,
+        action: () => router.push("/search"),
+      },
+      {
+        key: "settings",
+        label: translations.settings,
+        icon: <FiSettings size={16} />,
+        action: () => router.push("/settings"),
+      },
+    ];
+
+    if (currentUser) {
+      items.push({
+        key: "logout",
+        label: translations.logout,
+        icon: <FiLogOut size={16} />,
+        action: async () => {
+          await fetch("/api/auth/logout", {
+            method: "POST",
+            credentials: "include",
+            cache: "no-store",
+          }).catch(() => {});
+
+          setCurrentUser(null);
+          router.push("/login");
+        },
+      });
+    } else {
+      items.push({
+        key: "login",
+        label: translations.login,
+        icon: <FiLogIn size={16} />,
+        action: () => router.push("/login"),
+      });
+    }
+
+    return items;
+  }, [currentUser, router, translations]);
 
   const handleSearch = () => {
     if (searchQuery.trim() !== "") {
@@ -157,7 +172,7 @@ export default function TopBar() {
           <input
             type="text"
             value={searchQuery}
-            placeholder={translations[language].search}
+            placeholder={translations.search}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSearch();
@@ -225,7 +240,7 @@ export default function TopBar() {
                   top: 0,
                   right: 0,
                   bottom: 0,
-                  width: "300px",
+                  width: "360px",
                   backgroundColor: "#fff",
                   borderLeft: "1px solid #ddd",
                   boxShadow: "-5px 0 15px rgba(0,0,0,0.2)",
@@ -250,64 +265,174 @@ export default function TopBar() {
                     onClick={() => setOpen(false)}
                   />
                   <h2 style={{ fontSize: "1.5rem", fontWeight: 700 }}>
-                    {translations[language].navigate}
+                    {translations.navigate}
                   </h2>
                 </div>
 
                 <div
                   style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "0.5rem",
-                    padding: "0 2rem",
+                    display: "grid",
+                    gap: "1.5rem",
+                    padding: "0 2rem 2rem",
                   }}
                 >
-                  {pages.map((p) => (
-                    <Link
-                      key={p.nameKey}
-                      href={p.href}
+                  <Link
+                    href={currentUser ? "/profile" : "/login"}
+                    onClick={() => setOpen(false)}
+                    style={{
+                      padding: "1rem",
+                      borderRadius: "14px",
+                      background: "#f8fafb",
+                      border: "1px solid #e7eaee",
+                      textDecoration: "none",
+                      display: "block",
+                    }}
+                  >
+                    <div
                       style={{
-                        padding: "1rem 0",
-                        textDecoration: "none",
-                        color: "#333",
-                        fontWeight: 600,
+                        fontSize: "0.78rem",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        color: "#667085",
+                        marginBottom: "0.5rem",
                       }}
-                      onClick={() => setOpen(false)}
                     >
-                      {translations[language][p.nameKey]}
-                    </Link>
-                  ))}
+                      {translations.account}
+                    </div>
+                    <div style={{ fontWeight: 700, color: "#101828", marginBottom: "0.2rem" }}>
+                      {currentUser?.username || currentUser?.email || translations.guest}
+                    </div>
+                    <div style={{ color: "#667085", fontSize: "0.92rem" }}>
+                      {currentUser?.email
+                        ? `${translations.signedInAs} ${currentUser.email}`
+                        : translations.guest}
+                    </div>
+                  </Link>
+
+                  <section>
+                    <div
+                      style={{
+                        fontSize: "0.78rem",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        color: "#667085",
+                        marginBottom: "0.75rem",
+                      }}
+                    >
+                      {translations.navigate}
+                    </div>
+                    <div style={{ display: "grid", gap: "0.55rem" }}>
+                      {pages.map((p) => {
+                        const isActive =
+                          p.href === "/"
+                            ? pathname === "/"
+                            : pathname?.startsWith(p.href);
+
+                        return (
+                          <Link
+                            key={p.nameKey}
+                            href={p.href}
+                            style={{
+                              padding: "0.95rem 1rem",
+                              textDecoration: "none",
+                              color: isActive ? "#fff" : "#111827",
+                              fontWeight: 600,
+                              borderRadius: "12px",
+                              background: isActive ? "#111827" : "#f8fafb",
+                              border: `1px solid ${isActive ? "#111827" : "#e7eaee"}`,
+                            }}
+                            onClick={() => setOpen(false)}
+                          >
+                            {translations[p.nameKey]}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  <section>
+                    <div
+                      style={{
+                        fontSize: "0.78rem",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        color: "#667085",
+                        marginBottom: "0.75rem",
+                      }}
+                    >
+                      {translations.quickActions}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                      {quickActions.map((item) => (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => {
+                            setOpen(false);
+                            item.action();
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.55rem",
+                            justifyContent: "center",
+                            padding: "0.9rem",
+                            borderRadius: "12px",
+                            border: "1px solid #d0d5dd",
+                            background: "#fff",
+                            color: "#111827",
+                            cursor: "pointer",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {item.icon}
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
                 </div>
 
                 <div
                   style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: "0.5rem",
-                    padding: "1rem 0",
+                    display: "grid",
+                    gap: "0.75rem",
+                    padding: "1.5rem 2rem",
                     borderTop: "1px solid #eee",
                   }}
                 >
-                  {languages.map((lang) => (
-                    <button
-                      key={lang}
-                      onClick={() => setLanguage(lang)}
-                      style={{
-                        padding: "0.5rem 0.8rem",
-                        borderRadius: "4px",
-                        border:
-                          language === lang
-                            ? "2px solid #333"
-                            : "1px solid #ccc",
-                        background:
-                          language === lang ? "#f0f0f0" : "#fff",
-                        cursor: "pointer",
-                        fontSize: "1.2rem",
-                      }}
-                    >
-                      {flags[lang]}
-                    </button>
-                  ))}
+                  <div
+                    style={{
+                      fontSize: "0.78rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      color: "#667085",
+                    }}
+                  >
+                    {translations.language}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                    {languages.map((lang) => (
+                      <button
+                        key={lang}
+                        onClick={() => setLanguage(lang)}
+                        style={{
+                          padding: "0.55rem 0.8rem",
+                          borderRadius: "10px",
+                          border:
+                            language === lang
+                              ? "2px solid #111827"
+                              : "1px solid #d0d5dd",
+                          background:
+                            language === lang ? "#eef2f6" : "#fff",
+                          cursor: "pointer",
+                          fontSize: "1.1rem",
+                        }}
+                      >
+                        {flags[lang]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </>

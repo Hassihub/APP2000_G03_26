@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import styles from "./Reserver.module.css";
+import { formatTranslation, useTranslations } from "../components/LanguageProvider";
 
 export default function CabinsPage() {
   const searchParams = useSearchParams();
+  const t = useTranslations("reservePage");
   const cabinIdFromUrl = searchParams.get("cabinId");
   const [cabins, setCabins] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -25,7 +27,7 @@ export default function CabinsPage() {
         const json = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-          throw new Error(json?.error || "Kunne ikke hente hytter fra databasen.");
+          throw new Error(json?.error || t.cabinsLoadError);
         }
 
         if (!alive) return;
@@ -45,7 +47,7 @@ export default function CabinsPage() {
         });
       } catch (e) {
         if (!alive) return;
-        setErrorMsg(e?.message || "Ukjent feil ved henting av hytter.");
+        setErrorMsg(e?.message || t.unknownCabinError);
       } finally {
         if (!alive) return;
         setLoading(false);
@@ -57,7 +59,7 @@ export default function CabinsPage() {
     return () => {
       alive = false;
     };
-  }, [cabinIdFromUrl]);
+  }, [cabinIdFromUrl, t.cabinsLoadError, t.unknownCabinError]);
 
   useEffect(() => {
     if (!cabinIdFromUrl || cabins.length === 0) {
@@ -89,20 +91,20 @@ export default function CabinsPage() {
           <div className={styles.container}>
             <div className={styles.notice}>
               {loading
-                ? "⏳ Laster hytter..."
+                ? t.loadingCabins
                 : errorMsg
-                ? `❌ ${errorMsg}`
-                : `🏡 Hytter tilgjengelig: ${cabins.length} funnet`}
+                ? errorMsg
+                : formatTranslation(t.availableCabins, { count: cabins.length })}
             </div>
 
             <div className={styles.layout}>
               {/* Venstre: liste */}
               <div className={styles.listCard}>
-                <h3 className={styles.listTitle}>Velg en hytte</h3>
+                <h3 className={styles.listTitle}>{t.selectCabin}</h3>
 
                 <div className={styles.list}>
                   {!loading && !errorMsg && cabins.length === 0 ? (
-                    <div className={styles.empty}>Ingen hytter i databasen enda.</div>
+                    <div className={styles.empty}>{t.noCabins}</div>
                   ) : null}
 
                   {cabins.map((cabin) => {
@@ -120,7 +122,7 @@ export default function CabinsPage() {
                         </div>
 
                         <div className={styles.listItemMeta}>
-                          📍 {cabin.location} • 👥 {cabin.capacity} pers
+                          {t.location}: {cabin.location} • {t.capacity}: {cabin.capacity} {t.people}
                         </div>
                       </button>
                     );
@@ -129,7 +131,7 @@ export default function CabinsPage() {
 
                 <div style={{ marginTop: 12 }}>
                   <Link className={styles.button} href="/reserver/ny">
-                    ➕ Legg til ny hytte
+                    {t.addCabin}
                   </Link>
                 </div>
               </div>
@@ -140,30 +142,29 @@ export default function CabinsPage() {
                   <div className={styles.cardContent}>
                     <div className={styles.info}>
                       <h2>{selectedCabin.name}</h2>
-                      <p>{selectedCabin.description ?? "Ingen beskrivelse tilgjengelig."}</p>
+                      <p>{selectedCabin.description ?? t.noAmenities}</p>
 
                       <div className={styles.meta}>
-                        📍 {selectedCabin.location}
+                        {t.location}: {selectedCabin.location}
                         <br />
-                        👥 {selectedCabin.capacity} personer
+                        {t.capacity}: {selectedCabin.capacity} {t.people}
                         <br />
-                        💰 {selectedCabin.price_per_night} kr per natt
+                        {selectedCabin.price_per_night} kr {t.pricePerNight}
                         <br />
-                        🏡{" "}
                         {selectedCabin.amenities?.length
                           ? selectedCabin.amenities.join(", ")
-                          : "Ingen registrerte fasiliteter"}
+                          : t.noAmenities}
                       </div>
 
                       <div className={styles.actions}>
                         {bookingHref ? (
                           <Link className={styles.button} href={bookingHref}>
-                            🗓️ Reserver denne hytta
+                            {t.reserveCabin}
                           </Link>
                         ) : null}
 
                         <Link className={styles.button} href="/reserver/ny">
-                          ➕ Legg til ny hytte
+                          {t.addCabin}
                         </Link>
                       </div>
                     </div>
@@ -171,10 +172,10 @@ export default function CabinsPage() {
                 ) : (
                   <div className={styles.empty}>
                     {loading
-                      ? "Laster..."
+                      ? t.loading
                       : errorMsg
-                      ? "Kunne ikke laste data."
-                      : "Velg en hytte i listen for å se detaljer."}
+                      ? t.loadError
+                      : t.selectPrompt}
                   </div>
                 )}
               </div>

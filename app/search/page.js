@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "../components/LanguageProvider";
 
 const surfaceStyle = {
   background: "#ffffff",
@@ -20,6 +21,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState({ trips: [], cabins: [] });
+  const t = useTranslations("searchPage");
 
   useEffect(() => {
     setQuery(queryFromUrl);
@@ -50,11 +52,11 @@ export default function SearchPage() {
         ]);
 
         if (!tripsResponse.ok) {
-          throw new Error(tripsJson?.error || "Kunne ikke hente turresultater.");
+          throw new Error(tripsJson?.error || t.loading);
         }
 
         if (!cabinsResponse.ok) {
-          throw new Error(cabinsJson?.error || "Kunne ikke hente hytter.");
+          throw new Error(cabinsJson?.error || t.noHitsDescription);
         }
 
         if (cancelled) {
@@ -71,7 +73,7 @@ export default function SearchPage() {
         }
 
         setResults({ trips: [], cabins: [] });
-        setError(err.message || "Søket feilet.");
+        setError(err.message || t.noHitsDescription);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -84,7 +86,7 @@ export default function SearchPage() {
     return () => {
       cancelled = true;
     };
-  }, [queryFromUrl]);
+  }, [queryFromUrl, t.loading, t.noHitsDescription]);
 
   const totalResults = results.trips.length + results.cabins.length;
 
@@ -125,11 +127,11 @@ export default function SearchPage() {
               color: "#466555",
             }}
           >
-            Globalt søk
+              {t.eyebrow}
           </p>
-          <h1 style={{ marginBottom: "0.5rem", color: "#163324" }}>Finn turer og hytter</h1>
+            <h1 style={{ marginBottom: "0.5rem", color: "#163324" }}>{t.title}</h1>
           <p style={{ marginTop: 0, color: "#5a6f62", maxWidth: "700px" }}>
-            Søk etter turer, steder og hytter. Resultatene leder videre til utforsk- og reservasjonsvisningene.
+              {t.subtitle}
           </p>
 
           <form
@@ -140,7 +142,7 @@ export default function SearchPage() {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Søk etter tur eller hytte"
+              placeholder={t.inputPlaceholder}
               style={{
                 flex: "1 1 340px",
                 minWidth: "260px",
@@ -162,14 +164,14 @@ export default function SearchPage() {
                 cursor: "pointer",
               }}
             >
-              Søk
+              {t.submit}
             </button>
           </form>
         </section>
 
         {!queryFromUrl ? (
           <section style={{ ...surfaceStyle, padding: "1.5rem 2rem" }}>
-            <h2 style={{ marginTop: 0, color: "#163324" }}>Forslag</h2>
+            <h2 style={{ marginTop: 0, color: "#163324" }}>{t.suggestions}</h2>
             <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
               {[
                 "Gaustatoppen",
@@ -206,26 +208,26 @@ export default function SearchPage() {
                 marginBottom: "1.5rem",
               }}
             >
-              <StatCard label="Søkeord" value={queryFromUrl} />
-              <StatCard label="Turer" value={String(results.trips.length)} />
-              <StatCard label="Hytter" value={String(results.cabins.length)} />
-              <StatCard label="Treff totalt" value={String(totalResults)} />
+              <StatCard label={t.searchTerm} value={queryFromUrl} />
+              <StatCard label={t.trips} value={String(results.trips.length)} />
+              <StatCard label={t.cabins} value={String(results.cabins.length)} />
+              <StatCard label={t.totalResults} value={String(totalResults)} />
             </section>
 
-            {loading ? <StatusMessage text="Søker i turer og hytter..." /> : null}
+            {loading ? <StatusMessage text={t.loading} /> : null}
             {error ? <StatusMessage text={error} error /> : null}
 
             {!loading && !error && totalResults === 0 ? (
               <section style={{ ...surfaceStyle, padding: "2rem" }}>
-                <h2 style={{ marginTop: 0, color: "#163324" }}>Ingen treff</h2>
+                <h2 style={{ marginTop: 0, color: "#163324" }}>{t.noHitsTitle}</h2>
                 <p style={{ marginBottom: 0, color: "#5a6f62" }}>
-                  Prøv et annet søkeord, eller gå direkte til utforsk- og reservasjonssidene.
+                  {t.noHitsDescription}
                 </p>
               </section>
             ) : null}
 
             {results.trips.length > 0 ? (
-              <ResultSection title="Turer">
+              <ResultSection title={t.trips}>
                 {results.trips.map((trip) => (
                   <article key={trip.id} style={{ ...surfaceStyle, padding: "1.25rem" }}>
                     <p style={{ margin: 0, color: "#597060", fontSize: "0.9rem" }}>
@@ -233,7 +235,7 @@ export default function SearchPage() {
                     </p>
                     <h3 style={{ margin: "0.4rem 0", color: "#163324" }}>{trip.navn}</h3>
                     <p style={{ color: "#50665a", minHeight: "3rem" }}>
-                      {trip.beskrivelse || "Ingen beskrivelse tilgjengelig."}
+                      {trip.beskrivelse || t.noDescription}
                     </p>
                     <p style={{ margin: "0 0 1rem", color: "#214c34", fontWeight: 600 }}>
                       {trip.lengde_km} km
@@ -242,7 +244,7 @@ export default function SearchPage() {
                       href={`/explore?search=${encodeURIComponent(trip.navn)}`}
                       style={{ color: "#214c34", fontWeight: 700, textDecoration: "none" }}
                     >
-                      Se i utforsk
+                      {t.openExplore}
                     </Link>
                   </article>
                 ))}
@@ -250,13 +252,13 @@ export default function SearchPage() {
             ) : null}
 
             {results.cabins.length > 0 ? (
-              <ResultSection title="Hytter">
+              <ResultSection title={t.cabins}>
                 {results.cabins.map((cabin) => (
                   <article key={cabin.id} style={{ ...surfaceStyle, padding: "1.25rem" }}>
                     <p style={{ margin: 0, color: "#597060", fontSize: "0.9rem" }}>{cabin.location}</p>
                     <h3 style={{ margin: "0.4rem 0", color: "#163324" }}>{cabin.name}</h3>
                     <p style={{ color: "#50665a", minHeight: "3rem" }}>
-                      {cabin.description || "Ingen beskrivelse tilgjengelig."}
+                      {cabin.description || t.noDescription}
                     </p>
                     <p style={{ margin: "0 0 0.4rem", color: "#214c34", fontWeight: 600 }}>
                       {cabin.price_per_night} kr/natt
@@ -266,7 +268,7 @@ export default function SearchPage() {
                       href={`/reserver?cabinId=${encodeURIComponent(cabin.id)}`}
                       style={{ color: "#214c34", fontWeight: 700, textDecoration: "none" }}
                     >
-                      Åpne i reserver
+                      {t.openReserve}
                     </Link>
                   </article>
                 ))}

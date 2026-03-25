@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "../components/LanguageProvider"
 import DelKnapp from "./post_buttons/DelKnapp.png"
 import KommentarKnapp from "./post_buttons/KommentarKnapp.png"
 import LikerKnappAv from "./post_buttons/LikerKnappAv.png"
@@ -12,6 +13,7 @@ import LikerKnappPaa from "./post_buttons/LikerKnappPaa.png"
 
 export default function SosialPage() {
   const router = useRouter()
+  const t = useTranslations("socialPage")
   const [currentUser, setCurrentUser] = useState(null)
   const [posts, setPosts] = useState([])
   const [caption, setCaption] = useState("")
@@ -39,7 +41,7 @@ export default function SosialPage() {
         }
       } catch {
         if (!cancelled) {
-          setError("Kunne ikke hente innlogget bruker")
+          setError(t.currentUserError)
         }
       }
     }
@@ -49,7 +51,7 @@ export default function SosialPage() {
     return () => {
       cancelled = true
     }
-  }, [router])
+  }, [router, t.currentUserError])
 
   const loadPosts = useCallback(async (userId) => {
     const suffix = userId
@@ -89,7 +91,7 @@ export default function SosialPage() {
     })
 
     if (!res.ok) {
-      setError("Kunne ikke publisere innlegg")
+      setError(t.publishError)
       return
     }
 
@@ -110,7 +112,7 @@ export default function SosialPage() {
     })
 
     if (!res.ok) {
-      setError("Kunne ikke oppdatere likerstatus")
+      setError(t.likeError)
       return
     }
 
@@ -130,23 +132,23 @@ export default function SosialPage() {
       navigator.share({ url })
     } else {
       navigator.clipboard.writeText(url)
-      alert("link copied")
+      alert(t.shareCopied)
     }
   }
 
   return (
     <div>
-      <h1>sosial</h1>
+      <h1>{t.title}</h1>
 
       {error ? <p style={{ color: "red" }}>{error}</p> : null}
 
       <textarea
         value={caption}
         onChange={e => setCaption(e.target.value)}
-        placeholder="posts"
+        placeholder={t.captionPlaceholder}
       />
 
-      <button onClick={submitPost}>post</button>
+      <button onClick={submitPost}>{t.publish}</button>
 
       {posts.map(p => {
         const liked = likedPosts.has(p.postid)
@@ -157,7 +159,7 @@ export default function SosialPage() {
             <small>
               {new Date(p.timestamp).toISOString()}
             </small>
-            <div>likes: {p.likes}</div>
+            <div>{t.likes}: {p.likes}</div>
 
             <div style={{ display: "flex", gap: "8px" }}>
               <button onClick={() => console.log("comments")}>

@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import TopBar from "./components/TopBar";
+import AppShell from "./components/AppShell";
+import { LanguageProvider } from "./components/LanguageProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,13 +21,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="no">
       <body style={{ margin: 0, padding: 0 }}>
-        <TopBar />
-
-        {children}
-
-        <footer className="footer">
-          Dette er en footer som ligger over bildene
-        </footer>
+        <LanguageProvider>
+          <AppShell>{children}</AppShell>
+        </LanguageProvider>
       </body>
     </html>
   );

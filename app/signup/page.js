@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "../components/LanguageProvider";
 
 export default function SignUp() {
   const router = useRouter();
+  const t = useTranslations("signupPage");
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -51,21 +53,21 @@ export default function SignUp() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Kunne ikke opprette konto");
+        setError(data.error || t.signupError);
         setLoading(false);
         return;
       }
 
       router.push("/");
     } catch (err) {
-      setError("Noe gikk galt");
+      setError(t.genericError);
       setLoading(false);
     }
   };
 
   return (
     <div style={{ padding: "2rem", maxWidth: "400px", margin: "0 auto" }}>
-      <h1>Registrer deg</h1>
+      <h1>{t.title}</h1>
       {error && (
         <p style={{ color: "red", marginTop: "1rem" }}>
           {error}
@@ -73,7 +75,7 @@ export default function SignUp() {
       )}
       <form onSubmit={handleSubmit} style={{ marginTop: "1rem" }}>
         <label style={{ display: "block", marginBottom: "0.5rem" }}>
-          Brukernavn
+          {t.username}
         </label>
         <input
           type="text"
@@ -89,7 +91,7 @@ export default function SignUp() {
         />
 
         <label style={{ display: "block", marginBottom: "0.5rem" }}>
-          E-post
+          {t.email}
         </label>
         <input
           type="email"
@@ -105,7 +107,7 @@ export default function SignUp() {
         />
 
         <label style={{ display: "block", marginBottom: "0.5rem" }}>
-          Passord (minst 8 tegn)
+          {t.password}
         </label>
         <input
           type="password"
@@ -125,11 +127,11 @@ export default function SignUp() {
           disabled={loading}
           style={{ padding: "0.5rem 1rem", cursor: "pointer" }}
         >
-          {loading ? "Oppretter konto..." : "Opprett konto"}
+          {loading ? t.submitting : t.submit}
         </button>
 
         <label style={{ display: "block", margin: "0.75rem 0 0.5rem" }}>
-          Bekreft passord
+          {t.confirmPassword}
         </label>
         <input
           type="password"

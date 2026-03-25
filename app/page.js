@@ -17,38 +17,17 @@ import {
   FiChevronLeft,
   FiChevronRight,
 } from "react-icons/fi";
-
-const translations = {
-  no: {
-    title: "Fritt Fram",
-    subtitle: "Oppdag nye stier, pust inn fjelluften og finn ditt neste eventyr",
-    searchPlaceholder: "Søk etter tur, sted eller aktivitet...",
-    noResults: "Ingen resultater",
-    todaysTrip: "Dagens tur",
-    popularRoutes: "Populære turer",
-    cabinSuggestions: "Hytteforslag",
-    start: "Start",
-  },
-  en: {
-    title: "Free Path",
-    subtitle: "Discover new trails, breathe the mountain air and find your next adventure",
-    searchPlaceholder: "Search for trip, place or activity...",
-    noResults: "No results",
-    todaysTrip: "Today's trip",
-    popularRoutes: "Popular routes",
-    cabinSuggestions: "Cabin suggestions",
-    start: "Start",
-  },
-};
+import { useLanguage, useTranslations } from "./components/LanguageProvider";
 
 export default function Home() {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [language, setLanguage] = useState("no");
   const [theme, setTheme] = useState("light");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [trips, setTrips] = useState([]);
   const [cabins, setCabins] = useState([]);
+  const { language } = useLanguage();
+  const t = useTranslations("home");
 
   useEffect(() => {
     let cancelled = false;
@@ -69,10 +48,6 @@ export default function Home() {
 
         if (cancelled) {
           return;
-        }
-
-        if (preferencesRes.ok && preferencesJson?.language) {
-          setLanguage(preferencesJson.language);
         }
 
         if (preferencesRes.ok && preferencesJson?.theme) {
@@ -99,8 +74,6 @@ export default function Home() {
     document.body.style.color = theme === "dark" ? "#ffffff" : "#000000";
     document.body.style.overflowX = "hidden";
   }, [theme]);
-
-  const t = translations[language];
 
   const locations = buildLocationSuggestions(trips, cabins);
 
@@ -241,11 +214,11 @@ export default function Home() {
               marginBottom: "2rem",
             }}
           >
-            <Category icon={<FiSun size={42} />} label="Vær" link="/vaer" />
-            <Category icon={<FiGlobe size={42} />} label="Utforsk" link="/explore" />
-            <Category icon={<FiMap size={42} />} label="Kart" link="/map" />
-            <Category icon={<FiUsers size={42} />} label="Sosial" link="/sosial" />
-            <Category icon={<FiHome size={42} />} label="Reserver" link="/reserver" />
+            <Category icon={<FiSun size={42} />} label={t.weather} link="/vaer" />
+            <Category icon={<FiGlobe size={42} />} label={t.explore} link="/explore" />
+            <Category icon={<FiMap size={42} />} label={t.map} link="/map" />
+            <Category icon={<FiUsers size={42} />} label={t.social} link="/sosial" />
+            <Category icon={<FiHome size={42} />} label={t.reserve} link="/reserver" />
           </div>
 
           <div style={{ width: "100%", maxWidth: "600px", padding: "0 1rem", boxSizing: "border-box" }}>

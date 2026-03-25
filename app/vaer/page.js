@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "../components/LanguageProvider";
 
 export default function VaerPage() {
+  const t = useTranslations("weatherPage");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [weather, setWeather] = useState(null);
@@ -20,7 +22,9 @@ export default function VaerPage() {
 
   // Formatter "2026-03-25" → "Tirsdag 25. mars"
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString("nb-NO", {
+    const locale = t.title === "Værsøk" ? "nb-NO" : "en-GB";
+
+    return new Date(dateStr).toLocaleDateString(locale, {
       weekday: "long",
       day: "numeric",
       month: "long",
@@ -29,19 +33,20 @@ export default function VaerPage() {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h1>Værsøk</h1>
+      <h1>{t.title}</h1>
 
       <form onSubmit={search}>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Søk etter sted"
+          placeholder={t.inputPlaceholder}
           style={{ padding: "10px", width: "300px" }}
         />
-        <button type="submit">Søk</button>
+        <button type="submit">{t.submit}</button>
       </form>
 
       <div>
+        {!results.length && query ? <p>{t.noResults}</p> : null}
         {results.map((loc, i) => (
           <div
             key={i}
@@ -68,16 +73,16 @@ export default function VaerPage() {
               marginBottom: "20px",
             }}
           >
-            <h2>Nå</h2>
-            <p>Temperatur: {weather.current.temperature}°C</p>
-            <p>Vind: {weather.current.windSpeed} m/s</p>
-            <p>Fuktighet: {weather.current.humidity}%</p>
-            <p>Nedbør (1t): {weather.current.precipitation} mm</p>
+            <h2>{t.now}</h2>
+            <p>{t.temperature}: {weather.current.temperature}°C</p>
+            <p>{t.wind}: {weather.current.windSpeed} m/s</p>
+            <p>{t.humidity}: {weather.current.humidity}%</p>
+            <p>{t.precipitation}: {weather.current.precipitation} mm</p>
           </div>
 
           {/* Ukesprogose */}
           <div>
-            <h2>7-dagers prognose</h2>
+            <h2>{t.forecast}</h2>
             {weather.daily.map((day) => (
               <div
                 key={day.date}
@@ -94,10 +99,10 @@ export default function VaerPage() {
                   {formatDate(day.date)}
                 </span>
                 <span>
-                  🌡️ {day.tempMin}° / {day.tempMax}°C
+                  {t.temperature}: {day.tempMin}° / {day.tempMax}°C
                 </span>
-                <span>💨 {day.avgWindSpeed} m/s</span>
-                <span>🌧️ {day.totalPrecipitation} mm</span>
+                <span>{t.wind}: {day.avgWindSpeed} m/s</span>
+                <span>{t.precipitation}: {day.totalPrecipitation} mm</span>
               </div>
             ))}
           </div>

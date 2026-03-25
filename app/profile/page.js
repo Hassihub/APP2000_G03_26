@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "../components/LanguageProvider";
 
 const emptyProfile = {
   name: "",
@@ -31,6 +32,7 @@ const emptyProfile = {
 export default function Profile() {
   const router = useRouter();
   const fileInputRef = useRef(null);
+  const t = useTranslations("profilePage");
 
   const [activeCategory, setActiveCategory] = useState("account");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -67,7 +69,7 @@ export default function Profile() {
             return;
           }
 
-          throw new Error(json?.error || "Kunne ikke hente profil.");
+          throw new Error(json?.error || "Could not load profile.");
         }
 
         if (cancelled) {
@@ -77,7 +79,7 @@ export default function Profile() {
         syncProfileState(json.profile);
       } catch (err) {
         if (!cancelled) {
-          setError(err.message || "Kunne ikke hente profil.");
+          setError(err.message || "Could not load profile.");
         }
       } finally {
         if (!cancelled) {
@@ -148,11 +150,11 @@ export default function Profile() {
       if (res.ok && data.filePath) {
         await updateProfile({ profileImage: data.filePath });
       } else {
-        alert("Opplasting feilet");
+        alert("Upload failed");
       }
     } catch (err) {
       console.error(err);
-      alert("Noe gikk galt");
+      alert("Something went wrong");
     }
   }
 
@@ -168,7 +170,7 @@ export default function Profile() {
       });
       setIsEditing(false);
     } catch (err) {
-      alert(err.message || "Kunne ikke lagre profil.");
+      alert(err.message || "Could not save profile.");
     }
   }
 
@@ -182,13 +184,13 @@ export default function Profile() {
       });
 
       if (!res.ok) {
-        throw new Error("Kunne ikke logge ut");
+        throw new Error("Could not sign out");
       }
 
       window.location.assign("/login");
     } catch (err) {
       console.error(err);
-      alert("Noe gikk galt ved utlogging");
+      alert("Something went wrong while signing out");
     }
   }
 
@@ -205,7 +207,7 @@ export default function Profile() {
         },
       });
     } catch (err) {
-      alert(err.message || "Kunne ikke oppdatere varslinger.");
+      alert(err.message || "Could not update notifications.");
     }
   }
 
@@ -228,7 +230,7 @@ export default function Profile() {
       ]);
       setShowThemeModal(false);
     } catch (err) {
-      alert(err.message || "Kunne ikke oppdatere tema.");
+      alert(err.message || "Could not update theme.");
     }
   }
 
@@ -236,52 +238,108 @@ export default function Profile() {
   const getThemeColors = () => {
     if (theme === "Mørk") {
       return {
-        bg: "#1a1a1a",
-        text: "#fff",
-        cardBg: "#2d2d2d",
-        cardText: "#e0e0e0",
-        border: "#444",
-        lightText: "#aaa",
-        sidebarBg: "#252525",
-        buttonBg: "#333"
+        bg: "#0d0f12",
+        text: "#f3f4f6",
+        cardBg: "#15181d",
+        cardText: "#e5e7eb",
+        border: "#2b313a",
+        lightText: "#98a2b3",
+        sidebarBg: "#111418",
+        buttonBg: "#171b21",
+        accent: "#f3f4f6",
+        accentMuted: "#232933",
+        panelBg: "#101318",
+        shadow: "0 18px 40px rgba(0,0,0,0.34)",
+        inputBg: "#0f1318"
       };
     }
     return {
-      bg: "#f5f5f5",
-      text: "#171717",
-      cardBg: "#fff",
-      cardText: "#333",
-      border: "#ddd",
-      lightText: "#666",
-      sidebarBg: "#fafafa",
-      buttonBg: "#f9f9f9"
+      bg: "#eef1f4",
+      text: "#111827",
+      cardBg: "#ffffff",
+      cardText: "#1f2937",
+      border: "#d0d5dd",
+      lightText: "#667085",
+      sidebarBg: "#f8fafc",
+      buttonBg: "#f2f4f7",
+      accent: "#111827",
+      accentMuted: "#e4e7ec",
+      panelBg: "#f5f7fa",
+      shadow: "0 16px 30px rgba(16,24,40,0.08)",
+      inputBg: "#ffffff"
     };
   };
 
   const themeColors = getThemeColors();
 
   const sidebarItemStyle = (category) => ({
-    padding: "1rem",
+    padding: "0.95rem 1rem",
     cursor: "pointer",
-    borderRadius: "8px",
-    fontWeight: activeCategory === category ? 600 : 500,
+    borderRadius: "4px",
+    fontWeight: activeCategory === category ? 700 : 500,
     marginBottom: "10px",
     transition: "all 0.2s",
-    background: activeCategory === category ? (theme === "Mørk" ? "#3a3a3a" : "#e0e0e0") : themeColors.buttonBg,
-    color: themeColors.text,
+    background: activeCategory === category ? themeColors.accent : themeColors.buttonBg,
+    border: `1px solid ${activeCategory === category ? themeColors.accent : themeColors.border}`,
+    color: activeCategory === category
+      ? (theme === "Mørk" ? "#0d0f12" : "#ffffff")
+      : themeColors.text,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    fontSize: "0.78rem",
   });
+
+  const actionHoverBg = theme === "Mørk" ? "#d0d5dd" : "#344054";
 
   const cardStyle = {
     background: themeColors.cardBg,
     color: themeColors.cardText,
     padding: "1.5rem",
-    borderRadius: "12px",
+    borderRadius: "4px",
     marginBottom: "2rem",
-    boxShadow: theme === "Mørk" ? "0 6px 15px rgba(0,0,0,0.3)" : "0 6px 15px rgba(0,0,0,0.05)",
+    boxShadow: themeColors.shadow,
+    border: `1px solid ${themeColors.border}`,
   };
 
+  const actionButtonStyle = {
+    padding: "0.85rem 1.1rem",
+    borderRadius: "4px",
+    border: `1px solid ${themeColors.accent}`,
+    background: themeColors.accent,
+    color: theme === "Mørk" ? "#0d0f12" : "#ffffff",
+    cursor: "pointer",
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    fontSize: "0.78rem",
+  };
+
+  const secondaryButtonStyle = {
+    padding: "0.85rem 1.1rem",
+    borderRadius: "4px",
+    border: `1px solid ${themeColors.border}`,
+    background: themeColors.cardBg,
+    color: themeColors.text,
+    cursor: "pointer",
+    fontWeight: 600,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    fontSize: "0.78rem",
+  };
+
+  const statLabelStyle = {
+    margin: "0 0 0.3rem 0",
+    color: themeColors.lightText,
+    fontSize: "0.78rem",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+  };
+
+  const ratingLabel = `${userData.lastTrip.rating || 0}/5`;
+
   return (
-    <main style={{ display: "flex", minHeight: "100vh", fontFamily: "Poppins, sans-serif", background: themeColors.bg, color: themeColors.text, transition: "background 0.3s ease, color 0.3s ease" }}>
+    <main style={{ display: "flex", minHeight: "100vh", fontFamily: "Poppins, sans-serif", background: `linear-gradient(180deg, ${themeColors.bg} 0%, ${themeColors.panelBg} 100%)`, color: themeColors.text, transition: "background 0.3s ease, color 0.3s ease" }}>
 
       {/* SIDEBAR */}
       <aside style={{
@@ -293,23 +351,23 @@ export default function Profile() {
         color: themeColors.text,
         position: "relative"
       }}>
-        <div onClick={() => setSidebarOpen(!sidebarOpen)} style={{ cursor: "pointer", marginBottom: "2rem", fontSize: "22px", color: themeColors.text }}>
-          ☰
-        </div>
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ cursor: "pointer", marginBottom: "2rem", fontSize: "0.72rem", color: themeColors.text, border: `1px solid ${themeColors.border}`, background: themeColors.buttonBg, padding: "0.7rem 0.85rem", borderRadius: "4px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
+          {t.categories}
+        </button>
 
         {sidebarOpen && (
           <>
-            <h2 style={{ marginBottom: "2rem", color: themeColors.text }}>Kategorier</h2>
+            <h2 style={{ marginBottom: "2rem", color: themeColors.text, fontSize: "0.82rem", textTransform: "uppercase", letterSpacing: "0.12em" }}>{t.categories}</h2>
             {["account", "transactions", "payment", "trips", "settings"].map(cat => (
               <div key={cat} style={sidebarItemStyle(cat)} onClick={() => setActiveCategory(cat)}>
-                {cat === "account" ? "Min konto" : cat === "transactions" ? "Transaksjoner" : cat === "payment" ? "Betaling" : cat === "trips" ? "Turer" : "Innstillinger"}
+                {cat === "account" ? t.account : cat === "transactions" ? t.transactions : cat === "payment" ? t.payment : cat === "trips" ? t.trips : t.settings}
               </div>
             ))}
             <button
               onClick={() => setShowLogoutModal(true)}
-              style={{ marginTop: "2rem", width: "100%", padding: "0.8rem", border: "none", borderRadius: "8px", background: "#171717", color: "#fff", cursor: "pointer" }}
+              style={{ ...actionButtonStyle, marginTop: "2rem", width: "100%" }}
             >
-              Logg ut
+              {t.logout}
             </button>
           </>
         )}
@@ -317,7 +375,7 @@ export default function Profile() {
 
       {/* HOVED */}
       <section style={{ flex: 1, padding: "2rem", background: themeColors.bg, color: themeColors.text, transition: "background 0.3s ease, color 0.3s ease" }}>
-        {loading ? <p>Laster profil fra API...</p> : null}
+        {loading ? <p>{t.loading}</p> : null}
         {error ? <p style={{ color: "#b42318" }}>{error}</p> : null}
 
         {/* ACCOUNT */}
@@ -328,12 +386,13 @@ export default function Profile() {
             <div onClick={handleImageClick} style={{
               width: "250px",
               height: "250px",
-              borderRadius: "50%",
+              borderRadius: "12px",
               overflow: "hidden",
               cursor: "pointer",
               position: "relative",
-              border: `3px solid ${themeColors.border}`,
-              background: themeColors.bg
+              border: `1px solid ${themeColors.border}`,
+              background: themeColors.bg,
+              boxShadow: themeColors.shadow
             }}>
               <Image
                 src={profileImage}
@@ -344,44 +403,34 @@ export default function Profile() {
               />
               <div style={{
                 position: "absolute",
-                top: "5px",
-                right: "5px",
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                background: theme === "Mørk" ? "#3a3a3a" : "#171717",
-                color: "#fff",
+                right: "12px",
+                bottom: "12px",
+                padding: "0.55rem 0.75rem",
+                borderRadius: "4px",
+                background: themeColors.accent,
+                color: theme === "Mørk" ? "#0d0f12" : "#fff",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                fontSize: "20px",
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
                 cursor: "pointer"
-              }}>📷</div>
+              }}>{t.changeImage}</div>
             </div>
 
             {/* DETALJER */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h2>{userData.name}</h2>
+                <h2 style={{ margin: 0, fontSize: "2rem", letterSpacing: "-0.03em" }}>{userData.name}</h2>
 
                 {!isEditing && (
                   <button
                     onClick={() => setIsEditing(true)}
-                    style={{
-                      padding: "6px 14px",
-                      borderRadius: "8px",
-                      border: `1px solid ${themeColors.text}`,
-                      background: themeColors.cardBg,
-                      color: themeColors.text,
-                      cursor: "pointer",
-                      fontWeight: 500,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
-                    }}
+                    style={secondaryButtonStyle}
                   >
-                    ✏️ Rediger profil
+                    {t.editProfile}
                   </button>
                 )}
               </div>
@@ -390,37 +439,39 @@ export default function Profile() {
                 <div style={{
                   background: themeColors.cardBg,
                   padding: "1rem",
-                  borderRadius: "10px",
-                  boxShadow: "0 6px 15px rgba(0,0,0,0.1)",
+                  borderRadius: "4px",
+                  boxShadow: themeColors.shadow,
+                  border: `1px solid ${themeColors.border}`,
                   marginTop: "1rem"
                 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                    <div><label>Navn:</label><input type="text" value={editFields.name} onChange={e => setEditFields({ ...editFields, name: e.target.value })} style={{ width: "100%", padding: "5px", borderRadius: "6px", border: `1px solid ${themeColors.border}`, background: themeColors.bg, color: themeColors.text }} /></div>
-                    <div><label>Fødselsdato:</label><input type="date" value={editFields.dob} onChange={e => setEditFields({ ...editFields, dob: e.target.value })} style={{ width: "100%", padding: "5px", borderRadius: "6px", border: `1px solid ${themeColors.border}`, background: themeColors.bg, color: themeColors.text }} /></div>
-                    <div><label>Alder:</label><input type="number" value={editFields.age} onChange={e => setEditFields({ ...editFields, age: e.target.value })} style={{ width: "100%", padding: "5px", borderRadius: "6px", border: `1px solid ${themeColors.border}`, background: themeColors.bg, color: themeColors.text }} /></div>
-                    <div><label>Telefon:</label><input type="text" value={editFields.phone} onChange={e => setEditFields({ ...editFields, phone: e.target.value })} style={{ width: "100%", padding: "5px", borderRadius: "6px", border: `1px solid ${themeColors.border}`, background: themeColors.bg, color: themeColors.text }} /></div>
-                    <div style={{ gridColumn: "1 / -1" }}><label>Email:</label><input type="email" value={editFields.email} onChange={e => setEditFields({ ...editFields, email: e.target.value })} style={{ width: "100%", padding: "5px", borderRadius: "6px", border: `1px solid ${themeColors.border}`, background: themeColors.bg, color: themeColors.text }} /></div>
-                    <div style={{ gridColumn: "1 / -1" }}><label>Bio:</label><textarea value={editFields.bio} onChange={e => setEditFields({ ...editFields, bio: e.target.value })} rows={3} style={{ width: "100%", padding: "5px", borderRadius: "6px", border: `1px solid ${themeColors.border}`, background: themeColors.bg, color: themeColors.text }} /></div>
+                    <div><label style={statLabelStyle}>{t.name}</label><input type="text" value={editFields.name} onChange={e => setEditFields({ ...editFields, name: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
+                    <div><label style={statLabelStyle}>{t.birthDate}</label><input type="date" value={editFields.dob} onChange={e => setEditFields({ ...editFields, dob: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
+                    <div><label style={statLabelStyle}>{t.age}</label><input type="number" value={editFields.age} onChange={e => setEditFields({ ...editFields, age: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
+                    <div><label style={statLabelStyle}>{t.phone}</label><input type="text" value={editFields.phone} onChange={e => setEditFields({ ...editFields, phone: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
+                    <div style={{ gridColumn: "1 / -1" }}><label style={statLabelStyle}>{t.email}</label><input type="email" value={editFields.email} onChange={e => setEditFields({ ...editFields, email: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
+                    <div style={{ gridColumn: "1 / -1" }}><label style={statLabelStyle}>{t.bio}</label><textarea value={editFields.bio} onChange={e => setEditFields({ ...editFields, bio: e.target.value })} rows={3} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
                   </div>
                   <div style={{ marginTop: "0.5rem", display: "flex", gap: "1rem" }}>
-                    <button onClick={handleSaveEdit} style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "none", background: theme === "Mørk" ? "#3a3a3a" : "#171717", color: "#fff", cursor: "pointer" }}>Lagre</button>
-                    <button onClick={() => setIsEditing(false)} style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: `1px solid ${themeColors.border}`, background: themeColors.cardBg, color: themeColors.text, cursor: "pointer" }}>Avbryt</button>
+                    <button onClick={handleSaveEdit} style={actionButtonStyle}>{t.save}</button>
+                    <button onClick={() => setIsEditing(false)} style={secondaryButtonStyle}>{t.cancel}</button>
                   </div>
                 </div>
               ) : (
                 <>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                    <div style={cardStyle}><strong>Bio</strong><p>{userData.bio}</p></div>
-                    <div style={cardStyle}><strong>Detaljer</strong><p>Alder: {userData.age}</p><p>Telefon: {userData.phone}</p><p>Email: {userData.email}</p><p>Fødselsdato: {userData.dob}</p></div>
+                    <div style={cardStyle}><strong>{t.bio}</strong><p>{userData.bio}</p></div>
+                    <div style={cardStyle}><strong>{t.details}</strong><p>{t.age}: {userData.age}</p><p>{t.phone}: {userData.phone}</p><p>{t.email}: {userData.email}</p><p>{t.birthDate}: {userData.dob}</p></div>
                   </div>
 
                   {/* SISTE TUR - VISUELL OVERSIKT */}
                   <div style={{
                     marginTop: "1rem",
-                    background: "#fff",
-                    borderRadius: "12px",
+                    background: themeColors.cardBg,
+                    borderRadius: "4px",
                     overflow: "hidden",
-                    boxShadow: "0 6px 15px rgba(0,0,0,0.05)"
+                    boxShadow: themeColors.shadow,
+                    border: `1px solid ${themeColors.border}`
                   }}>
                     {/* Header med bilde */}
                     <div style={{
@@ -465,7 +516,7 @@ export default function Profile() {
                         color: "#fff"
                       }}>
                         <h3 style={{ margin: "0", fontSize: "1.5rem", fontWeight: "700" }}>{userData.lastTrip.title}</h3>
-                        <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.9rem", opacity: "0.9" }}>📍 {userData.lastTrip.location}</p>
+                        <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.82rem", opacity: "0.9", textTransform: "uppercase", letterSpacing: "0.08em" }}>{t.place}: {userData.lastTrip.location}</p>
                       </div>
                     </div>
 
@@ -474,32 +525,34 @@ export default function Profile() {
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
                         {/* Venstre kolonne - Dato og beskrivelse */}
                         <div>
-                          <p style={{ margin: "0 0 0.5rem 0", color: "#666", fontSize: "0.9rem" }}>📅 {userData.lastTrip.date}</p>
-                          <p style={{ margin: "0", lineHeight: "1.5", color: "#333" }}>{userData.lastTrip.description}</p>
+                          <p style={statLabelStyle}>{t.date}</p>
+                          <p style={{ margin: "0 0 0.75rem 0", color: themeColors.text, fontSize: "0.95rem" }}>{userData.lastTrip.date || "-"}</p>
+                          <p style={{ margin: "0", lineHeight: "1.6", color: themeColors.cardText }}>{userData.lastTrip.description}</p>
                         </div>
 
                         {/* Høyre kolonne - Statistikk */}
                         <div style={{
-                          background: "#f9f9f9",
+                          background: themeColors.panelBg,
                           padding: "1rem",
-                          borderRadius: "8px"
+                          borderRadius: "4px",
+                          border: `1px solid ${themeColors.border}`
                         }}>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                             <div>
-                              <p style={{ margin: "0 0 0.3rem 0", color: "#666", fontSize: "0.85rem", fontWeight: "600" }}>📏 Distanse</p>
+                              <p style={statLabelStyle}>{t.distance}</p>
                               <p style={{ margin: "0", fontSize: "1.1rem", fontWeight: "700" }}>{userData.lastTrip.distance}</p>
                             </div>
                             <div>
-                              <p style={{ margin: "0 0 0.3rem 0", color: "#666", fontSize: "0.85rem", fontWeight: "600" }}>⏱️ Varighet</p>
+                              <p style={statLabelStyle}>{t.duration}</p>
                               <p style={{ margin: "0", fontSize: "1.1rem", fontWeight: "700" }}>{userData.lastTrip.duration}</p>
                             </div>
                             <div>
-                              <p style={{ margin: "0 0 0.3rem 0", color: "#666", fontSize: "0.85rem", fontWeight: "600" }}>⬆️ Stigning</p>
+                              <p style={statLabelStyle}>{t.elevation}</p>
                               <p style={{ margin: "0", fontSize: "1.1rem", fontWeight: "700" }}>{userData.lastTrip.elevation}</p>
                             </div>
                             <div>
-                              <p style={{ margin: "0 0 0.3rem 0", color: "#666", fontSize: "0.85rem", fontWeight: "600" }}>⭐ Vurdering</p>
-                              <p style={{ margin: "0", fontSize: "1.1rem", fontWeight: "700" }}>{"⭐".repeat(userData.lastTrip.rating)}</p>
+                              <p style={statLabelStyle}>{t.rating}</p>
+                              <p style={{ margin: "0", fontSize: "1.1rem", fontWeight: "700" }}>{ratingLabel}</p>
                             </div>
                           </div>
                         </div>
@@ -507,21 +560,13 @@ export default function Profile() {
 
                       {/* CTA Button */}
                       <button style={{
-                        width: "100%",
-                        padding: "0.8rem",
-                        background: "#171717",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "8px",
-                        cursor: "pointer",
-                        fontWeight: "600",
-                        fontSize: "0.95rem",
-                        transition: "background 0.3s"
+                        ...actionButtonStyle,
+                        width: "100%"
                       }}
-                      onMouseEnter={(e) => e.target.style.background = "#333"}
-                      onMouseLeave={(e) => e.target.style.background = "#171717"}
+                      onMouseEnter={(e) => e.target.style.background = actionHoverBg}
+                      onMouseLeave={(e) => e.target.style.background = themeColors.accent}
                       >
-                        📸 Se alle bildene fra turen
+                        {t.viewPhotos}
                       </button>
                     </div>
                   </div>
@@ -534,18 +579,19 @@ export default function Profile() {
         {/* TRANSAKSJONER */}
         {activeCategory === "transactions" && (
           <div>
-            <h2 style={{ marginBottom: "1.5rem", fontSize: "1.8rem" }}>Transaksjoner</h2>
+            <h2 style={{ marginBottom: "1.5rem", fontSize: "1.8rem" }}>{t.transactions}</h2>
             <div style={{ display: "grid", gap: "1rem" }}>
               {userData.transactions.map((tx, i) => (
                 <div key={i} style={{
-                  background: "#fff",
+                  background: themeColors.cardBg,
                   padding: "1.5rem",
-                  borderRadius: "12px",
-                  boxShadow: "0 6px 15px rgba(0,0,0,0.05)",
+                  borderRadius: "4px",
+                  boxShadow: themeColors.shadow,
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  borderLeft: "4px solid #171717",
+                  border: `1px solid ${themeColors.border}`,
+                  borderLeft: `4px solid ${themeColors.accent}`,
                   transition: "transform 0.2s, boxShadow 0.2s"
                 }}
                 onMouseEnter={(e) => {
@@ -557,11 +603,11 @@ export default function Profile() {
                   e.currentTarget.style.boxShadow = "0 6px 15px rgba(0,0,0,0.05)";
                 }}>
                   <div>
-                    <p style={{ margin: "0 0 0.3rem 0", color: "#666", fontSize: "0.9rem" }}>📅 {tx.date}</p>
+                    <p style={statLabelStyle}>{tx.date}</p>
                     <p style={{ margin: "0", fontWeight: "600", fontSize: "1rem" }}>{tx.desc}</p>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <p style={{ margin: "0", fontWeight: "700", fontSize: "1.1rem", color: "#171717" }}>{tx.amount}</p>
+                    <p style={{ margin: "0", fontWeight: "700", fontSize: "1.1rem", color: themeColors.text }}>{tx.amount}</p>
                   </div>
                 </div>
               ))}
@@ -572,35 +618,37 @@ export default function Profile() {
         {/* BETALING */}
         {activeCategory === "payment" && (
           <div>
-            <h2 style={{ marginBottom: "1.5rem", fontSize: "1.8rem" }}>Betalingsinformasjon</h2>
+            <h2 style={{ marginBottom: "1.5rem", fontSize: "1.8rem" }}>{t.paymentInfo}</h2>
             <div style={{
-              background: "#fff",
-              borderRadius: "12px",
+              background: themeColors.cardBg,
+              borderRadius: "4px",
               overflow: "hidden",
-              boxShadow: "0 6px 15px rgba(0,0,0,0.05)"
+              boxShadow: themeColors.shadow,
+              border: `1px solid ${themeColors.border}`
             }}>
               {/* Kredittkort */}
               <div style={{
-                background: "linear-gradient(135deg, #171717 0%, #333 100%)",
+                background: theme === "Mørk" ? "linear-gradient(135deg, #0f1217 0%, #202733 100%)" : "linear-gradient(135deg, #111827 0%, #344054 100%)",
                 color: "#fff",
                 padding: "2rem",
-                borderRadius: "12px",
+                borderRadius: "0",
                 marginBottom: "1.5rem",
                 boxShadow: "0 8px 20px rgba(0,0,0,0.2)"
               }}>
-                <p style={{ margin: "0 0 1rem 0", opacity: "0.8", fontSize: "0.9rem" }}>💳 Kredittkort</p>
+                <p style={{ margin: "0 0 1rem 0", opacity: "0.8", fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.08em" }}>{t.payment}</p>
                 <p style={{ margin: "0", fontSize: "1.5rem", fontWeight: "700", letterSpacing: "2px" }}>{userData.payment.card}</p>
               </div>
               {/* Faktureringsinformasjon */}
               <div style={{ padding: "1.5rem" }}>
-                <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem" }}>Faktureringsinformasjon</h3>
+                <h3 style={{ margin: "0 0 1rem 0", fontSize: "1.1rem" }}>{t.billingInfo}</h3>
                 <div style={{
-                  background: "#f9f9f9",
+                  background: themeColors.panelBg,
                   padding: "1.5rem",
-                  borderRadius: "8px"
+                  borderRadius: "4px",
+                  border: `1px solid ${themeColors.border}`
                 }}>
                   <div style={{ marginBottom: "1rem" }}>
-                    <p style={{ margin: "0 0 0.3rem 0", color: "#666", fontSize: "0.9rem", fontWeight: "600" }}>📅 Faktureringsdato</p>
+                    <p style={statLabelStyle}>{t.billingDate}</p>
                     <p style={{ margin: "0", fontSize: "1.1rem", fontWeight: "600" }}>{userData.payment.billing}</p>
                   </div>
                 </div>
@@ -612,12 +660,13 @@ export default function Profile() {
         {/* TURER */}
         {activeCategory === "trips" && (
           <div>
-            <h2 style={{ marginBottom: "1.5rem", fontSize: "1.8rem" }}>Mine turer</h2>
+            <h2 style={{ marginBottom: "1.5rem", fontSize: "1.8rem" }}>{t.myTrips}</h2>
             <div style={{
-              background: "#fff",
-              borderRadius: "12px",
+              background: themeColors.cardBg,
+              borderRadius: "4px",
               overflow: "hidden",
-              boxShadow: "0 6px 15px rgba(0,0,0,0.05)"
+              boxShadow: themeColors.shadow,
+              border: `1px solid ${themeColors.border}`
             }}>
               <div style={{
                 background: "#f0f0f0",
@@ -635,36 +684,30 @@ export default function Profile() {
               </div>
               <div style={{ padding: "1.5rem" }}>
                 <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.3rem" }}>{userData.lastTrip.title}</h3>
-                <p style={{ margin: "0 0 1rem 0", color: "#666" }}>📍 {userData.lastTrip.location}</p>
-                <p style={{ margin: "0 0 1rem 0", lineHeight: "1.6", color: "#333" }}>{userData.lastTrip.description}</p>
+                <p style={{ margin: "0 0 1rem 0", color: themeColors.lightText, textTransform: "uppercase", letterSpacing: "0.08em", fontSize: "0.78rem" }}>{t.place}: {userData.lastTrip.location}</p>
+                <p style={{ margin: "0 0 1rem 0", lineHeight: "1.6", color: themeColors.cardText }}>{userData.lastTrip.description}</p>
                 <div style={{
                   display: "grid",
                   gridTemplateColumns: "1fr 1fr 1fr 1fr",
                   gap: "1rem",
                   marginBottom: "1.5rem",
                   padding: "1rem",
-                  background: "#f9f9f9",
-                  borderRadius: "8px"
+                  background: themeColors.panelBg,
+                  borderRadius: "4px",
+                  border: `1px solid ${themeColors.border}`
                 }}>
-                  <div><p style={{ margin: "0 0 0.3rem 0", color: "#666", fontSize: "0.85rem", fontWeight: "600" }}>📏 Distanse</p><p style={{ margin: "0", fontWeight: "700" }}>{userData.lastTrip.distance}</p></div>
-                  <div><p style={{ margin: "0 0 0.3rem 0", color: "#666", fontSize: "0.85rem", fontWeight: "600" }}>⏱️ Varighet</p><p style={{ margin: "0", fontWeight: "700" }}>{userData.lastTrip.duration}</p></div>
-                  <div><p style={{ margin: "0 0 0.3rem 0", color: "#666", fontSize: "0.85rem", fontWeight: "600" }}>⬆️ Stigning</p><p style={{ margin: "0", fontWeight: "700" }}>{userData.lastTrip.elevation}</p></div>
-                  <div><p style={{ margin: "0 0 0.3rem 0", color: "#666", fontSize: "0.85rem", fontWeight: "600" }}>⭐ Vurdering</p><p style={{ margin: "0", fontWeight: "700" }}>{"⭐".repeat(userData.lastTrip.rating)}</p></div>
+                  <div><p style={statLabelStyle}>{t.distance}</p><p style={{ margin: "0", fontWeight: "700" }}>{userData.lastTrip.distance}</p></div>
+                  <div><p style={statLabelStyle}>{t.duration}</p><p style={{ margin: "0", fontWeight: "700" }}>{userData.lastTrip.duration}</p></div>
+                  <div><p style={statLabelStyle}>{t.elevation}</p><p style={{ margin: "0", fontWeight: "700" }}>{userData.lastTrip.elevation}</p></div>
+                  <div><p style={statLabelStyle}>{t.rating}</p><p style={{ margin: "0", fontWeight: "700" }}>{ratingLabel}</p></div>
                 </div>
                 <button style={{
-                  width: "100%",
-                  padding: "0.8rem",
-                  background: "#171717",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                  fontWeight: "600",
-                  transition: "background 0.3s"
+                  ...actionButtonStyle,
+                  width: "100%"
                 }}
-                onMouseEnter={(e) => e.target.style.background = "#333"}
-                onMouseLeave={(e) => e.target.style.background = "#171717"}>
-                  🗺️ Se på kart
+                onMouseEnter={(e) => e.target.style.background = actionHoverBg}
+                onMouseLeave={(e) => e.target.style.background = themeColors.accent}>
+                  {t.viewMap}
                 </button>
               </div>
             </div>
@@ -674,31 +717,32 @@ export default function Profile() {
         {/* INNSTILLINGER */}
         {activeCategory === "settings" && (
           <div>
-            <h2 style={{ marginBottom: "1.5rem", fontSize: "1.8rem" }}>Innstillinger</h2>
+            <h2 style={{ marginBottom: "1.5rem", fontSize: "1.8rem" }}>{t.settings}</h2>
             <div style={{
-              background: "#fff",
-              borderRadius: "12px",
+              background: themeColors.cardBg,
+              borderRadius: "4px",
               overflow: "hidden",
-              boxShadow: "0 6px 15px rgba(0,0,0,0.05)"
+              boxShadow: themeColors.shadow,
+              border: `1px solid ${themeColors.border}`
             }}>
               <div style={{
                 padding: "1.5rem",
-                borderBottom: "1px solid #eee",
+                borderBottom: `1px solid ${themeColors.border}`,
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center"
               }}>
                 <div>
-                  <p style={{ margin: "0 0 0.3rem 0", fontWeight: "600", fontSize: "1rem" }}>🔔 Varslinger</p>
-                  <p style={{ margin: "0", color: "#666", fontSize: "0.9rem" }}>Motta varsler om nye meldinger og reservasjoner</p>
+                  <p style={{ margin: "0 0 0.3rem 0", fontWeight: "600", fontSize: "1rem" }}>{t.notifications}</p>
+                  <p style={{ margin: "0", color: themeColors.lightText, fontSize: "0.9rem" }}>{t.notificationsHelp}</p>
                 </div>
                 <div 
                   onClick={handleToggleNotifications}
                   style={{
                   width: "50px",
                   height: "28px",
-                  borderRadius: "14px",
-                  background: notifications ? "#4CAF50" : "#ccc",
+                  borderRadius: "999px",
+                  background: notifications ? themeColors.accent : themeColors.accentMuted,
                   position: "relative",
                   cursor: "pointer",
                   transition: "background 0.3s"
@@ -723,15 +767,15 @@ export default function Profile() {
                 alignItems: "center"
               }}>
                 <div>
-                  <p style={{ margin: "0 0 0.3rem 0", fontWeight: "600", fontSize: "1rem" }}>🎨 Tema</p>
-                  <p style={{ margin: "0", color: themeColors.lightText, fontSize: "0.9rem" }}>Velg farge- og designpreferanser</p>
+                  <p style={{ margin: "0 0 0.3rem 0", fontWeight: "600", fontSize: "1rem" }}>{t.theme}</p>
+                  <p style={{ margin: "0", color: themeColors.lightText, fontSize: "0.9rem" }}>{t.themeHelp}</p>
                 </div>
                 <div 
                   onClick={() => setShowThemeModal(true)}
                   style={{
                   background: themeColors.cardBg,
                   padding: "0.6rem 1.2rem",
-                  borderRadius: "8px",
+                  borderRadius: "4px",
                   fontWeight: "600",
                   color: themeColors.text,
                   cursor: "pointer",
@@ -760,21 +804,21 @@ export default function Profile() {
       {/* TEMA MODAL */}
       {showThemeModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
-          <div style={{ background: themeColors.cardBg, color: themeColors.text, padding: "2rem", borderRadius: "12px", maxWidth: "400px", width: "90%" }}>
-            <h3 style={{ margin: "0 0 1.5rem 0", color: themeColors.text }}>Velg tema</h3>
+          <div style={{ background: themeColors.cardBg, color: themeColors.text, padding: "2rem", borderRadius: "4px", maxWidth: "400px", width: "90%", border: `1px solid ${themeColors.border}`, boxShadow: themeColors.shadow }}>
+            <h3 style={{ margin: "0 0 1.5rem 0", color: themeColors.text }}>{t.chooseTheme}</h3>
             <div style={{ display: "grid", gap: "0.8rem", marginBottom: "1.5rem" }}>
-              {["Lys", "Mørk", "Automatisk"].map((t) => (
+              {["Lys", "Mørk", "Automatisk"].map((themeOption) => (
                 <div
-                  key={t}
-                  onClick={() => handleSelectTheme(t)}
+                  key={themeOption}
+                  onClick={() => handleSelectTheme(themeOption)}
                   style={{
                     padding: "1rem",
-                    borderRadius: "8px",
-                    border: theme === t ? `2px solid ${themeColors.text}` : `1px solid ${themeColors.border}`,
-                    background: theme === t ? (theme === "Mørk" ? "#3a3a3a" : "#f0f0f0") : themeColors.bg,
+                    borderRadius: "4px",
+                    border: theme === themeOption ? `2px solid ${themeColors.text}` : `1px solid ${themeColors.border}`,
+                    background: theme === themeOption ? (theme === "Mørk" ? "#3a3a3a" : "#f0f0f0") : themeColors.bg,
                     color: themeColors.text,
                     cursor: "pointer",
-                    fontWeight: theme === t ? "600" : "500",
+                    fontWeight: theme === themeOption ? "600" : "500",
                     transition: "all 0.2s"
                   }}
                   onMouseEnter={(e) => {
@@ -782,30 +826,24 @@ export default function Profile() {
                     e.currentTarget.style.background = theme === "Mørk" ? "#3a3a3a" : "#f9f9f9";
                   }}
                   onMouseLeave={(e) => {
-                    if (theme !== t) {
+                    if (theme !== themeOption) {
                       e.currentTarget.style.borderColor = themeColors.border;
                       e.currentTarget.style.background = themeColors.bg;
                     }
                   }}
                 >
-                  {t === "Lys" ? "☀️ Lyst tema" : t === "Mørk" ? "🌙 Mørkt tema" : "🔄 Automatisk"}
+                  {themeOption === "Lys" ? t.lightTheme : themeOption === "Mørk" ? t.darkTheme : t.autoTheme}
                 </div>
               ))}
             </div>
             <button
               onClick={() => setShowThemeModal(false)}
               style={{
-                width: "100%",
-                padding: "0.8rem",
-                borderRadius: "8px",
-                border: "none",
-                background: theme === "Mørk" ? "#3a3a3a" : "#171717",
-                color: "#fff",
-                cursor: "pointer",
-                fontWeight: "600"
+                ...actionButtonStyle,
+                width: "100%"
               }}
             >
-              Ferdig
+              {t.done}
             </button>
           </div>
         </div>
@@ -813,11 +851,11 @@ export default function Profile() {
 
       {/* LOGOUT MODAL */}
       {showLogoutModal && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <div style={{ background: themeColors.cardBg, color: themeColors.text, padding: "2rem", borderRadius: "8px" }}>
-          <h3>Er du sikker?</h3>
+        <div style={{ background: themeColors.cardBg, color: themeColors.text, padding: "2rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, boxShadow: themeColors.shadow }}>
+          <h3>{t.confirmLogout}</h3>
           <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
-            <button onClick={() => setShowLogoutModal(false)} style={{ padding: "0.6rem 1.2rem", borderRadius: "6px", border: `1px solid ${themeColors.border}`, background: themeColors.bg, color: themeColors.text, cursor: "pointer" }}>Avbryt</button>
-            <button onClick={handleLogout} style={{ padding: "0.6rem 1.2rem", borderRadius: "6px", border: "none", background: theme === "Mørk" ? "#3a3a3a" : "#171717", color: "#fff", cursor: "pointer" }}>Logg ut</button>
+            <button onClick={() => setShowLogoutModal(false)} style={secondaryButtonStyle}>{t.cancel}</button>
+            <button onClick={handleLogout} style={actionButtonStyle}>{t.logout}</button>
           </div>
         </div>
       </div>}

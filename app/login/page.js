@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "../components/LanguageProvider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useTranslations("loginPage");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -65,12 +67,12 @@ export default function LoginPage() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error(data?.error || "Kunne ikke logge inn");
+        throw new Error(data?.error || t.loginError);
       }
 
       window.location.assign("/profile");
     } catch (err) {
-      setError(err.message || "Kunne ikke logge inn");
+      setError(err.message || t.loginError);
       setLoading(false);
     }
   }
@@ -105,22 +107,21 @@ export default function LoginPage() {
             color: "#4b6356",
           }}
         >
-          Innlogging
+          {t.eyebrow}
         </p>
         <h1 style={{ margin: "0.5rem 0 0.75rem", color: "#10261b" }}>
-          Logg inn igjen
+          {t.title}
         </h1>
         <p style={{ marginTop: 0, color: "#587062", lineHeight: 1.5 }}>
-          Etter utlogging må du logge inn på nytt for å få tilgang til profil,
-          meldinger og andre beskyttede sider.
+          {t.subtitle}
         </p>
 
         {checkingAuth ? (
-          <p style={{ color: "#3b5246" }}>Sjekker innloggingsstatus...</p>
+          <p style={{ color: "#3b5246" }}>{t.checking}</p>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
             <label style={{ display: "grid", gap: "0.35rem" }}>
-              <span style={{ color: "#163324", fontWeight: 600 }}>E-post</span>
+              <span style={{ color: "#163324", fontWeight: 600 }}>{t.email}</span>
               <input
                 type="email"
                 value={formData.email}
@@ -134,7 +135,7 @@ export default function LoginPage() {
             </label>
 
             <label style={{ display: "grid", gap: "0.35rem" }}>
-              <span style={{ color: "#163324", fontWeight: 600 }}>Passord</span>
+              <span style={{ color: "#163324", fontWeight: 600 }}>{t.password}</span>
               <input
                 type="password"
                 value={formData.password}
@@ -169,13 +170,13 @@ export default function LoginPage() {
                 cursor: loading ? "wait" : "pointer",
               }}
             >
-              {loading ? "Logger inn..." : "Logg inn"}
+              {loading ? t.submitting : t.submit}
             </button>
           </form>
         )}
 
         <p style={{ margin: "1rem 0 0", color: "#587062" }}>
-          Har du ikke konto? <Link href="/signup">Registrer deg</Link>
+          {t.noAccount} <Link href="/signup">{t.signUp}</Link>
         </p>
       </section>
     </main>
