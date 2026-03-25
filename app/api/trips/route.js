@@ -18,11 +18,8 @@ export async function GET(request) {
         t.lengde_km,
         t.type,
         t.vanskelighetsgrad,
-        t.start_lat,
-        t.start_lng,
-        t.end_lat,
-        t.end_lng,
         t.bilde_url,
+        t.geometry,
         tt.id AS tiu_trip_id,
         tt.turleder_navn
       FROM public.trips t
@@ -72,10 +69,7 @@ export async function POST(request) {
     const vanskelighetsgrad = (body.vanskelighetsgrad || "").trim();
     const bilde_url = body.bilde_url?.trim() || null;
 
-    const start_lat = body.start_lat ?? null;
-    const start_lng = body.start_lng ?? null;
-    const end_lat = body.end_lat ?? null;
-    const end_lng = body.end_lng ?? null;
+    const geometry = body.geometry ?? null;
 
     const isTiu = body.isTiu === true;
     const turleder_navn = body.turleder_navn?.trim() || null;
@@ -104,22 +98,19 @@ export async function POST(request) {
       );
     }
 
-    const isValidCoord = (x, min, max) =>
-      x === null ||
-      x === undefined ||
-      x === "" ||
-      (Number.isFinite(Number(x)) && Number(x) >= min && Number(x) <= max);
+    if (geometry !== null) {
+      const isObject = typeof geometry === "object" && geometry !== null;
+      const hasCoords =
+        isObject &&
+        Array.isArray(geometry.coordinates) &&
+        geometry.coordinates.length >= 2;
 
-    if (
-      !isValidCoord(start_lat, -90, 90) ||
-      !isValidCoord(end_lat, -90, 90) ||
-      !isValidCoord(start_lng, -180, 180) ||
-      !isValidCoord(end_lng, -180, 180)
-    ) {
-      return NextResponse.json(
-        { error: "Ugyldige koordinater" },
-        { status: 400 }
-      );
+      if (!hasCoords) {
+        return NextResponse.json(
+          { error: "Ugyldig rute-geometri" },
+          { status: 400 }
+        );
+      }
     }
 
     if (isTiu && !turleder_navn) {
@@ -139,14 +130,11 @@ export async function POST(request) {
           lengde_km,
           type,
           vanskelighetsgrad,
-          start_lat,
-          start_lng,
-          end_lat,
-          end_lng,
-          bilde_url
+          bilde_url,
+          geometry
         )
       VALUES
-        ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        ($1,$2,$3,$4,$5,$6,$7)
       RETURNING
         id,
         navn,
@@ -155,11 +143,8 @@ export async function POST(request) {
         type,
         vanskelighetsgrad,
         opprettet,
-        start_lat,
-        start_lng,
-        end_lat,
-        end_lng,
-        bilde_url
+        bilde_url,
+        geometry
     `;
 
     const tripValues = [
@@ -168,11 +153,8 @@ export async function POST(request) {
       lengde_km,
       type,
       vanskelighetsgrad,
-      start_lat === "" ? null : start_lat,
-      start_lng === "" ? null : start_lng,
-      end_lat === "" ? null : end_lat,
-      end_lng === "" ? null : end_lng,
       bilde_url,
+      geometry,
     ];
 
     const tripResult = await client.query(insertTripQuery, tripValues);

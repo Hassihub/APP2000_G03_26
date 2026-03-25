@@ -4,6 +4,7 @@ export function enableRouteDrawing(map, L, onRouteFinished, getPlacing) {
   let points = [];
   let markers = [];
   let routeLine = null;
+  let routeRequestId = 0; // brukes for å ignorere utdaterte rute-svar
 
   // 🔹 Start-pin
   const firstIcon = L.icon({
@@ -52,6 +53,20 @@ export function enableRouteDrawing(map, L, onRouteFinished, getPlacing) {
       ]);
 
       updateMarkerIcons();
+      // Hvis alle pins er fjernet, sørg for at ruten også forsvinner
+      if (markers.length === 0) {
+        // Invalider alle pågående rute-forespørsler
+        routeRequestId++;
+        if (routeLine) {
+          map.removeLayer(routeLine);
+          routeLine = null;
+        }
+        if (onRouteFinished) {
+          onRouteFinished({ points: [], geometry: null });
+        }
+        return;
+      }
+
       redrawRoute();
     });
 
@@ -67,8 +82,17 @@ export function enableRouteDrawing(map, L, onRouteFinished, getPlacing) {
   });
 
   async function redrawRoute() {
+    // Nyeste rute-forespørsel får et eget id
+    const requestId = ++routeRequestId;
+
     if (routeLine) map.removeLayer(routeLine);
-    if (points.length < 2) return;
+    if (points.length < 2) {
+      // Mindre enn to punkter betyr at vi ikke har noen gyldig rute
+      if (onRouteFinished) {
+        onRouteFinished({ points, geometry: null });
+      }
+      return;
+    }
 
     const coordsStr = points
       .map((p) => `${p[1]},${p[0]}`)
@@ -80,6 +104,12 @@ export function enableRouteDrawing(map, L, onRouteFinished, getPlacing) {
       const res = await fetch(url);
       const data = await res.json();
       if (!data.routes || !data.routes[0]) return;
+
+      // Hvis en nyere forespørsel har blitt gjort siden denne startet,
+      // eller vi ikke lenger har en gyldig rute, gjør ingenting
+      if (requestId !== routeRequestId || points.length < 2) {
+        return;
+      }
 
       const geometry = data.routes[0].geometry;
       routeLine = L.geoJSON(geometry, {
