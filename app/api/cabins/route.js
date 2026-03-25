@@ -4,7 +4,7 @@ import db from "../../../lib/db"; // default export (Pool)
 export async function GET() {
   try {
     const sql = `
-      SELECT id, name, description, location, price_per_night, capacity, amenities, created_at
+      SELECT id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at
       FROM public.cabins
       ORDER BY created_at DESC
     `;
@@ -27,6 +27,12 @@ export async function POST(req) {
     const price_per_night = Number(body.price_per_night);
     const capacity = Number(body.capacity);
 
+    const hasLatitude = body.latitude !== undefined && body.latitude !== null && body.latitude !== "";
+    const hasLongitude = body.longitude !== undefined && body.longitude !== null && body.longitude !== "";
+
+    const latitude = hasLatitude ? Number(body.latitude) : null;
+    const longitude = hasLongitude ? Number(body.longitude) : null;
+
     if (!name) return NextResponse.json({ error: "name er påkrevd" }, { status: 400 });
     if (!location) return NextResponse.json({ error: "location er påkrevd" }, { status: 400 });
     if (!Number.isFinite(price_per_night)) {
@@ -36,17 +42,24 @@ export async function POST(req) {
       return NextResponse.json({ error: "capacity må være tall" }, { status: 400 });
     }
 
+    if (hasLatitude && !Number.isFinite(latitude)) {
+      return NextResponse.json({ error: "latitude må være tall" }, { status: 400 });
+    }
+    if (hasLongitude && !Number.isFinite(longitude)) {
+      return NextResponse.json({ error: "longitude må være tall" }, { status: 400 });
+    }
+
     const amenities = Array.isArray(body.amenities)
       ? body.amenities.map((x) => String(x).trim()).filter(Boolean)
       : [];
 
     const sql = `
-      INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities)
-      VALUES ($1, $2, $3, $4, $5, $6::STRING[])
-      RETURNING id, name, description, location, price_per_night, capacity, amenities, created_at;
+      INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities, latitude, longitude)
+      VALUES ($1, $2, $3, $4, $5, $6::STRING[], $7, $8)
+      RETURNING id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at;
     `;
 
-    const values = [name, description, location, price_per_night, capacity, amenities];
+    const values = [name, description, location, price_per_night, capacity, amenities, latitude, longitude];
 
     const result = await db.query(sql, values);
 
