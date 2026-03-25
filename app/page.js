@@ -20,15 +20,17 @@ import {
 const translations = {
   no: {
     title: "Fritt Fram",
+    subtitle: "Oppdag nye stier, pust inn fjelluften og finn ditt neste eventyr",
     searchPlaceholder: "Søk etter tur, sted eller aktivitet...",
     noResults: "Ingen resultater",
     todaysTrip: "Dagens tur",
     popularRoutes: "Populære turer",
-    cabinSuggestions: "Hytteforslag", // ← Endret her
+    cabinSuggestions: "Hytteforslag",
     start: "Start",
   },
   en: {
     title: "Free Path",
+    subtitle: "Discover new trails, breathe the mountain air and find your next adventure",
     searchPlaceholder: "Search for trip, place or activity...",
     noResults: "No results",
     todaysTrip: "Today's trip",
@@ -47,6 +49,7 @@ export default function Home() {
   useEffect(() => {
     const savedLang = localStorage.getItem("language");
     const savedTheme = localStorage.getItem("theme");
+
     if (savedLang) setLanguage(savedLang);
     if (savedTheme) setTheme(savedTheme);
   }, []);
@@ -77,11 +80,10 @@ export default function Home() {
 
   const scrollToNext = () => {
     const nextSection = document.getElementById("recommended-section");
-    if (nextSection)
+    if (nextSection) {
       nextSection.scrollIntoView({ behavior: "smooth" });
+    }
   };
-
-  /* ---------------- SLIDES ---------------- */
 
   const slides = [
     {
@@ -103,10 +105,9 @@ export default function Home() {
       link: "/explore",
     },
     {
-      // ✅ DENNE ER SLIDE NR 3
       category: t.cabinSuggestions,
       title: "Hytteforslag",
-      img: "/images/hytte.jpg", // ✅ Riktig bilde
+      img: "/images/hytte.jpg",
       start: "Flere lokasjoner",
       difficulty: "Enkel",
       duration: "Helgetur",
@@ -115,14 +116,10 @@ export default function Home() {
   ];
 
   const prevSlide = () =>
-    setCurrentSlide((prev) =>
-      prev === 0 ? slides.length - 1 : prev - 1
-    );
+    setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
 
   const nextSlide = () =>
-    setCurrentSlide((prev) =>
-      prev === slides.length - 1 ? 0 : prev + 1
-    );
+    setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
 
   return (
     <div
@@ -179,12 +176,25 @@ export default function Home() {
             style={{
               fontSize: "4rem",
               fontWeight: 700,
-              marginBottom: "2rem",
+              marginBottom: "1rem",
               textShadow: "2px 2px 10px rgba(0,0,0,0.7)",
             }}
           >
             {t.title}
           </h1>
+
+          <p
+            style={{
+              fontSize: "1.4rem",
+              maxWidth: "700px",
+              marginBottom: "2.5rem",
+              lineHeight: "1.5",
+              opacity: 0.95,
+              textShadow: "2px 2px 10px rgba(0,0,0,0.7)",
+            }}
+          >
+            {t.subtitle}
+          </p>
 
           <div
             style={{
@@ -282,6 +292,7 @@ export default function Home() {
             >
               <div style={{ flex: 1 }}>
                 <h2 style={{ opacity: 0.8 }}>{slide.category}</h2>
+
                 <Image
                   src={slide.img}
                   alt={slide.title}
@@ -297,9 +308,18 @@ export default function Home() {
 
               <div style={{ flex: 1 }}>
                 <h1 style={{ fontSize: "3rem" }}>{slide.title}</h1>
-                <p><FiMapPin /> {slide.start}</p>
-                <p><FiClock /> {slide.duration}</p>
-                <p><FiTrendingUp /> {slide.difficulty}</p>
+
+                <p>
+                  <FiMapPin /> {slide.start}
+                </p>
+
+                <p>
+                  <FiClock /> {slide.duration}
+                </p>
+
+                <p>
+                  <FiTrendingUp /> {slide.difficulty}
+                </p>
 
                 <Link
                   href={slide.link}
@@ -370,9 +390,7 @@ function Category({ icon, label, link }) {
         }}
       >
         {icon}
-        <span style={{ marginTop: "0.5rem", fontWeight: 600 }}>
-          {label}
-        </span>
+        <span style={{ marginTop: "0.5rem", fontWeight: 600 }}>{label}</span>
       </div>
     </Link>
   );
