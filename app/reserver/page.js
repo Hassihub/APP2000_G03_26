@@ -11,6 +11,7 @@ export default function CabinsPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [weather, setWeather] = useState(null);
+  const [showWeather, setShowWeather] = useState(false);
 
   const selectedCabin = useMemo(() => {
     if (!selectedId) return null;
@@ -153,10 +154,91 @@ export default function CabinsPage() {
                       </p>
 
                       <div className={styles.meta}>
-                        📍 {selectedCabin.location} - Temp:
-                        {weather ? `${weather.temperature}` : "..."}
-                        °C
-                        <br />
+                        {/* Temp + knapp */}
+                        <div
+                          style={{
+                            position: "relative",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            margin: 0,
+                            lineHeight: "1",
+                          }}
+                        >
+                          📍 {selectedCabin.location} - Temp:{" "}
+                          {weather ? `${weather.current.temperature}` : "..."}°C
+                          <button
+                            className={styles.button}
+                            onClick={() => setShowWeather((prev) => !prev)}
+                            style={{
+                              width: "auto",
+                              padding: "2px 12px",
+                              fontSize: "0.8rem",
+                              verticalAlign: "middle",
+                              marginLeft: "8px",
+                            }}
+                          >
+                            🌤️ {showWeather ? "Skjul" : "Vis værmelding"}
+                          </button>
+                          {/* Dropdown flytende */}
+                          {showWeather && weather?.daily && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                top: "100%",
+                                left: 0,
+                                zIndex: 100,
+                                background: "#fff",
+                                border: "1px solid #ccc",
+                                borderRadius: "10px",
+                                padding: "12px",
+                                boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                                minWidth: "360px",
+                              }}
+                            >
+                              <strong style={{ fontSize: "0.9rem" }}>
+                                📅 7-dagers prognose
+                              </strong>
+                              <div
+                                style={{
+                                  marginTop: "8px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "6px",
+                                }}
+                              >
+                                {weather.daily.map((day) => (
+                                  <div
+                                    key={day.date}
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      fontSize: "0.85rem",
+                                      borderBottom: "1px solid #eee",
+                                      paddingBottom: "4px",
+                                    }}
+                                  >
+                                    <span style={{ minWidth: "120px" }}>
+                                      {new Date(day.date).toLocaleDateString(
+                                        "nb-NO",
+                                        {
+                                          weekday: "long",
+                                          day: "numeric",
+                                          month: "short",
+                                        },
+                                      )}
+                                    </span>
+                                    <span>
+                                      🌡️ {day.tempMin}° / {day.tempMax}°
+                                    </span>
+                                    <span>🌧️ {day.totalPrecipitation}mm</span>
+                                    <span>💨 {day.avgWindSpeed}m/s</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                         👥 {selectedCabin.capacity} personer
                         <br />
                         💰 {selectedCabin.price_per_night} kr per natt
