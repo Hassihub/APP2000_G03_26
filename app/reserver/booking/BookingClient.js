@@ -27,6 +27,9 @@ export default function BookingClient() {
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
 
+  const [showWeather, setShowWeather] = useState(false);
+  const [weather, setWeather] = useState(null);
+
   useEffect(() => {
     let alive = true;
 
