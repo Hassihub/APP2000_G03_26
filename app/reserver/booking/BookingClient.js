@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styles from "../Reserver.module.css";
+import CabinWeather from "../CabinWeather";
 
 export default function BookingClient() {
   const searchParams = useSearchParams();
@@ -64,7 +65,8 @@ export default function BookingClient() {
         const res = await fetch(`/api/cabins/${encodeURIComponent(cabinId)}`);
         const json = await res.json().catch(() => ({}));
 
-        if (!res.ok) throw new Error(json?.error || "Kunne ikke hente hytteinfo.");
+        if (!res.ok)
+          throw new Error(json?.error || "Kunne ikke hente hytteinfo.");
         const found = json?.cabin ?? null;
 
         if (!alive) return;
@@ -95,7 +97,23 @@ export default function BookingClient() {
       alive = false;
     };
   }, [cabinId]);
-
+  useEffect(() => {
+    if (!cabin?.location) return;
+    async function fetchWeather() {
+      const res = await fetch(
+        `/api/search?q=${encodeURIComponent(cabin.location)}`,
+      );
+      const locations = await res.json();
+      if (locations.length > 0) {
+        const loc = locations[0];
+        const weatherRes = await fetch(
+          `/api/vaer?lat=${loc.lat}&lon=${loc.lon}`,
+        );
+        setWeather(await weatherRes.json());
+      }
+    }
+    fetchWeather();
+  }, [cabin?.location]);
   const nights = useMemo(() => {
     if (!start_date || !end_date) return 0;
     const s = new Date(start_date);
@@ -119,7 +137,8 @@ export default function BookingClient() {
 
   const guestsError = useMemo(() => {
     const gc = Number(guests_count);
-    if (!Number.isFinite(gc) || gc <= 0) return "Antall personer må være et tall > 0.";
+    if (!Number.isFinite(gc) || gc <= 0)
+      return "Antall personer må være et tall > 0.";
     if (cabin?.capacity && gc > cabin.capacity) {
       return `Antall personer kan ikke være mer enn ${cabin.capacity}.`;
     }
@@ -134,7 +153,16 @@ export default function BookingClient() {
     if (!String(guest_name).trim()) return false;
     if (!String(guest_email).trim()) return false;
     return !submitting;
-  }, [cabinId, start_date, end_date, dateError, guestsError, guest_name, guest_email, submitting]);
+  }, [
+    cabinId,
+    start_date,
+    end_date,
+    dateError,
+    guestsError,
+    guest_name,
+    guest_email,
+    submitting,
+  ]);
 
   async function submit(e) {
     e.preventDefault();
@@ -158,7 +186,8 @@ export default function BookingClient() {
       });
 
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json?.error || "Kunne ikke opprette reservasjon.");
+      if (!res.ok)
+        throw new Error(json?.error || "Kunne ikke opprette reservasjon.");
 
       setOk("✅ Reservasjon opprettet!");
       setTimeout(() => router.push("/reserver"), 900);
@@ -174,7 +203,14 @@ export default function BookingClient() {
       <main className={styles.page} style={{ paddingBottom: 120 }}>
         <div className={styles.container}>
           <div className={styles.notice}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
               <span style={{ fontWeight: 900 }}>🗓️ Reserver hytte</span>
               <Link className={styles.button} href="/reserver">
                 ← Tilbake
@@ -187,7 +223,9 @@ export default function BookingClient() {
               <div className={styles.cardContent}>
                 <div className={styles.info}>
                   <h2>Mangler hytte</h2>
-                  <p>Du kom hit uten cabinId. Gå tilbake og velg en hytte først.</p>
+                  <p>
+                    Du kom hit uten cabinId. Gå tilbake og velg en hytte først.
+                  </p>
                   <div className={styles.actions}>
                     <Link className={styles.button} href="/reserver">
                       Til hytter
@@ -201,7 +239,9 @@ export default function BookingClient() {
               <div className={styles.card}>
                 <div className={styles.cardContent}>
                   <form className={styles.form} onSubmit={submit}>
-                    <h2 className={styles.sectionTitle}>Bestillingsinformasjon</h2>
+                    <h2 className={styles.sectionTitle}>
+                      Bestillingsinformasjon
+                    </h2>
 
                     <div className={styles.row2}>
                       <div className={styles.field}>
@@ -227,7 +267,9 @@ export default function BookingClient() {
                       </div>
                     </div>
 
-                    {dateError ? <div className={styles.errorBox}>❌ {dateError}</div> : null}
+                    {dateError ? (
+                      <div className={styles.errorBox}>❌ {dateError}</div>
+                    ) : null}
 
                     <div className={styles.field}>
                       <div className={styles.label}>Antall personer</div>
@@ -240,12 +282,19 @@ export default function BookingClient() {
                         onChange={(e) => setGuests(e.target.value)}
                         required
                       />
-                      <div className={styles.helper}>Maks: {cabin?.capacity ?? "ukjent"}</div>
+                      <div className={styles.helper}>
+                        Maks: {cabin?.capacity ?? "ukjent"}
+                      </div>
                     </div>
 
-                    {guestsError ? <div className={styles.errorBox}>❌ {guestsError}</div> : null}
+                    {guestsError ? (
+                      <div className={styles.errorBox}>❌ {guestsError}</div>
+                    ) : null}
 
-                    <h2 className={styles.sectionTitle} style={{ marginTop: 6 }}>
+                    <h2
+                      className={styles.sectionTitle}
+                      style={{ marginTop: 6 }}
+                    >
                       Kontaktinformasjon
                     </h2>
 
@@ -284,12 +333,20 @@ export default function BookingClient() {
                       />
                     </div>
 
-                    {error ? <div className={styles.errorBox}>❌ {error}</div> : null}
+                    {error ? (
+                      <div className={styles.errorBox}>❌ {error}</div>
+                    ) : null}
                     {ok ? <div className={styles.successBox}>{ok}</div> : null}
 
                     <div className={styles.actionsRow}>
-                      <button className={styles.button} type="submit" disabled={!canSubmit}>
-                        {submitting ? "⏳ Oppretter..." : "✅ Bekreft reservasjon"}
+                      <button
+                        className={styles.button}
+                        type="submit"
+                        disabled={!canSubmit}
+                      >
+                        {submitting
+                          ? "⏳ Oppretter..."
+                          : "✅ Bekreft reservasjon"}
                       </button>
                       <Link className={styles.buttonSecondary} href="/reserver">
                         Avbryt
@@ -297,7 +354,8 @@ export default function BookingClient() {
                     </div>
 
                     <div className={styles.helper}>
-                      Hvis hytta allerede er reservert i perioden får du beskjed og kan velge nye datoer.
+                      Hvis hytta allerede er reservert i perioden får du beskjed
+                      og kan velge nye datoer.
                     </div>
                   </form>
                 </div>
@@ -311,10 +369,13 @@ export default function BookingClient() {
                     {loadingCabin ? (
                       <p>⏳ Laster hytteinfo...</p>
                     ) : !cabin ? (
-                      <div className={styles.errorBox}>❌ Fant ikke hytta (sjekk cabinId).</div>
+                      <div className={styles.errorBox}>
+                        ❌ Fant ikke hytta (sjekk cabinId).
+                      </div>
                     ) : (
                       <>
-                        {Array.isArray(cabin.image_urls) && cabin.image_urls.length > 0 ? (
+                        {Array.isArray(cabin.image_urls) &&
+                        cabin.image_urls.length > 0 ? (
                           <div className={styles.imageGrid}>
                             {cabin.image_urls.map((url) => (
                               <div className={styles.imageCard} key={url}>
@@ -329,7 +390,10 @@ export default function BookingClient() {
                             ))}
                           </div>
                         ) : (
-                          <div className={styles.helper} style={{ marginBottom: 10 }}>
+                          <div
+                            className={styles.helper}
+                            style={{ marginBottom: 10 }}
+                          >
                             Ingen bilder registrert for denne hytta ennå.
                           </div>
                         )}
@@ -337,25 +401,115 @@ export default function BookingClient() {
                         <div className={styles.meta}>
                           <b>{cabin.name}</b>
                           <br />
-                          📍 {cabin.location}
-                          <br />
+                          <div
+                            style={{
+                              position: "relative",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            📍 {cabin.location} •{" "}
+                            <CabinWeather location={cabin.location} />
+                            <button
+                              className={styles.button}
+                              onClick={() => setShowWeather((prev) => !prev)}
+                              style={{
+                                width: "auto",
+                                padding: "2px 12px",
+                                fontSize: "0.8rem",
+                              }}
+                            >
+                              🌤️ {showWeather ? "Skjul" : "Vis værmelding"}
+                            </button>
+                            {showWeather && weather?.daily && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "100%",
+                                  left: 0,
+                                  zIndex: 100,
+                                  background: "#fff",
+                                  border: "1px solid #ccc",
+                                  borderRadius: "10px",
+                                  padding: "12px",
+                                  boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                                  minWidth: "360px",
+                                }}
+                              >
+                                <strong style={{ fontSize: "0.9rem" }}>
+                                  📅 7-dagers prognose
+                                </strong>
+                                <div
+                                  style={{
+                                    marginTop: "8px",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "6px",
+                                  }}
+                                >
+                                  {weather.daily.map((day) => (
+                                    <div
+                                      key={day.date}
+                                      style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        fontSize: "0.85rem",
+                                        borderBottom: "1px solid #eee",
+                                        paddingBottom: "4px",
+                                      }}
+                                    >
+                                      <span style={{ minWidth: "120px" }}>
+                                        {new Date(day.date).toLocaleDateString(
+                                          "nb-NO",
+                                          {
+                                            weekday: "long",
+                                            day: "numeric",
+                                            month: "short",
+                                          },
+                                        )}
+                                      </span>
+                                      <span>
+                                        🌡️ {day.tempMin}° / {day.tempMax}°
+                                      </span>
+                                      <span>🌧️ {day.totalPrecipitation}mm</span>
+                                      <span>💨 {day.avgWindSpeed}m/s</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                           👥 {cabin.capacity} pers
                           <br />
                           💰 {cabin.price_per_night} kr/natt
                         </div>
 
-                        {cabin.description ? <p style={{ marginTop: 10 }}>{cabin.description}</p> : null}
+                        {cabin.description ? (
+                          <p style={{ marginTop: 10 }}>{cabin.description}</p>
+                        ) : null}
 
                         <div className={styles.meta} style={{ marginTop: 10 }}>
                           🗓️ Netter: <b>{nights}</b>
                           <br />
                           👥 Personer: <b>{Number(guests_count) || 0}</b>
                           <br />
-                          💰 Estimert pris: <b>{estimatedPrice != null ? `${estimatedPrice} kr` : "—"}</b>
+                          💰 Estimert pris:{" "}
+                          <b>
+                            {estimatedPrice != null
+                              ? `${estimatedPrice} kr`
+                              : "—"}
+                          </b>
                         </div>
 
-                        <div className={styles.meta} style={{ marginTop: 10, fontSize: 13 }}>
-                          🏡 {cabin.amenities?.length ? cabin.amenities.join(", ") : "Ingen registrerte fasiliteter"}
+                        <div
+                          className={styles.meta}
+                          style={{ marginTop: 10, fontSize: 13 }}
+                        >
+                          🏡{" "}
+                          {cabin.amenities?.length
+                            ? cabin.amenities.join(", ")
+                            : "Ingen registrerte fasiliteter"}
                         </div>
                       </>
                     )}
