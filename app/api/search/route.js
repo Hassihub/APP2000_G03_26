@@ -12,7 +12,9 @@ export async function GET(request) {
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5`,
       {
         headers: {
-          "User-Agent": "appfrittfram/1.0 (chhjort@proton.me)",
+          "User-Agent": "FritFram-HytteApp/1.0 (chhjort@proton.me)",
+          Accept: "application/json",
+          "Accept-Language": "no",
         },
       },
     );
