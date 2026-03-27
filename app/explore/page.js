@@ -2,17 +2,24 @@
 export const dynamic = "force-dynamic";
 
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import styles from "./explore.module.css";
 import { useTranslations } from "../components/LanguageProvider";
 
-export default function ExplorePage() {
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Laster...</div>}>
+      <ExplorePage />
+    </Suspense>
+  );
+}
+
+function ExplorePage() {
   const searchParams = useSearchParams();
   const t = useTranslations("explorePage");
   const [trips, setTrips] = useState([]);
 
-  // Filters
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [type, setType] = useState(searchParams.get("type") || "alle");
   const [difficulty, setDifficulty] = useState(
@@ -22,7 +29,6 @@ export default function ExplorePage() {
     searchParams.get("onlyTiu") === "true"
   );
 
-  // Create modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createStatus, setCreateStatus] = useState({
     loading: false,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "../components/LanguageProvider";
 
@@ -13,6 +13,14 @@ const surfaceStyle = {
 };
 
 export default function SearchPage() {
+  return (
+    <Suspense fallback={<StatusMessage text="Laster sokesiden..." />}>
+      <SearchPageContent />
+    </Suspense>
+  );
+}
+
+function SearchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryFromUrl = searchParams.get("q")?.trim() || "";
