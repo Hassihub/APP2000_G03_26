@@ -44,12 +44,19 @@ export default function MessagesPage() {
     const loadUsers = async () => {
       setLoadingUsers(true);
       try {
-        const res = await fetch("/api/users", {
+        const res = await fetch("/api/auth/users", {
           method: "GET",
           credentials: "include",
         });
         const data = await res.json();
-        setUsers(data || []);
+
+        if (!res.ok) {
+          setError(data.error || "Kunne ikke hente brukere");
+          setUsers([]);
+          return;
+        }
+
+        setUsers(data.users || []);
       } catch {
         setError("Kunne ikke hente brukere");
       } finally {
@@ -67,7 +74,7 @@ export default function MessagesPage() {
     }
     setError("");
     try {
-      const res = await fetch(`/api/messages/${otherUserId}`, {
+      const res = await fetch(`/api/messages?otherUserId=${otherUserId}`, {
         method: "GET",
         credentials: "include",
       });
