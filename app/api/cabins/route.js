@@ -79,14 +79,35 @@ async function storeCabinImages(cabinId, imageUrls) {
   }
 }
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const { searchParams } = new URL(req.url);
+    const start_date = searchParams.get("start_date");
+    const end_date = searchParams.get("end_date");
+
+    const values = [];
+    let whereClause = "";
+
+    // Hvis både start- og sluttdato er satt, filtrer på hytter som er ledige
+    if (start_date && end_date) {
+      // Overlappende reservasjoner: NOT (existing.end <= new.start OR existing.start >= new.end)
+      // Vi vil ha hytter der det IKKE finnes en slik overlappende reservasjon
+      values.push(start_date, end_date);
+      whereClause = `WHERE NOT EXISTS (
+        SELECT 1 FROM public.reservations r
+        WHERE r.cabin_id::text = c.id::text
+          AND r.status <> 'cancelled'
+          AND NOT (r.end_date <= $1::date OR r.start_date >= $2::date)
+      )`;
+    }
+
     const sql = `
-      SELECT id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at, owner_id
-      FROM public.cabins
-      ORDER BY created_at DESC
+      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, c.created_at, c.owner_id
+      FROM public.cabins c
+      ${whereClause}
+      ORDER BY c.created_at DESC
     `;
-    const result = await db.query(sql);
+    const result = await db.query(sql, values);
     const cabins = await attachCabinImages(result.rows);
     return NextResponse.json({ cabins }, { status: 200 });
   } catch (e) {

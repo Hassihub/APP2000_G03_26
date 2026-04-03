@@ -20,6 +20,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="no">
       <body style={{ margin: 0, padding: 0 }}>
+        <div className="school-project-banner">
+          DETTE ER ET SKOLEPROSJEKT
+        </div>
         <TopBar />
 
         {children}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   FiSearch,
   FiSettings,
@@ -73,6 +73,7 @@ export default function TopBar() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const router = useRouter();
+  const pathname = usePathname();
 
   const pages = [
     { nameKey: "explore", href: "/explore" },
@@ -92,6 +93,12 @@ export default function TopBar() {
   useEffect(() => {
     localStorage.setItem("language", language);
   }, [language]);
+
+  useEffect(() => {
+    if (pathname === "/") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [pathname]);
 
   const handleSearch = () => {
     if (searchQuery.trim() !== "") {

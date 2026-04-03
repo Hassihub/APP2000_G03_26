@@ -14,6 +14,8 @@ export default function MapComponent() {
   const cabinsLayerRef = useRef(null);
   const [showTrips, setShowTrips] = useState(false);
   const tripsLayerRef = useRef(null);
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
   const [currentRoute, setCurrentRoute] = useState({ points: [], geometry: null });
   const [routeToggles, setRouteToggles] = useState({
     annenrute: false,
@@ -105,23 +107,41 @@ export default function MapComponent() {
     routeTogglesRef.current = routeToggles;
   }, [routeToggles]);
 
-  // 🔹 Vis hytter fra databasen ved hjelp av lagrede koordinater
+  // 🔹 Vis hytter fra databasen ved hjelp av lagrede koordinater, med valgfritt datofilter
   useEffect(() => {
     if (!Leaflet || !mapRef.current) return;
 
     const L = Leaflet;
     const map = mapRef.current;
 
-    async function ensureCabinsLayer() {
-      if (cabinsLayerRef.current) {
-        if (!map.hasLayer(cabinsLayerRef.current)) {
-          cabinsLayerRef.current.addTo(map);
+    const fetchAndRenderCabins = async () => {
+      // Skjul lag hvis brukeren har skrudd av visning av hytter
+      if (!showCabins) {
+        if (cabinsLayerRef.current && map.hasLayer(cabinsLayerRef.current)) {
+          map.removeLayer(cabinsLayerRef.current);
         }
+        cabinsLayerRef.current = null;
         return;
       }
 
+      // Fjern eksisterende lag før vi laster nye data (f.eks. ved endring av dato)
+      if (cabinsLayerRef.current && map.hasLayer(cabinsLayerRef.current)) {
+        map.removeLayer(cabinsLayerRef.current);
+        cabinsLayerRef.current = null;
+      }
+
       try {
-        const res = await fetch("/api/cabins");
+        const params = new URLSearchParams();
+        if (filterStartDate && filterEndDate) {
+          params.set("start_date", filterStartDate);
+          params.set("end_date", filterEndDate);
+        }
+
+        const url = params.toString()
+          ? `/api/cabins?${params.toString()}`
+          : "/api/cabins";
+
+        const res = await fetch(url);
         const json = await res.json().catch(() => ({}));
 
         if (!res.ok) {
@@ -169,14 +189,10 @@ export default function MapComponent() {
       } catch (e) {
         console.error("Feil ved lasting av hytter:", e);
       }
-    }
+    };
 
-    if (showCabins) {
-      ensureCabinsLayer();
-    } else if (cabinsLayerRef.current && map.hasLayer(cabinsLayerRef.current)) {
-      map.removeLayer(cabinsLayerRef.current);
-    }
-  }, [showCabins, Leaflet]);
+    fetchAndRenderCabins();
+  }, [showCabins, Leaflet, filterStartDate, filterEndDate]);
 
   // 🔹 Vis lagrede trips (fra /api/trips) på kartet
   useEffect(() => {
@@ -523,6 +539,36 @@ export default function MapComponent() {
         <button onClick={() => setPlacing(!placing)}>
           {placing ? "Avslutt plassering" : "Plasser punkt"}
         </button>
+
+        <div style={{ marginTop: 10 }}>
+          <strong>Tilgjengelighet hytter</strong>
+          <div style={{ marginTop: 4 }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>
+              Velg fra-/til-dato for å vise ledige hytter.
+            </div>
+            <label style={{ display: "block", marginBottom: 4 }}>
+              <span style={{ display: "block", fontSize: 12 }}>Fra dato</span>
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </label>
+            <label style={{ display: "block", marginBottom: 4 }}>
+              <span style={{ display: "block", fontSize: 12 }}>Til dato</span>
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </label>
+            <div style={{ fontSize: 11, color: "#555" }}>
+              Hvis datoer er tomme vises alle hytter.
+            </div>
+          </div>
+        </div>
 
         <div style={{ marginTop: 10 }}>
           <strong>GeoJSON-lag (zoom inn for å se)</strong>
