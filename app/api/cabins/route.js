@@ -3,10 +3,6 @@ import db from "../../../lib/db";
 import { requireAuth, requireRole } from "../../../lib/auth";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
 
-function badRequest(message) {
-  return NextResponse.json({ error: message }, { status: 400 });
-}
-
 let cabinImagesTableReady = false;
 
 async function ensureCabinImagesTable() {
@@ -83,14 +79,35 @@ async function storeCabinImages(cabinId, imageUrls) {
   }
 }
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const { searchParams } = new URL(req.url);
+    const start_date = searchParams.get("start_date");
+    const end_date = searchParams.get("end_date");
+
+    const values = [];
+    let whereClause = "";
+
+    // Hvis både start- og sluttdato er satt, filtrer på hytter som er ledige
+    if (start_date && end_date) {
+      // Overlappende reservasjoner: NOT (existing.end <= new.start OR existing.start >= new.end)
+      // Vi vil ha hytter der det IKKE finnes en slik overlappende reservasjon
+      values.push(start_date, end_date);
+      whereClause = `WHERE NOT EXISTS (
+        SELECT 1 FROM public.reservations r
+        WHERE r.cabin_id::text = c.id::text
+          AND r.status <> 'cancelled'
+          AND NOT (r.end_date <= $1::date OR r.start_date >= $2::date)
+      )`;
+    }
+
     const sql = `
-      SELECT id, name, description, location, price_per_night, capacity, amenities, created_at, owner_id
-      FROM public.cabins
-      ORDER BY created_at DESC
+      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, c.created_at, c.owner_id
+      FROM public.cabins c
+      ${whereClause}
+      ORDER BY c.created_at DESC
     `;
-    const result = await db.query(sql);
+    const result = await db.query(sql, values);
     const cabins = await attachCabinImages(result.rows);
     return NextResponse.json({ cabins }, { status: 200 });
   } catch (e) {
@@ -115,24 +132,51 @@ export async function POST(req) {
     const price_per_night = Number(body.price_per_night);
     const capacity = Number(body.capacity);
 
-    if (!name) return badRequest("name er påkrevd");
-    if (!location) return badRequest("location er påkrevd");
-    if (!Number.isFinite(price_per_night)) return badRequest("price_per_night må være et tall");
-    if (!Number.isFinite(capacity)) return badRequest("capacity må være et tall");
+    const hasLatitude = body.latitude !== undefined && body.latitude !== null && body.latitude !== "";
+    const hasLongitude = body.longitude !== undefined && body.longitude !== null && body.longitude !== "";
+
+    const latitude = hasLatitude ? Number(body.latitude) : null;
+    const longitude = hasLongitude ? Number(body.longitude) : null;
+
+    if (!name) return NextResponse.json({ error: "name er påkrevd" }, { status: 400 });
+    if (!location) return NextResponse.json({ error: "location er påkrevd" }, { status: 400 });
+    if (!Number.isFinite(price_per_night)) {
+      return NextResponse.json({ error: "price_per_night må være tall" }, { status: 400 });
+    }
+    if (!Number.isFinite(capacity)) {
+      return NextResponse.json({ error: "capacity må være tall" }, { status: 400 });
+    }
+
+    if (hasLatitude && !Number.isFinite(latitude)) {
+      return NextResponse.json({ error: "latitude må være tall" }, { status: 400 });
+    }
+    if (hasLongitude && !Number.isFinite(longitude)) {
+      return NextResponse.json({ error: "longitude må være tall" }, { status: 400 });
+    }
 
     const amenities = Array.isArray(body.amenities)
       ? body.amenities.map((x) => String(x).trim()).filter(Boolean)
-      : null; // 👈 kan være NULL i tabellen
+      : null;
     const image_urls = Array.isArray(body.image_urls)
       ? body.image_urls.map((x) => String(x).trim()).filter(Boolean)
       : [];
 
     const insertSqlWithOwner = `
-      INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities, owner_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id, name, description, location, price_per_night, capacity, amenities, owner_id, created_at
+      INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities, latitude, longitude, owner_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, owner_id, created_at;
     `;
-    const valuesWithOwner = [name, description, location, price_per_night, capacity, amenities, user.id];
+    const valuesWithOwner = [
+      name,
+      description,
+      location,
+      price_per_night,
+      capacity,
+      amenities,
+      latitude,
+      longitude,
+      user.id,
+    ];
 
     try {
       const result = await db.query(insertSqlWithOwner, valuesWithOwner);
@@ -143,11 +187,20 @@ export async function POST(req) {
       // Hvis DB ikke har owner_id-kolonne, fall tilbake til gammel insert (bakoverkompatibel)
       if (err?.code === "42703" || err?.message?.includes("column \"owner_id\"")) {
         const insertSql = `
-          INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities)
-          VALUES ($1, $2, $3, $4, $5, $6)
-          RETURNING id, name, description, location, price_per_night, capacity, amenities, created_at
+          INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities, latitude, longitude)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          RETURNING id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at
         `;
-        const values = [name, description, location, price_per_night, capacity, amenities];
+        const values = [
+          name,
+          description,
+          location,
+          price_per_night,
+          capacity,
+          amenities,
+          latitude,
+          longitude,
+        ];
         const result = await db.query(insertSql, values);
         const cabin = result.rows[0];
         await storeCabinImages(cabin.id, image_urls);

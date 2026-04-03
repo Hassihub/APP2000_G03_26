@@ -6,12 +6,29 @@ export async function GET(request) {
   const query = String(searchParams.get("q") ?? "").trim();
 
   if (!query) {
-    return NextResponse.json({ cabins: [], trips: [], query: "" }, { status: 200 });
+    return NextResponse.json(
+      { locations: [], cabins: [], trips: [], query: "" },
+      { status: 200 }
+    );
   }
 
   try {
     const containsTerm = `%${query}%`;
     const startsWithTerm = `${query}%`;
+
+    const locationResponse = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5`,
+      {
+        headers: {
+          "User-Agent": "FritFram-HytteApp/1.0 (chhjort@proton.me)",
+          Accept: "application/json",
+          "Accept-Language": "no",
+        },
+      }
+    );
+    const locationData = locationResponse.ok
+      ? await locationResponse.json().catch(() => [])
+      : [];
 
     const cabinResult = await db.query(
       `
@@ -46,8 +63,18 @@ export async function GET(request) {
       [containsTerm, startsWithTerm]
     );
 
+    const locations = Array.isArray(locationData)
+      ? locationData.map((loc) => ({
+          name: loc.display_name,
+          lat: parseFloat(loc.lat),
+          lon: parseFloat(loc.lon),
+          type: loc.type,
+        }))
+      : [];
+
     return NextResponse.json(
       {
+        locations,
         cabins: cabinResult.rows,
         trips: tripResult.rows,
         query,

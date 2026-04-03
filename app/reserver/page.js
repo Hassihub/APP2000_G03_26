@@ -5,8 +5,18 @@ import Link from "next/link";
 import Image from "next/image";
 import styles from "./Reserver.module.css";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../lib/roles";
+import CabinWeather from "./CabinWeather";
 
-const AMENITY_OPTIONS = ["WiFi", "Badstue", "Parkering", "Kjøkken", "Peis", "Grill", "Kjæledyr tillatt", "Ski-in/ski-out"];
+const AMENITY_OPTIONS = [
+  "WiFi",
+  "Badstue",
+  "Parkering",
+  "Kjøkken",
+  "Peis",
+  "Grill",
+  "Kjæledyr tillatt",
+  "Ski-in/ski-out",
+];
 
 export default function ReserverPage() {
   const [cabins, setCabins] = useState([]);
@@ -30,8 +40,7 @@ export default function ReserverPage() {
 
         if (!res.ok) throw new Error(data?.error || "Kunne ikke hente hytter");
 
-        const list = data.cabins || [];
-        setCabins(list);
+        setCabins(data.cabins || []);
       } catch (err) {
         setError(err?.message || "Ukjent feil");
       } finally {
@@ -87,13 +96,17 @@ export default function ReserverPage() {
 
   function toggleAmenity(amenity) {
     setSelectedAmenities((prev) =>
-      prev.includes(amenity) ? prev.filter((item) => item !== amenity) : [...prev, amenity]
+      prev.includes(amenity)
+        ? prev.filter((item) => item !== amenity)
+        : [...prev, amenity]
     );
   }
 
   const filteredCabins = useMemo(() => {
     const locationFilter = locationQuery.trim().toLowerCase();
-    const selectedAmenityFilters = selectedAmenities.map((amenity) => amenity.toLowerCase());
+    const selectedAmenityFilters = selectedAmenities.map((amenity) =>
+      amenity.toLowerCase()
+    );
 
     return cabins.filter((cabin) => {
       const price = Number(cabin.price_per_night);
@@ -102,11 +115,19 @@ export default function ReserverPage() {
         ? cabin.amenities.map((amenity) => String(amenity).toLowerCase())
         : [];
 
-      if (String(maxPrice).trim() !== "" && Number.isFinite(Number(maxPrice)) && price > Number(maxPrice)) {
+      if (
+        String(maxPrice).trim() !== "" &&
+        Number.isFinite(Number(maxPrice)) &&
+        price > Number(maxPrice)
+      ) {
         return false;
       }
 
-      if (String(minCapacity).trim() !== "" && Number.isFinite(Number(minCapacity)) && capacity < Number(minCapacity)) {
+      if (
+        String(minCapacity).trim() !== "" &&
+        Number.isFinite(Number(minCapacity)) &&
+        capacity < Number(minCapacity)
+      ) {
         return false;
       }
 
@@ -157,9 +178,7 @@ export default function ReserverPage() {
         <div className={styles.reserveHeroContent}>
           <p className={styles.reserveHeroKicker}>Fritt Fram</p>
           <h1 className={styles.reserveHeroTitle}>Reserver hytte</h1>
-          <p className={styles.reserveHeroText}>
-            Finn en base for neste tur.
-          </p>
+          <p className={styles.reserveHeroText}>Finn en base for neste tur.</p>
         </div>
       </section>
 
@@ -173,7 +192,9 @@ export default function ReserverPage() {
                 <div className={styles.filtersHeader}>
                   <div>
                     <h2 className={styles.filtersTitle}>Filtrer hytter</h2>
-                    <p className={styles.filtersText}>Filtrer på pris, kapasitet, lokasjon og viktige fasiliteter.</p>
+                    <p className={styles.filtersText}>
+                      Filtrer på pris, kapasitet, lokasjon og viktige fasiliteter.
+                    </p>
                   </div>
 
                   {hasFilters ? (
@@ -234,24 +255,30 @@ export default function ReserverPage() {
                     <summary className={styles.amenityDropdownSummary}>
                       <span>Fasiliteter</span>
                       <span className={styles.amenityDropdownCount}>
-                        {selectedAmenities.length > 0 ? `${selectedAmenities.length} valgt` : "Velg"}
+                        {selectedAmenities.length > 0
+                          ? `${selectedAmenities.length} valgt`
+                          : "Velg"}
                       </span>
                     </summary>
 
                     <div className={styles.amenityDropdownPanel}>
-                    {AMENITY_OPTIONS.map((amenity) => {
-                      const checked = selectedAmenities.includes(amenity);
+                      {AMENITY_OPTIONS.map((amenity) => {
+                        const checked = selectedAmenities.includes(amenity);
 
-                      return (
-                        <label
-                          key={amenity}
-                          className={`${styles.amenityChip} ${checked ? styles.amenityChipActive : ""}`}
-                        >
-                          <input type="checkbox" checked={checked} onChange={() => toggleAmenity(amenity)} />
-                          <span>{amenity}</span>
-                        </label>
-                      );
-                    })}
+                        return (
+                          <label
+                            key={amenity}
+                            className={`${styles.amenityChip} ${checked ? styles.amenityChipActive : ""}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleAmenity(amenity)}
+                            />
+                            <span>{amenity}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </details>
                 </div>
@@ -262,10 +289,10 @@ export default function ReserverPage() {
                   {loading
                     ? "Laster hytter..."
                     : cabins.length === 0
-                    ? "Ingen hytter enda."
-                    : filteredCabins.length === 0
-                    ? "Ingen hytter matcher filtrene dine."
-                    : `${filteredCabins.length} hytte${filteredCabins.length === 1 ? "" : "r"} funnet`}
+                      ? "Ingen hytter enda."
+                      : filteredCabins.length === 0
+                        ? "Ingen hytter matcher filtrene dine."
+                        : `${filteredCabins.length} hytte${filteredCabins.length === 1 ? "" : "r"} funnet`}
                 </div>
 
                 {error ? <div className={styles.errorBox}>❌ {error}</div> : null}
@@ -293,7 +320,9 @@ export default function ReserverPage() {
                 ) : filteredCabins.length === 0 ? (
                   <div className={styles.card}>
                     <div className={styles.cardContent}>
-                      <div className={styles.empty}>Ingen hytter matcher filtrene dine.</div>
+                      <div className={styles.empty}>
+                        Ingen hytter matcher filtrene dine.
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -319,22 +348,32 @@ export default function ReserverPage() {
                                   height={480}
                                 />
                               ) : (
-                                <div className={styles.tileImageFallback}>Ingen bilde</div>
+                                <div className={styles.tileImageFallback}>
+                                  Ingen bilde
+                                </div>
                               )}
                             </div>
 
                             <div className={styles.tileBody}>
                               <h3 className={styles.tileTitle}>{cabin.name}</h3>
-                              <div className={styles.tileMeta}>📍 {cabin.location}</div>
+                              <div className={styles.tileMeta}>
+                                📍 {cabin.location} •{" "}
+                                <CabinWeather location={cabin.location} />
+                              </div>
                               <div className={styles.tileStats}>
-                                <span>💰 {Number(cabin.price_per_night)} kr / natt</span>
+                                <span>
+                                  💰 {Number(cabin.price_per_night)} kr / natt
+                                </span>
                                 <span>👥 {Number(cabin.capacity)} personer</span>
                               </div>
                             </div>
                           </Link>
 
                           {hasManageAccess(cabin) && (
-                            <div className={styles.actionsRow} style={{ padding: "0 12px 12px" }}>
+                            <div
+                              className={styles.actionsRow}
+                              style={{ padding: "0 12px 12px" }}
+                            >
                               <Link
                                 className={styles.buttonSecondary}
                                 href={`/reserver/edit?cabinId=${encodeURIComponent(cabin.id)}`}

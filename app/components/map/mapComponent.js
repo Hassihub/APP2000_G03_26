@@ -10,6 +10,12 @@ export default function MapComponent() {
   const drawCleanupRef = useRef(null);
   const geojsonCleanupRef = useRef(null);
   const gpxLayerRef = useRef(null);
+  const [showCabins, setShowCabins] = useState(false);
+  const cabinsLayerRef = useRef(null);
+  const [showTrips, setShowTrips] = useState(false);
+  const tripsLayerRef = useRef(null);
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
   const [currentRoute, setCurrentRoute] = useState({ points: [], geometry: null });
   const [routeToggles, setRouteToggles] = useState({
     annenrute: false,
@@ -80,6 +86,14 @@ export default function MapComponent() {
     return () => {
       if (drawCleanupRef.current) drawCleanupRef.current();
       if (geojsonCleanupRef.current) geojsonCleanupRef.current();
+      if (cabinsLayerRef.current) {
+        map.removeLayer(cabinsLayerRef.current);
+        cabinsLayerRef.current = null;
+      }
+      if (tripsLayerRef.current) {
+        map.removeLayer(tripsLayerRef.current);
+        tripsLayerRef.current = null;
+      }
       map.remove();
       mapRef.current = null;
     };
@@ -92,6 +106,182 @@ export default function MapComponent() {
   useEffect(() => {
     routeTogglesRef.current = routeToggles;
   }, [routeToggles]);
+
+  // 🔹 Vis hytter fra databasen ved hjelp av lagrede koordinater, med valgfritt datofilter
+  useEffect(() => {
+    if (!Leaflet || !mapRef.current) return;
+
+    const L = Leaflet;
+    const map = mapRef.current;
+
+    const fetchAndRenderCabins = async () => {
+      // Skjul lag hvis brukeren har skrudd av visning av hytter
+      if (!showCabins) {
+        if (cabinsLayerRef.current && map.hasLayer(cabinsLayerRef.current)) {
+          map.removeLayer(cabinsLayerRef.current);
+        }
+        cabinsLayerRef.current = null;
+        return;
+      }
+
+      // Fjern eksisterende lag før vi laster nye data (f.eks. ved endring av dato)
+      if (cabinsLayerRef.current && map.hasLayer(cabinsLayerRef.current)) {
+        map.removeLayer(cabinsLayerRef.current);
+        cabinsLayerRef.current = null;
+      }
+
+      try {
+        const params = new URLSearchParams();
+        if (filterStartDate && filterEndDate) {
+          params.set("start_date", filterStartDate);
+          params.set("end_date", filterEndDate);
+        }
+
+        const url = params.toString()
+          ? `/api/cabins?${params.toString()}`
+          : "/api/cabins";
+
+        const res = await fetch(url);
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          console.warn("Kunne ikke hente hytter:", json?.error);
+          return;
+        }
+
+        const cabins = Array.isArray(json.cabins) ? json.cabins : [];
+        if (!cabins.length) return;
+
+        const layer = L.layerGroup();
+
+        const cabinIcon = L.icon({
+          iconUrl: "/images/pinEnd.png",
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32],
+        });
+
+        for (const cabin of cabins) {
+          const lat = Number(cabin.latitude);
+          const lon = Number(cabin.longitude);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+          const marker = L.marker([lat, lon], { icon: cabinIcon });
+
+          const popupLines = [];
+          popupLines.push(`<strong>${cabin.name ?? "Hytte"}</strong>`);
+          if (cabin.location) popupLines.push(`📍 ${cabin.location}`);
+          if (Number.isFinite(cabin.price_per_night)) {
+            popupLines.push(`💰 ${cabin.price_per_night} kr/natt`);
+          }
+          if (Number.isFinite(cabin.capacity)) {
+            popupLines.push(`👥 ${cabin.capacity} pers`);
+          }
+
+          marker.bindPopup(popupLines.join("<br/>"));
+          layer.addLayer(marker);
+        }
+
+        if (layer.getLayers().length === 0) return;
+
+        layer.addTo(map);
+        cabinsLayerRef.current = layer;
+      } catch (e) {
+        console.error("Feil ved lasting av hytter:", e);
+      }
+    };
+
+    fetchAndRenderCabins();
+  }, [showCabins, Leaflet, filterStartDate, filterEndDate]);
+
+  // 🔹 Vis lagrede trips (fra /api/trips) på kartet
+  useEffect(() => {
+    if (!Leaflet || !mapRef.current) return;
+
+    const L = Leaflet;
+    const map = mapRef.current;
+
+    async function ensureTripsLayer() {
+      if (tripsLayerRef.current) {
+        if (!map.hasLayer(tripsLayerRef.current)) {
+          tripsLayerRef.current.addTo(map);
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/trips");
+        const json = await res.json().catch(() => []);
+
+        if (!res.ok) {
+          console.warn("Kunne ikke hente trips:", json?.error);
+          return;
+        }
+
+        const trips = Array.isArray(json) ? json : [];
+        if (!trips.length) return;
+
+        const features = trips
+          .filter((trip) =>
+            trip && trip.geometry && typeof trip.geometry === "object"
+          )
+          .map((trip) => ({
+            type: "Feature",
+            geometry: trip.geometry,
+            properties: {
+              id: trip.id,
+              navn: trip.navn,
+              type: trip.type,
+              vanskelighetsgrad: trip.vanskelighetsgrad,
+              lengde_km: trip.lengde_km,
+              tiu_trip_id: trip.tiu_trip_id,
+              turleder_navn: trip.turleder_navn,
+            },
+          }));
+
+        if (!features.length) return;
+
+        const layer = L.geoJSON(
+          { type: "FeatureCollection", features },
+          {
+            style: (feature) => {
+              const type = feature?.properties?.type;
+              // Enkel fargekoding basert på type tur
+              if (type === "skitur") return { color: "#1f77b4", weight: 4 };
+              if (type === "sykkel") return { color: "#2ca02c", weight: 4 };
+              return { color: "#ff4d4d", weight: 4 };
+            },
+            onEachFeature: (feature, layer) => {
+              const p = feature.properties || {};
+              const lines = [];
+              if (p.navn) lines.push(`<strong>${p.navn}</strong>`);
+              if (p.lengde_km)
+                lines.push(`Lengde: ${p.lengde_km.toFixed?.(1) ?? p.lengde_km} km`);
+              if (p.vanskelighetsgrad)
+                lines.push(`Vanskelighetsgrad: ${p.vanskelighetsgrad}`);
+              if (p.turleder_navn)
+                lines.push(`Turleder: ${p.turleder_navn}`);
+
+              if (lines.length) {
+                layer.bindPopup(lines.join("<br/>"));
+              }
+            },
+          }
+        );
+
+        layer.addTo(map);
+        tripsLayerRef.current = layer;
+      } catch (e) {
+        console.error("Feil ved lasting av trips:", e);
+      }
+    }
+
+    if (showTrips) {
+      ensureTripsLayer();
+    } else if (tripsLayerRef.current && map.hasLayer(tripsLayerRef.current)) {
+      map.removeLayer(tripsLayerRef.current);
+    }
+  }, [showTrips, Leaflet]);
 
   // 🔹 Hent høydedata for manuelt tegnede ruter (ikke GPX)
   useEffect(() => {
@@ -351,6 +541,36 @@ export default function MapComponent() {
         </button>
 
         <div style={{ marginTop: 10 }}>
+          <strong>Tilgjengelighet hytter</strong>
+          <div style={{ marginTop: 4 }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>
+              Velg fra-/til-dato for å vise ledige hytter.
+            </div>
+            <label style={{ display: "block", marginBottom: 4 }}>
+              <span style={{ display: "block", fontSize: 12 }}>Fra dato</span>
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </label>
+            <label style={{ display: "block", marginBottom: 4 }}>
+              <span style={{ display: "block", fontSize: 12 }}>Til dato</span>
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </label>
+            <div style={{ fontSize: 11, color: "#555" }}>
+              Hvis datoer er tomme vises alle hytter.
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 10 }}>
           <strong>GeoJSON-lag (zoom inn for å se)</strong>
           <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
             <input
@@ -403,6 +623,22 @@ export default function MapComponent() {
               }
             />
             <span>Rute infopunkt</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <input
+              type="checkbox"
+              checked={showCabins}
+              onChange={(e) => setShowCabins(e.target.checked)}
+            />
+            <span>Vis hytter</span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <input
+              type="checkbox"
+              checked={showTrips}
+              onChange={(e) => setShowTrips(e.target.checked)}
+            />
+            <span>Vis turer</span>
           </label>
         </div>
 

@@ -6,15 +6,16 @@ export default function Hjem() {
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    fetch("/api/users")
-      .then(res => res.json())
-      .then(data => setUsers(data));
+    fetch("/api/auth/users")
+      .then((res) => res.json())
+      .then((data) => setUsers(data.users || []))
+      .catch(() => setUsers([]));
   }, []);
 
   return (
     <ul>
-      {users.map(u => (
-        <li key={u.id}>{u.name}</li>
+      {users.map((u) => (
+        <li key={u.id}>{u.username || u.email}</li>
       ))}
     </ul>
   );

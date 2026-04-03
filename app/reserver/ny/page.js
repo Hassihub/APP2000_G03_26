@@ -113,6 +113,11 @@ export default function NewCabinPage() {
   });
   const [selectedAmenities, setSelectedAmenities] = useState([]);
 
+  const [coords, setCoords] = useState(null); // { lat, lon }
+  const [Leaflet, setLeaflet] = useState(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+
   const [status, setStatus] = useState({
     type: "idle", // idle | loading | success | error
     message: "",
@@ -164,9 +169,77 @@ export default function NewCabinPage() {
 
   function toggleAmenity(amenity) {
     setSelectedAmenities((prev) =>
-      prev.includes(amenity) ? prev.filter((item) => item !== amenity) : [...prev, amenity]
+      prev.includes(amenity)
+        ? prev.filter((item) => item !== amenity)
+        : [...prev, amenity]
     );
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (!Leaflet) {
+      import("leaflet").then((L) => {
+        import("leaflet/dist/leaflet.css");
+        setLeaflet(L);
+      });
+      return;
+    }
+
+    if (mapRef.current) return;
+
+    const L = Leaflet;
+    const map = L.map("new-cabin-map", {
+      center: [63.2, 15],
+      zoom: 5,
+      minZoom: 4,
+    });
+    mapRef.current = map;
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+    }).addTo(map);
+
+    import("../../components/map/maskLayer").then(({ addMaskLayer }) => {
+      try {
+        addMaskLayer(map, L);
+      } catch (e) {
+        console.error("Kunne ikke legge til maske for Norge på nytt hytte-kart:", e);
+      }
+    });
+
+    const cabinIcon = L.icon({
+      iconUrl: "/images/pinEnd.png",
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
+    });
+
+    map.on("click", (e) => {
+      const { lat, lng } = e.latlng;
+      setCoords({ lat, lon: lng });
+
+      if (!markerRef.current) {
+        markerRef.current = L.marker([lat, lng], { icon: cabinIcon }).addTo(map);
+        markerRef.current.on("click", () => {
+          if (markerRef.current) {
+            map.removeLayer(markerRef.current);
+            markerRef.current = null;
+            setCoords(null);
+          }
+        });
+      } else {
+        markerRef.current.setLatLng([lat, lng]);
+      }
+    });
+
+    return () => {
+      map.off();
+      map.remove();
+      mapRef.current = null;
+      markerRef.current = null;
+    };
+  }, [Leaflet]);
 
   async function handleImageChange(e) {
     const files = Array.from(e.target.files || []).slice(0, 8);
@@ -218,6 +291,14 @@ export default function NewCabinPage() {
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (!coords) {
+      setStatus({
+        type: "error",
+        message: "Du må plassere en pin på kartet for hyttens posisjon.",
+      });
+      return;
+    }
+
     if (isProcessingImages) {
       setStatus({
         type: "error",
@@ -244,6 +325,8 @@ export default function NewCabinPage() {
             .map((amenity) => amenity.trim())
             .filter(Boolean),
         ],
+        latitude: coords?.lat ?? null,
+        longitude: coords?.lon ?? null,
         image_urls: uploadedImageUrls,
       };
 
@@ -279,8 +362,13 @@ export default function NewCabinPage() {
         customAmenities: "",
       });
       setSelectedAmenities([]);
+      setCoords(null);
       setImageFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      if (mapRef.current && markerRef.current) {
+        mapRef.current.removeLayer(markerRef.current);
+        markerRef.current = null;
+      }
     } catch (err) {
       setStatus({
         type: "error",
@@ -464,6 +552,30 @@ export default function NewCabinPage() {
                         value={form.customAmenities}
                         onChange={handleChange}
                       />
+
+                      <div>
+                        <div style={{ marginBottom: 4, fontWeight: 600 }}>
+                          Velg plassering på kartet
+                        </div>
+                        <div
+                          id="new-cabin-map"
+                          style={{
+                            width: "100%",
+                            height: "260px",
+                            borderRadius: 12,
+                            border: "1px solid #e6e6ef",
+                            overflow: "hidden",
+                          }}
+                        />
+                        <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                          Klikk på kartet for å plassere en pin. Koordinatene lagres sammen med hytta.
+                        </div>
+                        {coords ? (
+                          <div style={{ marginTop: 4, fontSize: 12 }}>
+                            Valgt posisjon: {coords.lat.toFixed(5)}, {coords.lon.toFixed(5)}
+                          </div>
+                        ) : null}
+                      </div>
 
                       <div className={styles.field}>
                         <label className={styles.label}>Bilder (valgfritt)</label>
