@@ -278,27 +278,52 @@ export default function EditCabinPage() {
 
   if (authLoading) {
     return (
-      <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
-        <p>Laster tilgang...</p>
-      </div>
+      <main className={styles.reservePageShell}>
+        <section className={styles.reserveContentSection} style={{ marginTop: 0 }}>
+          <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
+            <p>Laster tilgang...</p>
+          </div>
+        </section>
+      </main>
     );
   }
 
   if (!(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN)) {
     return (
-      <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
-        <h1>Ingen tilgang</h1>
-        <p>Du må være utleier for å redigere hytter.</p>
-        <Link href="/reserver" className={styles.button}>
-          Tilbake til oversikt
-        </Link>
-      </div>
+      <main className={styles.reservePageShell}>
+        <section className={styles.reserveContentSection} style={{ marginTop: 0 }}>
+          <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
+            <h1>Ingen tilgang</h1>
+            <p>Du må være utleier for å redigere hytter.</p>
+            <Link href="/reserver" className={styles.button}>
+              Tilbake til oversikt
+            </Link>
+          </div>
+        </section>
+      </main>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
-      <main>
+    <main className={styles.reservePageShell}>
+      <section className={styles.reserveHero}>
+        <Image
+          src="/images/hytte.jpg"
+          alt="Rediger hytte"
+          fill
+          priority
+          className={styles.reserveHeroImage}
+        />
+        <div className={styles.reserveHeroOverlay} />
+
+        <div className={styles.reserveHeroContent}>
+          <p className={styles.reserveHeroKicker}>Fritt Fram</p>
+          <h1 className={styles.reserveHeroTitle}>Rediger hytte</h1>
+          <p className={styles.reserveHeroText}>Oppdater detaljer og bilder med samme layout som resten av reserver-opplevelsen.</p>
+        </div>
+      </section>
+
+      <section className={styles.reserveContentSection}>
         <div className={styles.page}>
           <div className={styles.container}>
             <div className={styles.notice}>✏️ Rediger hytte</div>
@@ -468,7 +493,7 @@ export default function EditCabinPage() {
             )}
           </div>
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }

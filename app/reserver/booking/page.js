@@ -170,17 +170,35 @@ export default function BookingPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
-      <main className={styles.page} style={{ paddingBottom: 120 }}>
-        <div className={styles.container}>
-          <div className={styles.notice}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-              <span style={{ fontWeight: 900 }}>🗓️ Reserver hytte</span>
-              <Link className={styles.button} href="/reserver">
-                ← Tilbake
-              </Link>
+    <main className={styles.reservePageShell}>
+      <section className={styles.reserveHero}>
+        <Image
+          src="/images/hytte.jpg"
+          alt="Hytte reservasjon"
+          fill
+          priority
+          className={styles.reserveHeroImage}
+        />
+        <div className={styles.reserveHeroOverlay} />
+
+        <div className={styles.reserveHeroContent}>
+          <p className={styles.reserveHeroKicker}>Fritt Fram</p>
+          <h1 className={styles.reserveHeroTitle}>Bestill hytte</h1>
+          <p className={styles.reserveHeroText}>Velg datoer og fullfor reservasjonen i samme stil som resten av appen.</p>
+        </div>
+      </section>
+
+      <section className={styles.reserveContentSection}>
+        <div className={styles.page} style={{ paddingBottom: 120 }}>
+          <div className={styles.container}>
+            <div className={styles.notice}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                <span style={{ fontWeight: 900 }}>🗓️ Reserver hytte</span>
+                <Link className={styles.button} href="/reserver">
+                  ← Tilbake
+                </Link>
+              </div>
             </div>
-          </div>
 
           {!cabinId ? (
             <div className={styles.card}>
@@ -374,8 +392,9 @@ export default function BookingPage() {
               </div>
             </div>
           )}
+          </div>
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
