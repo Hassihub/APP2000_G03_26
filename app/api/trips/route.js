@@ -18,10 +18,6 @@ export async function GET(request) {
         t.lengde_km,
         t.type,
         t.vanskelighetsgrad,
-        t.start_lat,
-        t.start_lng,
-        t.end_lat,
-        t.end_lng,
         t.bilde_url,
         tt.id AS tiu_trip_id,
         tt.turleder_navn

@@ -29,6 +29,8 @@ const dictionaries = {
       guest: "Ikke innlogget",
       signedInAs: "Innlogget som",
       account: "Konto",
+      ads: "Marked",
+      adPortal: "Annonseportal",
     },
     home: {
       title: "Fritt Fram",
@@ -283,6 +285,8 @@ const dictionaries = {
       guest: "Not signed in",
       signedInAs: "Signed in as",
       account: "Account",
+      ads: "Marked",
+      adPortal: "Ad Portal",
     },
     home: {
       title: "Fritt Fram",
@@ -537,6 +541,8 @@ const dictionaries = {
       guest: "Non connecté",
       signedInAs: "Connecté en tant que",
       account: "Compte",
+      ads: "Marché",
+      adPortal: "Portail Publicité",
     },
     home: {
       title: "Fritt Fram",
@@ -791,6 +797,8 @@ const dictionaries = {
       guest: "No has iniciado sesión",
       signedInAs: "Sesión iniciada como",
       account: "Cuenta",
+      ads: "Mercado",
+      adPortal: "Portal de Anuncios",
     },
     home: {
       title: "Fritt Fram",
@@ -1045,6 +1053,8 @@ const dictionaries = {
       guest: "Non hai effettuato l'accesso",
       signedInAs: "Accesso come",
       account: "Account",
+      ads: "Mercato",
+      adPortal: "Portale Annunci",
     },
     home: {
       title: "Fritt Fram",

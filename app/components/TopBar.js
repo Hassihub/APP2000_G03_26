@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  FiSearch,
   FiSettings,
-  FiHome,
+  FiSearch,
   FiMenu,
   FiChevronLeft,
   FiUser,
@@ -15,12 +15,12 @@ import {
 } from "react-icons/fi";
 import { useLanguage, useTranslations } from "./LanguageProvider";
 
-const flags = { no: "🇳🇴", en: "🇬🇧", fr: "🇫🇷", es: "🇪🇸", it: "🇮🇹" };
+const flags = { no: "\u{1F1F3}\u{1F1F4}", en: "\u{1F1EC}\u{1F1E7}", fr: "\u{1F1EB}\u{1F1F7}", es: "\u{1F1EA}\u{1F1F8}", it: "\u{1F1EE}\u{1F1F9}" };
 
 export default function TopBar() {
   const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
+  const [profileImage, setProfileImage] = useState(null);
   const { language, setLanguage, languages } = useLanguage();
   const translations = useTranslations("topBar");
 
@@ -35,6 +35,7 @@ export default function TopBar() {
       { nameKey: "map", href: "/map" },
       { nameKey: "weather", href: "/vaer" },
       { nameKey: "social", href: "/sosial" },
+      { nameKey: "ads", href: "/annonser" },
     ],
     []
   );
@@ -68,21 +69,24 @@ export default function TopBar() {
     };
   }, [pathname]);
 
+  // Load profile image when user is known
+  useEffect(() => {
+    if (!currentUser) { setProfileImage(null); return; }
+    let cancelled = false;
+    fetch("/api/profile", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json().catch(() => ({})))
+      .then((d) => { if (!cancelled) setProfileImage(d?.profile?.profileImage || null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [currentUser]);
+
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
   useEffect(() => {
-    if (!open) {
-      return undefined;
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-
+    if (!open) return undefined;
+    const handleKeyDown = (event) => { if (event.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open]);
@@ -94,12 +98,6 @@ export default function TopBar() {
         label: translations.profile,
         icon: <FiUser size={16} />,
         action: () => router.push(currentUser ? "/profile" : "/login"),
-      },
-      {
-        key: "search",
-        label: translations.search,
-        icon: <FiSearch size={16} />,
-        action: () => router.push("/search"),
       },
       {
         key: "settings",
@@ -120,7 +118,6 @@ export default function TopBar() {
             credentials: "include",
             cache: "no-store",
           }).catch(() => {});
-
           setCurrentUser(null);
           router.push("/login");
         },
@@ -137,13 +134,6 @@ export default function TopBar() {
     return items;
   }, [currentUser, router, translations]);
 
-  const handleSearch = () => {
-    if (searchQuery.trim() !== "") {
-      router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
-      setSearchQuery("");
-    }
-  };
-
   return (
     <header
       style={{
@@ -155,62 +145,52 @@ export default function TopBar() {
         alignItems: "center",
         padding: "1rem 2rem",
         backgroundColor: "#fff",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-        position: "sticky",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+        position: "fixed",
         top: 0,
+        left: 0,
+        right: 0,
         zIndex: 1000,
         boxSizing: "border-box",
       }}
     >
-      {/* Venstre: Hjem + søkefelt */}
-      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center" }}>
-          <FiHome size={28} style={{ cursor: "pointer" }} />
+      {/* Left: Logo */}
+      <Link href="/" style={{ display: "flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}>
+        <svg viewBox="0 0 48 32" width="44" height="30" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 30 L16 5 L24 17 L30 9 L46 30 Z" fill="#111827" />
+          <circle cx="36" cy="7" r="3.5" fill="#f59e0b" />
+        </svg>
+        <span style={{ fontWeight: 800, fontSize: "1.1rem", color: "#111827", letterSpacing: "-0.02em" }}>
+          FrittFram
+        </span>
+      </Link>
+
+      {/* Right: Hamburger + profile avatar */}
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem", position: "relative" }}>
+
+        {/* Search icon */}
+        <Link href="/search" style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "#374151" }}>
+          <FiSearch size={22} />
         </Link>
 
-        <div style={{ position: "relative" }}>
-          <input
-            type="text"
-            value={searchQuery}
-            placeholder={translations.search}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSearch();
-            }}
-            style={{
-              padding: "0.5rem 2.5rem 0.5rem 1rem",
-              borderRadius: "6px",
-              border: "1px solid #ccc",
-              fontSize: "1rem",
-              outline: "none",
-              width: "220px",
-            }}
-          />
+        {/* Profile avatar / icon */}
+        <Link href={currentUser ? "/profile" : "/login"} style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
+          {profileImage ? (
+            <Image
+              src={profileImage}
+              alt="Profil"
+              width={32}
+              height={32}
+              unoptimized
+              style={{ borderRadius: "50%", objectFit: "cover", border: "2px solid #e5e7eb" }}
+            />
+          ) : (
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f3f4f6", border: "2px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <FiUser size={16} color="#6b7280" />
+            </div>
+          )}
+        </Link>
 
-          <FiSearch
-            size={18}
-            onClick={handleSearch}
-            style={{
-              position: "absolute",
-              right: "10px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              cursor: "pointer",
-              color: "#555",
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Høyre: Hamburger + ikoner */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "1rem",
-          position: "relative",
-        }}
-      >
         {/* Hamburger */}
         <div style={{ position: "relative" }}>
           <FiMenu
@@ -241,105 +221,96 @@ export default function TopBar() {
                   right: 0,
                   bottom: 0,
                   width: "360px",
-                  backgroundColor: "#fff",
-                  borderLeft: "1px solid #ddd",
-                  boxShadow: "-5px 0 15px rgba(0,0,0,0.2)",
+                  backgroundColor: "#1a1f2e",
+                  borderLeft: "1px solid #2d3347",
+                  boxShadow: "-5px 0 15px rgba(0,0,0,0.4)",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
                   zIndex: 2000,
                   overflowY: "auto",
+                  color: "#f9fafb",
+                  fontFamily: "Poppins, sans-serif",
                 }}
               >
-                <div
-                  style={{
-                    padding: "2rem",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "1rem",
-                  }}
-                >
+                {/* Header */}
+                <div style={{ padding: "1.5rem 2rem", display: "flex", alignItems: "center", gap: "1rem", borderBottom: "1px solid #2d3347" }}>
                   <FiChevronLeft
-                    size={28}
-                    style={{ cursor: "pointer" }}
+                    size={26}
+                    style={{ cursor: "pointer", color: "#9ca3af" }}
                     onClick={() => setOpen(false)}
                   />
-                  <h2 style={{ fontSize: "1.5rem", fontWeight: 700 }}>
+                  <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0, color: "#f9fafb" }}>
                     {translations.navigate}
                   </h2>
                 </div>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gap: "1.5rem",
-                    padding: "0 2rem 2rem",
-                  }}
-                >
+                <div style={{ display: "grid", gap: "1.5rem", padding: "1.5rem 2rem 2rem", flex: 1 }}>
+                  {/* Account card */}
                   <Link
                     href={currentUser ? "/profile" : "/login"}
                     onClick={() => setOpen(false)}
                     style={{
                       padding: "1rem",
                       borderRadius: "14px",
-                      background: "#f8fafb",
-                      border: "1px solid #e7eaee",
+                      background: "#252b3b",
+                      border: "1px solid #2d3347",
                       textDecoration: "none",
-                      display: "block",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.85rem",
                     }}
                   >
-                    <div
-                      style={{
-                        fontSize: "0.78rem",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        color: "#667085",
-                        marginBottom: "0.5rem",
-                      }}
-                    >
-                      {translations.account}
-                    </div>
-                    <div style={{ fontWeight: 700, color: "#101828", marginBottom: "0.2rem" }}>
-                      {currentUser?.username || currentUser?.email || translations.guest}
-                    </div>
-                    <div style={{ color: "#667085", fontSize: "0.92rem" }}>
-                      {currentUser?.email
-                        ? `${translations.signedInAs} ${currentUser.email}`
-                        : translations.guest}
+                    {profileImage ? (
+                      <Image
+                        src={profileImage}
+                        alt="Profil"
+                        width={44}
+                        height={44}
+                        unoptimized
+                        style={{ borderRadius: "50%", objectFit: "cover", border: "2px solid #3d4460", flexShrink: 0 }}
+                      />
+                    ) : (
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#3d4460", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <FiUser size={20} color="#9ca3af" />
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "#6b7280", marginBottom: "0.2rem" }}>
+                        {translations.account}
+                      </div>
+                      <div style={{ fontWeight: 700, color: "#f9fafb", fontSize: "0.95rem" }}>
+                        {currentUser?.username || currentUser?.email || translations.guest}
+                      </div>
+                      <div style={{ color: "#6b7280", fontSize: "0.82rem" }}>
+                        {currentUser?.email
+                          ? `${translations.signedInAs} ${currentUser.email}`
+                          : translations.guest}
+                      </div>
                     </div>
                   </Link>
 
+                  {/* Navigation links */}
                   <section>
-                    <div
-                      style={{
-                        fontSize: "0.78rem",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        color: "#667085",
-                        marginBottom: "0.75rem",
-                      }}
-                    >
+                    <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b7280", marginBottom: "0.75rem" }}>
                       {translations.navigate}
                     </div>
-                    <div style={{ display: "grid", gap: "0.55rem" }}>
+                    <div style={{ display: "grid", gap: "0.45rem" }}>
                       {pages.map((p) => {
-                        const isActive =
-                          p.href === "/"
-                            ? pathname === "/"
-                            : pathname?.startsWith(p.href);
-
+                        const isActive = p.href === "/" ? pathname === "/" : pathname?.startsWith(p.href);
                         return (
                           <Link
                             key={p.nameKey}
                             href={p.href}
                             style={{
-                              padding: "0.95rem 1rem",
+                              padding: "0.8rem 1rem",
                               textDecoration: "none",
-                              color: isActive ? "#fff" : "#111827",
-                              fontWeight: 600,
-                              borderRadius: "12px",
-                              background: isActive ? "#111827" : "#f8fafb",
-                              border: `1px solid ${isActive ? "#111827" : "#e7eaee"}`,
+                              color: isActive ? "#f9fafb" : "#9ca3af",
+                              fontWeight: isActive ? 700 : 500,
+                              borderRadius: "10px",
+                              background: isActive ? "#252b3b" : "transparent",
+                              border: `1px solid ${isActive ? "#3d4460" : "transparent"}`,
+                              fontSize: "0.92rem",
                             }}
                             onClick={() => setOpen(false)}
                           >
@@ -350,39 +321,31 @@ export default function TopBar() {
                     </div>
                   </section>
 
+                  {/* Quick actions */}
                   <section>
-                    <div
-                      style={{
-                        fontSize: "0.78rem",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        color: "#667085",
-                        marginBottom: "0.75rem",
-                      }}
-                    >
+                    <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b7280", marginBottom: "0.75rem" }}>
                       {translations.quickActions}
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
                       {quickActions.map((item) => (
                         <button
                           key={item.key}
                           type="button"
-                          onClick={() => {
-                            setOpen(false);
-                            item.action();
-                          }}
+                          onClick={() => { setOpen(false); item.action(); }}
                           style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: "0.55rem",
+                            gap: "0.5rem",
                             justifyContent: "center",
-                            padding: "0.9rem",
-                            borderRadius: "12px",
-                            border: "1px solid #d0d5dd",
-                            background: "#fff",
-                            color: "#111827",
+                            padding: "0.8rem",
+                            borderRadius: "10px",
+                            border: "1px solid #2d3347",
+                            background: "#252b3b",
+                            color: "#d1d5db",
                             cursor: "pointer",
                             fontWeight: 600,
+                            fontSize: "0.85rem",
+                            fontFamily: "inherit",
                           }}
                         >
                           {item.icon}
@@ -393,38 +356,21 @@ export default function TopBar() {
                   </section>
                 </div>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gap: "0.75rem",
-                    padding: "1.5rem 2rem",
-                    borderTop: "1px solid #eee",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "0.78rem",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      color: "#667085",
-                    }}
-                  >
+                {/* Language picker at bottom */}
+                <div style={{ padding: "1.25rem 2rem", borderTop: "1px solid #2d3347" }}>
+                  <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b7280", marginBottom: "0.6rem" }}>
                     {translations.language}
                   </div>
-                  <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                     {languages.map((lang) => (
                       <button
                         key={lang}
                         onClick={() => setLanguage(lang)}
                         style={{
-                          padding: "0.55rem 0.8rem",
-                          borderRadius: "10px",
-                          border:
-                            language === lang
-                              ? "2px solid #111827"
-                              : "1px solid #d0d5dd",
-                          background:
-                            language === lang ? "#eef2f6" : "#fff",
+                          padding: "0.45rem 0.7rem",
+                          borderRadius: "8px",
+                          border: language === lang ? "2px solid #4f6ef7" : "1px solid #2d3347",
+                          background: language === lang ? "#252b3b" : "transparent",
                           cursor: "pointer",
                           fontSize: "1.1rem",
                         }}
@@ -438,19 +384,6 @@ export default function TopBar() {
             </>
           )}
         </div>
-
-        {/* Ikoner */}
-        <Link href="/profile">
-          <FiUser size={24} />
-        </Link>
-
-        <Link href="/search">
-          <FiSearch size={24} />
-        </Link>
-
-        <Link href="/settings">
-          <FiSettings size={24} />
-        </Link>
       </div>
     </header>
   );

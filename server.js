@@ -204,6 +204,10 @@ async function buildProfilePayload(user) {
       ),
       theme: pickFirstValue(fullUser, ["theme"], "Lys"),
     },
+    interests: (() => {
+      try { return JSON.parse(fullUser?.interests || "[]"); } catch { return []; }
+    })(),
+    radius_km: fullUser?.radius_km != null ? Number(fullUser.radius_km) : 50,
   };
 }
 
@@ -440,6 +444,8 @@ appNext.prepare().then(() => {
       ]);
       const themeColumn = findColumn(["theme"]);
       const ageColumn = findColumn(["age"]);
+      const interestsColumn = findColumn(["interests"]);
+      const radiusColumn = findColumn(["radius_km"]);
 
       const nextName = typeof body.name === "string" ? body.name.trim() : "";
       const nextEmail = typeof body.email === "string" ? body.email.trim() : "";
@@ -496,6 +502,15 @@ appNext.prepare().then(() => {
 
       if (typeof settings.theme === "string" && themeColumn) {
         addUpdate(themeColumn, settings.theme.trim());
+      }
+
+      if (Array.isArray(body.interests) && interestsColumn) {
+        addUpdate(interestsColumn, JSON.stringify(body.interests));
+      }
+
+      if (body.radius_km !== undefined && radiusColumn) {
+        const numericRadius = Number(body.radius_km);
+        addUpdate(radiusColumn, Number.isFinite(numericRadius) ? numericRadius : 50);
       }
 
       if (updates.length > 0) {

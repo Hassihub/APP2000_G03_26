@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AppShell from "./components/AppShell";
 import { LanguageProvider } from "./components/LanguageProvider";
+import CookieBanner from "./components/CookieBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,6 +24,7 @@ export default function RootLayout({ children }) {
       <body style={{ margin: 0, padding: 0 }}>
         <LanguageProvider>
           <AppShell>{children}</AppShell>
+          <CookieBanner />
         </LanguageProvider>
       </body>
     </html>

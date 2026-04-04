@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "../components/LanguageProvider";
+import { FiUser, FiDollarSign, FiCreditCard, FiMapPin, FiMenu } from "react-icons/fi";
 
 const emptyProfile = {
   name: "",
@@ -27,11 +28,14 @@ const emptyProfile = {
   transactions: [],
   payment: { card: "Ikke registrert", billing: "Ingen fakturaperiode" },
   settings: { notifications: true, theme: "Lys" },
+  interests: [],
+  radius_km: 50,
 };
 
 export default function Profile() {
   const router = useRouter();
   const fileInputRef = useRef(null);
+  const bannerInputRef = useRef(null);
   const t = useTranslations("profilePage");
 
   const [activeCategory, setActiveCategory] = useState("account");
@@ -43,11 +47,10 @@ export default function Profile() {
   const [userData, setUserData] = useState({ ...emptyProfile });
   const [editFields, setEditFields] = useState({ ...emptyProfile });
   const [profileImage, setProfileImage] = useState(emptyProfile.profileImage);
-  const [notifications, setNotifications] = useState(
-    emptyProfile.settings.notifications
-  );
-  const [theme, setTheme] = useState(emptyProfile.settings.theme);
-  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [bannerImage, setBannerImage] = useState("/images/profilbakgrunn.jpg");
+  const [theme, setTheme] = useState(emptyProfile.settings.theme || "Lys");
+  const [interests, setInterests] = useState([]);
+  const [radius, setRadius] = useState(50);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,7 +103,6 @@ export default function Profile() {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
         setIsEditing(false);
-        setShowThemeModal(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -111,13 +113,39 @@ export default function Profile() {
     fileInputRef.current.click();
   }
 
+  function handleBannerClick() {
+    bannerInputRef.current.click();
+  }
+
+  async function handleBannerChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("/api/upload-avatar", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok && data.filePath) {
+        setBannerImage(data.filePath);
+        await updateProfile({ bannerImage: data.filePath });
+      } else {
+        alert("Banner upload failed");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
+    }
+  }
+
   function syncProfileState(profile) {
     const nextProfile = profile || emptyProfile;
     setUserData(nextProfile);
     setEditFields(nextProfile);
     setProfileImage(nextProfile.profileImage || emptyProfile.profileImage);
-    setNotifications(Boolean(nextProfile.settings?.notifications));
+    setBannerImage(nextProfile.bannerImage || "/images/profilbakgrunn.jpg");
     setTheme(nextProfile.settings?.theme || "Lys");
+    setInterests(Array.isArray(nextProfile.interests) ? nextProfile.interests : []);
+    setRadius(typeof nextProfile.radius_km === "number" ? nextProfile.radius_km : 50);
   }
 
   async function updateProfile(patch) {
@@ -194,43 +222,24 @@ export default function Profile() {
     }
   }
 
-  // Håndter varslinger toggle
-  async function handleToggleNotifications() {
-    const newValue = !notifications;
-
+  async function handleToggleInterest(tag) {
+    const updated = interests.includes(tag)
+      ? interests.filter((t) => t !== tag)
+      : [...interests, tag];
+    setInterests(updated);
     try {
-      await updateProfile({
-        settings: {
-          ...userData.settings,
-          notifications: newValue,
-          theme,
-        },
-      });
-    } catch (err) {
-      alert(err.message || "Could not update notifications.");
+      await updateProfile({ interests: updated });
+    } catch {
+      // silently ignore if column doesn't exist in DB
     }
   }
 
-  // Håndter tema-valg
-  async function handleSelectTheme(selectedTheme) {
+  async function handleSaveRadius(val) {
+    setRadius(val);
     try {
-      await Promise.all([
-        updateProfile({
-          settings: {
-            ...userData.settings,
-            notifications,
-            theme: selectedTheme,
-          },
-        }),
-        fetch("/api/preferences", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ theme: selectedTheme }),
-        }),
-      ]);
-      setShowThemeModal(false);
-    } catch (err) {
-      alert(err.message || "Could not update theme.");
+      await updateProfile({ radius_km: val });
+    } catch {
+      // silently ignore if column doesn't exist in DB
     }
   }
 
@@ -351,16 +360,22 @@ export default function Profile() {
         color: themeColors.text,
         position: "relative"
       }}>
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ cursor: "pointer", marginBottom: "2rem", fontSize: "0.72rem", color: themeColors.text, border: `1px solid ${themeColors.border}`, background: themeColors.buttonBg, padding: "0.7rem 0.85rem", borderRadius: "4px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700 }}>
-          {t.categories}
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ cursor: "pointer", marginBottom: "2rem", display: "flex", alignItems: "center", justifyContent: "center", color: themeColors.text, border: `1px solid ${themeColors.border}`, background: themeColors.buttonBg, padding: "0.7rem 0.85rem", borderRadius: "4px", width: "100%" }}>
+          <FiMenu size={20} />
         </button>
 
         {sidebarOpen && (
           <>
             <h2 style={{ marginBottom: "2rem", color: themeColors.text, fontSize: "0.82rem", textTransform: "uppercase", letterSpacing: "0.12em" }}>{t.categories}</h2>
-            {["account", "transactions", "payment", "trips", "settings"].map(cat => (
-              <div key={cat} style={sidebarItemStyle(cat)} onClick={() => setActiveCategory(cat)}>
-                {cat === "account" ? t.account : cat === "transactions" ? t.transactions : cat === "payment" ? t.payment : cat === "trips" ? t.trips : t.settings}
+            {[
+              { id: "account",      icon: <FiUser size={14} />,       label: t.account },
+              { id: "transactions", icon: <FiDollarSign size={14} />,  label: t.transactions },
+              { id: "payment",      icon: <FiCreditCard size={14} />,  label: t.payment },
+              { id: "trips",        icon: <FiMapPin size={14} />,      label: t.trips },
+            ].map(({ id, icon, label }) => (
+              <div key={id} style={{ ...sidebarItemStyle(id), display: "flex", alignItems: "center", gap: "0.55rem" }} onClick={() => setActiveCategory(id)}>
+                <span style={{ display: "flex", alignItems: "center" }}>{icon}</span>
+                {label}
               </div>
             ))}
             <button
@@ -374,7 +389,15 @@ export default function Profile() {
       </aside>
 
       {/* HOVED */}
-      <section style={{ flex: 1, padding: "2rem", background: themeColors.bg, color: themeColors.text, transition: "background 0.3s ease, color 0.3s ease" }}>
+      <section style={{ flex: 1, background: themeColors.bg, color: themeColors.text, transition: "background 0.3s ease, color 0.3s ease" }}>
+        {/* BANNER */}
+        <div style={{ position: "relative", height: 220, overflow: "hidden" }}>
+          <Image src={bannerImage} alt="Profilbakgrunn" fill unoptimized style={{ objectFit: "cover" }} />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 50%,rgba(0,0,0,0.6) 100%)" }} />
+          <button onClick={handleBannerClick} style={{ position: "absolute", bottom: 14, right: 14, padding: "0.5rem 1rem", background: "rgba(0,0,0,0.6)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, cursor: "pointer", fontSize: "0.78rem", fontWeight: 700, backdropFilter: "blur(4px)" }}>Endre bakgrunn</button>
+          <input ref={bannerInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleBannerChange} />
+        </div>
+        <div style={{ padding: "2rem" }}>
         {loading ? <p>{t.loading}</p> : null}
         {error ? <p style={{ color: "#b42318" }}>{error}</p> : null}
 
@@ -462,6 +485,33 @@ export default function Profile() {
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                     <div style={cardStyle}><strong>{t.bio}</strong><p>{userData.bio}</p></div>
                     <div style={cardStyle}><strong>{t.details}</strong><p>{t.age}: {userData.age}</p><p>{t.phone}: {userData.phone}</p><p>{t.email}: {userData.email}</p><p>{t.birthDate}: {userData.dob}</p></div>
+                  </div>
+
+                  {/* INTERESSETAGS */}
+                  <div style={{ ...cardStyle, marginTop: "1rem" }}>
+                    <p style={{ ...statLabelStyle, marginBottom: "1rem" }}>Interesser</p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.55rem" }}>
+                      {["Fottur", "Sykling", "Ski", "Fjellklatring", "Padling", "Løping", "Vandring", "Fiske", "Camping", "Klatring"].map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => handleToggleInterest(tag)}
+                          style={{
+                            padding: "0.4rem 1rem",
+                            borderRadius: "999px",
+                            border: `1px solid ${interests.includes(tag) ? themeColors.accent : themeColors.border}`,
+                            background: interests.includes(tag) ? themeColors.accent : themeColors.cardBg,
+                            color: interests.includes(tag) ? (theme === "Mørk" ? "#0d0f12" : "#fff") : themeColors.text,
+                            cursor: "pointer",
+                            fontWeight: 600,
+                            fontSize: "0.82rem",
+                            letterSpacing: "0.02em",
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* SISTE TUR - VISUELL OVERSIKT */}
@@ -714,140 +764,11 @@ export default function Profile() {
           </div>
         )}
 
-        {/* INNSTILLINGER */}
-        {activeCategory === "settings" && (
-          <div>
-            <h2 style={{ marginBottom: "1.5rem", fontSize: "1.8rem" }}>{t.settings}</h2>
-            <div style={{
-              background: themeColors.cardBg,
-              borderRadius: "4px",
-              overflow: "hidden",
-              boxShadow: themeColors.shadow,
-              border: `1px solid ${themeColors.border}`
-            }}>
-              <div style={{
-                padding: "1.5rem",
-                borderBottom: `1px solid ${themeColors.border}`,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center"
-              }}>
-                <div>
-                  <p style={{ margin: "0 0 0.3rem 0", fontWeight: "600", fontSize: "1rem" }}>{t.notifications}</p>
-                  <p style={{ margin: "0", color: themeColors.lightText, fontSize: "0.9rem" }}>{t.notificationsHelp}</p>
-                </div>
-                <div 
-                  onClick={handleToggleNotifications}
-                  style={{
-                  width: "50px",
-                  height: "28px",
-                  borderRadius: "999px",
-                  background: notifications ? themeColors.accent : themeColors.accentMuted,
-                  position: "relative",
-                  cursor: "pointer",
-                  transition: "background 0.3s"
-                }}>
-                  <div style={{
-                    position: "absolute",
-                    width: "24px",
-                    height: "24px",
-                    borderRadius: "50%",
-                    background: "#fff",
-                    top: "2px",
-                    left: notifications ? "24px" : "2px",
-                    transition: "left 0.3s",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.2)"
-                  }} />
-                </div>
-              </div>
-              <div style={{
-                padding: "1.5rem",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center"
-              }}>
-                <div>
-                  <p style={{ margin: "0 0 0.3rem 0", fontWeight: "600", fontSize: "1rem" }}>{t.theme}</p>
-                  <p style={{ margin: "0", color: themeColors.lightText, fontSize: "0.9rem" }}>{t.themeHelp}</p>
-                </div>
-                <div 
-                  onClick={() => setShowThemeModal(true)}
-                  style={{
-                  background: themeColors.cardBg,
-                  padding: "0.6rem 1.2rem",
-                  borderRadius: "4px",
-                  fontWeight: "600",
-                  color: themeColors.text,
-                  cursor: "pointer",
-                  border: `1px solid ${themeColors.border}`,
-                  transition: "all 0.3s"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = theme === "Mørk" ? "#3a3a3a" : "#e0e0e0";
-                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = themeColors.cardBg;
-                  e.currentTarget.style.boxShadow = "none";
-                }}>
-                  {theme}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
+        </div>{/* end padding div */}
       </section>
 
       <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} />
-
-      {/* TEMA MODAL */}
-      {showThemeModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
-          <div style={{ background: themeColors.cardBg, color: themeColors.text, padding: "2rem", borderRadius: "4px", maxWidth: "400px", width: "90%", border: `1px solid ${themeColors.border}`, boxShadow: themeColors.shadow }}>
-            <h3 style={{ margin: "0 0 1.5rem 0", color: themeColors.text }}>{t.chooseTheme}</h3>
-            <div style={{ display: "grid", gap: "0.8rem", marginBottom: "1.5rem" }}>
-              {["Lys", "Mørk", "Automatisk"].map((themeOption) => (
-                <div
-                  key={themeOption}
-                  onClick={() => handleSelectTheme(themeOption)}
-                  style={{
-                    padding: "1rem",
-                    borderRadius: "4px",
-                    border: theme === themeOption ? `2px solid ${themeColors.text}` : `1px solid ${themeColors.border}`,
-                    background: theme === themeOption ? (theme === "Mørk" ? "#3a3a3a" : "#f0f0f0") : themeColors.bg,
-                    color: themeColors.text,
-                    cursor: "pointer",
-                    fontWeight: theme === themeOption ? "600" : "500",
-                    transition: "all 0.2s"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = themeColors.text;
-                    e.currentTarget.style.background = theme === "Mørk" ? "#3a3a3a" : "#f9f9f9";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (theme !== themeOption) {
-                      e.currentTarget.style.borderColor = themeColors.border;
-                      e.currentTarget.style.background = themeColors.bg;
-                    }
-                  }}
-                >
-                  {themeOption === "Lys" ? t.lightTheme : themeOption === "Mørk" ? t.darkTheme : t.autoTheme}
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setShowThemeModal(false)}
-              style={{
-                ...actionButtonStyle,
-                width: "100%"
-              }}
-            >
-              {t.done}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* LOGOUT MODAL */}
       {showLogoutModal && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import SosialFeed from "./components/SosialFeed";
 import { useRouter } from "next/navigation";
 import {
   FiChevronDown,
@@ -11,11 +12,6 @@ import {
   FiMap,
   FiUsers,
   FiHome,
-  FiClock,
-  FiTrendingUp,
-  FiMapPin,
-  FiChevronLeft,
-  FiChevronRight,
 } from "react-icons/fi";
 import { useLanguage, useTranslations } from "./components/LanguageProvider";
 
@@ -23,11 +19,37 @@ export default function Home() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [theme, setTheme] = useState("light");
-  const [currentSlide, setCurrentSlide] = useState(0);
   const [trips, setTrips] = useState([]);
   const [cabins, setCabins] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const { language } = useLanguage();
   const t = useTranslations("home");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json().catch(() => ({})))
+      .then((d) => { if (!cancelled) setCurrentUser(d?.user || null); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // Move scroll snap to html so footer is reachable by scrolling past slide 3
+  useEffect(() => {
+    const html = document.documentElement;
+    html.style.scrollSnapType = "y mandatory";
+    html.style.overflowY = "scroll";
+    html.style.overflowX = "hidden";
+    html.style.scrollPaddingTop = "64px";
+    return () => {
+      html.style.scrollSnapType = "";
+      html.style.overflowY = "";
+      html.style.overflowX = "";
+      html.style.scrollPaddingTop = "";
+    };
+  }, []);
+
+
 
   useEffect(() => {
     let cancelled = false;
@@ -82,63 +104,28 @@ export default function Home() {
   );
 
   const handleSearchSubmit = (event) => {
-    if (event) {
-      event.preventDefault();
-    }
-
+    if (event) event.preventDefault();
     const trimmedSearch = search.trim();
-    if (!trimmedSearch) {
-      return;
-    }
-
+    if (!trimmedSearch) return;
     router.push(`/search?q=${encodeURIComponent(trimmedSearch)}`);
   };
 
   const scrollToNext = () => {
     const nextSection = document.getElementById("recommended-section");
-    if (nextSection) {
-      nextSection.scrollIntoView({ behavior: "smooth" });
-    }
+    if (nextSection) nextSection.scrollIntoView({ behavior: "smooth" });
   };
 
-  const slides = buildSlides(trips, cabins, t);
-
-  useEffect(() => {
-    if (slides.length === 0) {
-      setCurrentSlide(0);
-      return;
-    }
-
-    if (currentSlide >= slides.length) {
-      setCurrentSlide(0);
-    }
-  }, [slides, currentSlide]);
-
-  const prevSlide = () => {
-    if (slides.length === 0) {
-      return;
-    }
-
-    setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
-  };
-
-  const nextSlide = () => {
-    if (slides.length === 0) {
-      return;
-    }
-
-    setCurrentSlide((prev) => (prev === slides.length - 1 ? 0 : prev + 1));
+  const scrollToSocial = () => {
+    const section = document.getElementById("social-section");
+    if (section) section.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
     <div
       style={{
         width: "100%",
-        height: "100vh",
         fontFamily: "'Inter', sans-serif",
-        overflowY: "scroll",
         overflowX: "hidden",
-        scrollSnapType: "y mandatory",
       }}
     >
       {/* HERO VIDEO */}
@@ -156,7 +143,7 @@ export default function Home() {
             zIndex: -1,
           }}
         >
-          <source src="/images/Natur.mp4" type="video/mp4" />
+          <source src="/videos/natur.mp4" type="video/mp4" />
         </video>
 
         <div
@@ -217,7 +204,7 @@ export default function Home() {
             <Category icon={<FiSun size={42} />} label={t.weather} link="/vaer" />
             <Category icon={<FiGlobe size={42} />} label={t.explore} link="/explore" />
             <Category icon={<FiMap size={42} />} label={t.map} link="/map" />
-            <Category icon={<FiUsers size={42} />} label={t.social} link="/sosial" />
+            <CategoryBtn icon={<FiUsers size={42} />} label={t.social} onClick={scrollToSocial} />
             <Category icon={<FiHome size={42} />} label={t.reserve} link="/reserver" />
           </div>
 
@@ -253,8 +240,8 @@ export default function Home() {
                   transform: "translateY(-50%)",
                   border: "none",
                   borderRadius: "999px",
-                  background: "#2e5c44",
-                  color: "#fff",
+                  background: "#fff",
+                  color: "#111827",
                   padding: "0.7rem 1rem",
                   fontWeight: 700,
                   cursor: "pointer",
@@ -324,152 +311,38 @@ export default function Home() {
         </section>
       </div>
 
-      {/* FULLSCREEN KARUSELL */}
+      {/* SLIDE 2 — AKTIVITETSKARUSELL */}
       <section
         id="recommended-section"
         style={{
-          height: "100vh",
+          minHeight: "100vh",
           scrollSnapAlign: "start",
-          position: "relative",
+          background: "linear-gradient(160deg, #0f1117 0%, #1a2035 100%)",
+          color: "#fff",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          padding: "4rem 2rem",
           overflow: "hidden",
         }}
       >
-        {slides.length > 0 ? (
-          <>
-            {slides.map((slide, idx) => (
-              <div
-                key={idx}
-                style={{
-                  position: idx === currentSlide ? "relative" : "absolute",
-                  opacity: idx === currentSlide ? 1 : 0,
-                  transition: "opacity 0.5s ease-in-out",
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Image
-                  src={slide.img}
-                  alt={slide.title}
-                  fill
-                  style={{
-                    objectFit: "cover",
-                    filter: "blur(8px) brightness(0.6)",
-                  }}
-                />
+        <ActivityCarousel cabins={cabins} />
+      </section>
 
-                <div
-                  style={{
-                    width: "90%",
-                    maxWidth: "1200px",
-                    display: "flex",
-                    gap: "2rem",
-                    alignItems: "center",
-                    color: "#fff",
-                    position: "relative",
-                    zIndex: 2,
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <h2 style={{ opacity: 0.8 }}>{slide.category}</h2>
-
-                    <Image
-                      src={slide.img}
-                      alt={slide.title}
-                      width={600}
-                      height={450}
-                      style={{
-                        boxShadow: "0 15px 40px rgba(0,0,0,0.5)",
-                        objectFit: "cover",
-                        maxWidth: "100%",
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ flex: 1 }}>
-                    <h1 style={{ fontSize: "3rem" }}>{slide.title}</h1>
-
-                    <p>
-                      <FiMapPin /> {slide.start}
-                    </p>
-
-                    <p>
-                      <FiClock /> {slide.duration}
-                    </p>
-
-                    <p>
-                      <FiTrendingUp /> {slide.difficulty}
-                    </p>
-
-                    <Link
-                      href={slide.link}
-                      style={{
-                        marginTop: "1rem",
-                        padding: "1rem 2rem",
-                        backgroundColor: "#2e5c44",
-                        color: "#fff",
-                        fontWeight: 700,
-                        textDecoration: "none",
-                        display: "inline-block",
-                      }}
-                    >
-                      {t.start}
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            <button
-              onClick={prevSlide}
-              style={{
-                position: "absolute",
-                left: "1rem",
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "rgba(0,0,0,0.4)",
-                border: "none",
-                padding: "1rem",
-                borderRadius: "50%",
-                cursor: "pointer",
-              }}
-            >
-              <FiChevronLeft size={32} color="#fff" />
-            </button>
-
-            <button
-              onClick={nextSlide}
-              style={{
-                position: "absolute",
-                right: "1rem",
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "rgba(0,0,0,0.4)",
-                border: "none",
-                padding: "1rem",
-                borderRadius: "50%",
-                cursor: "pointer",
-              }}
-            >
-              <FiChevronRight size={32} color="#fff" />
-            </button>
-          </>
-        ) : (
-          <div
-            style={{
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontSize: "1.4rem",
-            }}
-          >
-            Laster anbefalinger fra API...
-          </div>
-        )}
+      {/* SLIDE 3 — LIVE SOSIAL FORUM */}
+      <section
+        id="social-section"
+        style={{
+          minHeight: "100vh",
+          scrollSnapAlign: "start",
+          background: "linear-gradient(160deg, #0d1117 0%, #111827 100%)",
+          color: "#fff",
+          display: "flex",
+          flexDirection: "column",
+          overflowY: "auto",
+        }}
+      >
+        <SosialFeed currentUser={currentUser} embedded />
       </section>
     </div>
   );
@@ -512,51 +385,119 @@ function buildLocationSuggestions(trips, cabins) {
   return uniqueSuggestions;
 }
 
-function buildSlides(trips, cabins, translationsForLanguage) {
-  const tripSlides = trips.slice(0, 2).map((trip, index) => ({
-    category:
-      index === 0
-        ? translationsForLanguage.todaysTrip
-        : translationsForLanguage.popularRoutes,
-    title: trip.navn,
-    img: trip.bilde_url || "/images/fjell.jpg",
-    start: trip.beskrivelse || "Se turdetaljer i utforsk",
-    difficulty: trip.vanskelighetsgrad || "Ukjent",
-    duration: trip.lengde_km ? `${trip.lengde_km} km` : "Lengde ikke oppgitt",
-    link: `/explore?search=${encodeURIComponent(trip.navn)}`,
-  }));
+// ─── Activity Carousel ────────────────────────────────────────────────────────
+const STATIC_CARDS = [
+  // Page 0
+  { label: "Overnatting", title: "Fjellhytte i Jotunheimen", desc: "Rustikk hytte med utsikt over Besseggen. Plass til 8.", img: "/images/hytte.jpg", tag: "Hytte", href: "/reserver", cta: "Reserver nå" },
+  { label: "Aktivitet", title: "Langtur på Hardangervidda", desc: "5-dagersrute gjennom ett av Europas største høyfjellsplatåer.", img: "/images/fjell.jpg", tag: "Fottur", href: "/explore", cta: "Se ruten" },
+  { label: "Utstyr", title: "Fjellsko til alle terreng", desc: "Testet og godkjent av norske turfolk. Nå i Marked.", img: "/images/Explore.jpg", tag: "Marked", href: "/annonser", cta: "Se tilbud" },
+  // Page 1
+  { label: "Overnatting", title: "Kystferie på Lofoten", desc: "Rorbu rett ved sjøen. Sol, sjømat og midnattssol.", img: "/images/Reserve.jpg", tag: "Rorbu", href: "/reserver", cta: "Reserver nå" },
+  { label: "Aktivitet", title: "Sykkeltur langs Rallarvegen", desc: "82 km over fjellet – Norges kuleste sykkelrute.", img: "/images/Map.jpg", tag: "Sykkel", href: "/explore", cta: "Se ruten" },
+  { label: "Fellesskap", title: "Del din neste tur", desc: "Finn turkamerater og del opplevelser i forumet.", img: "/images/Social.jpg", tag: "Forum", href: "/sosial", cta: "Gå til forum" },
+  // Page 2
+  { label: "Vær", title: "Sjekk værvarselet", desc: "Oppdatert fjellvær for over 500 norske topper.", img: "/images/Weather.jpg", tag: "Vær", href: "/vaer", cta: "Åpne kart" },
+  { label: "Aktivitet", title: "Toppturer i Romsdalen", desc: "Klassiske ruter med spektakulær utsikt. Alle nivåer.", img: "/images/Galdhopiggen.jpg", tag: "Klatring", href: "/explore", cta: "Utforsk" },
+  { label: "Overnatting", title: "Sommerhytte ved innsjø", desc: "Stillhet, padling og fiske. Booking åpent for sommer.", img: "/images/hytte.jpg", tag: "Hytte", href: "/reserver", cta: "Reserver nå" },
+];
 
-  const cabinSlide = cabins[0]
-    ? {
-        category: translationsForLanguage.cabinSuggestions,
-        title: cabins[0].name,
-        img: "/images/hytte.jpg",
-        start: cabins[0].location || "Se detaljer i reserver",
-        difficulty: `${cabins[0].capacity || "?"} personer`,
-        duration: cabins[0].price_per_night
-          ? `${cabins[0].price_per_night} kr/natt`
-          : "Pris ikke oppgitt",
-        link: `/reserver?cabinId=${encodeURIComponent(cabins[0].id)}`,
-      }
-    : null;
+function ActivityCarousel({ cabins }) {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.ceil(STATIC_CARDS.length / 3);
 
-  return cabinSlide ? [...tripSlides, cabinSlide] : tripSlides;
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPage((p) => (p + 1) % totalPages);
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [totalPages]);
+
+  const cards = STATIC_CARDS.slice(page * 3, page * 3 + 3);
+
+  const tagColors = {
+    Hytte: "#4f6ef7", Fottur: "#10b981", Marked: "#f59e0b",
+    Rorbu: "#4f6ef7", Sykkel: "#10b981", Forum: "#8b5cf6",
+    Vær: "#0ea5e9", Klatring: "#ef4444", default: "#6b7280",
+  };
+
+  return (
+    <div style={{ maxWidth: "1100px", margin: "0 auto", width: "100%" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "2.5rem", flexWrap: "wrap", gap: "1rem" }}>
+        <div>
+          <p style={{ margin: "0 0 0.4rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "#6b7280" }}>Populært nå</p>
+          <h2 style={{ margin: 0, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 900, letterSpacing: "-0.03em", color: "#f9fafb" }}>Utforsk det beste</h2>
+        </div>
+        {/* Arrows + dots */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <button
+            onClick={() => setPage((p) => (p - 1 + totalPages) % totalPages)}
+            style={{ width: 44, height: 44, borderRadius: "50%", border: "1px solid #2d3347", background: "#1a2035", color: "#f9fafb", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}
+          >‹</button>
+          {Array.from({ length: totalPages }).map((_, i) => (
+            <button key={i} onClick={() => setPage(i)} style={{ width: 8, height: 8, borderRadius: "50%", border: "none", background: i === page ? "#f9fafb" : "#2d3347", cursor: "pointer", padding: 0, transition: "background 0.2s" }} />
+          ))}
+          <button
+            onClick={() => setPage((p) => (p + 1) % totalPages)}
+            style={{ width: 44, height: 44, borderRadius: "50%", border: "1px solid #2d3347", background: "#1a2035", color: "#f9fafb", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}
+          >›</button>
+        </div>
+      </div>
+
+      {/* Cards — 3 sharp boxes */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.25rem" }}>
+        {cards.map((card, i) => (
+          <Link key={`${page}-${i}`} href={card.href} style={{ textDecoration: "none" }}>
+            <div style={{ background: "#111827", border: "1px solid #1e2538", borderRadius: "4px", overflow: "hidden", display: "flex", flexDirection: "column", height: "100%", transition: "border-color 0.2s" }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = "#4f6ef7"}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = "#1e2538"}
+            >
+              {/* Image */}
+              <div style={{ position: "relative", height: 200, flexShrink: 0 }}>
+                <Image src={card.img} alt={card.title} fill unoptimized style={{ objectFit: "cover" }} />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.7) 100%)" }} />
+                <span style={{ position: "absolute", top: "1rem", left: "1rem", background: tagColors[card.tag] || tagColors.default, color: "#fff", fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", padding: "0.25rem 0.65rem", borderRadius: "2px" }}>
+                  {card.tag}
+                </span>
+              </div>
+              {/* Content */}
+              <div style={{ padding: "1.4rem 1.5rem 1.6rem", display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
+                <p style={{ margin: 0, fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b7280" }}>{card.label}</p>
+                <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 800, color: "#f9fafb", lineHeight: 1.25, letterSpacing: "-0.01em" }}>{card.title}</h3>
+                <p style={{ margin: 0, fontSize: "0.88rem", color: "#9ca3af", lineHeight: 1.6, flex: 1 }}>{card.desc}</p>
+                <div style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: "0.4rem", color: "#4f6ef7", fontWeight: 700, fontSize: "0.82rem" }}>
+                  {card.cta} <span>→</span>
+                </div>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ marginTop: "2rem", height: 2, background: "#1e2538", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", background: "#4f6ef7", width: `${((page + 1) / totalPages) * 100}%`, transition: "width 0.4s ease" }} />
+      </div>
+    </div>
+  );
 }
 
 function Category({ icon, label, link }) {
   return (
     <Link href={link} style={{ textDecoration: "none", color: "#fff" }}>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          cursor: "pointer",
-        }}
-      >
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" }}>
         {icon}
         <span style={{ marginTop: "0.5rem", fontWeight: 600 }}>{label}</span>
       </div>
     </Link>
+  );
+}
+
+function CategoryBtn({ icon, label, onClick }) {
+  return (
+    <button onClick={onClick} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", fontFamily: "inherit", padding: 0 }}>
+      {icon}
+      <span style={{ fontWeight: 600 }}>{label}</span>
+    </button>
   );
 }
