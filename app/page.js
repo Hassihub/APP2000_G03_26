@@ -128,9 +128,8 @@ export default function Home() {
     <div
       style={{
         width: "100%",
-        height: "100vh",
+        minHeight: "100vh",
         fontFamily: "'Inter', sans-serif",
-        overflowY: "scroll",
         overflowX: "hidden",
         scrollSnapType: "y mandatory",
       }}
