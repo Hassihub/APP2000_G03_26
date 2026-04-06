@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ROLE_ADMIN } from "../../lib/roles";
 
 export default function Profile() {
   const router = useRouter();
@@ -296,6 +297,23 @@ export default function Profile() {
       </section>
 
       <section style={{ marginTop: "2rem" }}>
+        {user.role === ROLE_ADMIN && (
+          <button
+            type="button"
+            onClick={() => router.push("/admin")}
+            style={{
+              padding: "0.5rem 1rem",
+              cursor: "pointer",
+              marginRight: "1rem",
+              backgroundColor: "#1976d2",
+              color: "white",
+              border: "none",
+            }}
+          >
+            Admin panel
+          </button>
+        )}
+
         <button
           type="button"
           onClick={handleLogout}

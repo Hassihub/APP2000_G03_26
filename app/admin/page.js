@@ -11,6 +11,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState({});
+  const [deleting, setDeleting] = useState({});
   const [role, setRole] = useState(null);
 
   useEffect(() => {
@@ -77,13 +78,13 @@ export default function AdminPage() {
 
   async function updateRole(userId, newRole) {
     setSaving((prev) => ({ ...prev, [userId]: true }));
+    setError("");
 
     try {
-      const res = await fetch(`/api/auth/users/${encodeURIComponent(userId)}/role`, {
+      const res = await fetch(`/api/auth/users/${encodeURIComponent(userId)}/role?role=${encodeURIComponent(newRole)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ role: newRole }),
       });
 
       const json = await res.json().catch(() => ({}));
@@ -98,6 +99,31 @@ export default function AdminPage() {
       setError(err?.message || "Noe gikk galt");
     } finally {
       setSaving((prev) => ({ ...prev, [userId]: false }));
+    }
+  }
+
+  async function deleteUser(userId) {
+    if (!window.confirm("Er du sikker på at du vil slette denne brukeren?")) return;
+
+    setDeleting((prev) => ({ ...prev, [userId]: true }));
+    setError("");
+
+    try {
+      const res = await fetch(`/api/auth/users/${encodeURIComponent(userId)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunne ikke slette bruker");
+      }
+
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+    } catch (err) {
+      setError(err?.message || "Noe gikk galt");
+    } finally {
+      setDeleting((prev) => ({ ...prev, [userId]: false }));
     }
   }
 
@@ -137,20 +163,32 @@ export default function AdminPage() {
               <td style={{ padding: "8px" }}>
                 <select
                   value={user.role}
-                  onChange={(e) => updateRole(user.id, e.target.value)}
-                  disabled={saving[user.id]}
-                  style={{ marginRight: 8 }}
+                  onChange={(e) => {
+                    if (saving[user.id]) return;
+                    updateRole(user.id, e.target.value);
+                  }}
+                  disabled={saving[user.id] || deleting[user.id]}
+                  style={{ marginRight: 8, padding: "4px" }}
                 >
                   <option value={ROLE_USER}>Bruker</option>
                   <option value={ROLE_UTLEIER}>Utleier</option>
                   <option value={ROLE_ADMIN}>Admin</option>
                 </select>
+                {saving[user.id] && <span style={{ marginLeft: "8px" }}>Lagrer…</span>}
                 <button
                   type="button"
-                  disabled={saving[user.id]}
-                  onClick={() => updateRole(user.id, user.role)}
+                  disabled={deleting[user.id] || saving[user.id]}
+                  onClick={() => deleteUser(user.id)}
+                  style={{
+                    marginLeft: "8px",
+                    padding: "4px 8px",
+                    backgroundColor: "#d32f2f",
+                    color: "white",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
                 >
-                  {saving[user.id] ? "Lagrer…" : "Lagre"}
+                  {deleting[user.id] ? "Sletter…" : "Slett"}
                 </button>
               </td>
             </tr>
