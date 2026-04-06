@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { FiMenu, FiX } from "react-icons/fi";
 
 export default function MapComponent() {
   const mapRef = useRef(null);
   const [Leaflet, setLeaflet] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [placing, setPlacing] = useState(false);
   const placingRef = useRef(false);
   const drawCleanupRef = useRef(null);
@@ -39,6 +43,18 @@ export default function MapComponent() {
   });
 
   const [elevationStats, setElevationStats] = useState(null);
+
+  const router = useRouter();
+
+  const pages = [
+    { label: "Hjem", href: "/" },
+    { label: "Utforsk", href: "/explore" },
+    { label: "Reserver", href: "/reserver" },
+    { label: "Kart", href: "/map" },
+    { label: "Vær", href: "/vaer" },
+    { label: "Sosial", href: "/sosial" },
+    { label: "Logg inn", href: "/login" },
+  ];
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -522,25 +538,32 @@ export default function MapComponent() {
   };
 
   return (
-    <>
-      <div id="map" style={{ height: "80vh", width: "100%" }} />
-
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        width: "100%",
+      }}
+    >
+      {/* Venstre panel: 1/3 bredde med alle toggles og kontroller */}
       <div
         style={{
-          position: "absolute",
-          top: 300,
-          left: 10,
-          zIndex: 1000,
+          flexBasis: "27.33%",
+          maxWidth: "27.33%",
+          minWidth: 260,
+          boxSizing: "border-box",
+          padding: 16,
           background: "white",
-          padding: 10,
-          width: 250,
+          boxShadow: "2px 0 8px rgba(0,0,0,0.15)",
+          overflowY: "auto",
+          zIndex: 1000,
         }}
       >
         <button onClick={() => setPlacing(!placing)}>
           {placing ? "Avslutt plassering" : "Plasser punkt"}
         </button>
 
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 16 }}>
           <strong>Tilgjengelighet hytter</strong>
           <div style={{ marginTop: 4 }}>
             <div style={{ fontSize: 12, marginBottom: 4 }}>
@@ -570,7 +593,7 @@ export default function MapComponent() {
           </div>
         </div>
 
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 16 }}>
           <strong>GeoJSON-lag (zoom inn for å se)</strong>
           <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
             <input
@@ -642,7 +665,7 @@ export default function MapComponent() {
           </label>
         </div>
 
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 16 }}>
           <strong>Importer GPX-rute</strong>
           <input
             type="file"
@@ -722,6 +745,92 @@ export default function MapComponent() {
           </button>
         </div>
       </div>
-    </>
+
+      {/* Høyre panel: 2/3 bredde med selve kartet og toppmeny */}
+      <div
+        style={{
+          flex: 1,
+          position: "relative",
+        }}
+      >
+        <div id="map" style={{ height: "100%", width: "100%" }} />
+
+        {/* Topp-høyre menyknapp for kart-siden */}
+        <div
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            zIndex: 1200,
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              display: "inline-block",
+            }}
+          >
+            <button
+              onClick={() => setMenuOpen((open) => !open)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: "0.5rem 0.8rem",
+                borderRadius: 6,
+                border: "1px solid #ccc",
+                backgroundColor: "#fff",
+                cursor: "pointer",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                minWidth: 90,
+                boxSizing: "border-box",
+              }}
+            >
+              {menuOpen ? <FiX size={18} /> : <FiMenu size={18} />}
+              <span>{menuOpen ? "Close" : "Menu"}</span>
+            </button>
+
+            {menuOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "110%",
+                  right: 0,
+                  backgroundColor: "#fff",
+                  borderRadius: 8,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                  minWidth: 180,
+                  padding: "0.5rem 0",
+                  zIndex: 1300,
+                }}
+              >
+                {pages.map((p) => (
+                  <Link
+                    key={p.href}
+                    href={p.href}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      router.push(p.href);
+                    }}
+                    style={{
+                      display: "block",
+                      padding: "0.6rem 1rem",
+                      textDecoration: "none",
+                      color: "#333",
+                      fontWeight: 500,
+                      fontSize: "0.95rem",
+                      borderTop: "1px solid #f2f2f2",
+                    }}
+                  >
+                    {p.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
