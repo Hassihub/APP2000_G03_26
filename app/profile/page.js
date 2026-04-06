@@ -3,7 +3,7 @@ import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "../components/LanguageProvider";
-import { FiUser, FiDollarSign, FiCreditCard, FiMapPin, FiMenu } from "react-icons/fi";
+import { FiUser, FiDollarSign, FiCreditCard, FiMapPin, FiMenu, FiUsers } from "react-icons/fi";
 
 const emptyProfile = {
   name: "",
@@ -51,6 +51,9 @@ export default function Profile() {
   const [theme, setTheme] = useState(emptyProfile.settings.theme || "Lys");
   const [interests, setInterests] = useState([]);
   const [radius, setRadius] = useState(50);
+  const [myPosts,      setMyPosts]      = useState([]);
+  const [followStats,  setFollowStats]  = useState({ following: 0, followers: 0 });
+  const [socialLoaded, setSocialLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -372,6 +375,7 @@ export default function Profile() {
               { id: "transactions", icon: <FiDollarSign size={14} />,  label: t.transactions },
               { id: "payment",      icon: <FiCreditCard size={14} />,  label: t.payment },
               { id: "trips",        icon: <FiMapPin size={14} />,      label: t.trips },
+              { id: "sosial",       icon: <FiUsers size={14} />,       label: "Sosial" },
             ].map(({ id, icon, label }) => (
               <div key={id} style={{ ...sidebarItemStyle(id), display: "flex", alignItems: "center", gap: "0.55rem" }} onClick={() => setActiveCategory(id)}>
                 <span style={{ display: "flex", alignItems: "center" }}>{icon}</span>
@@ -764,6 +768,71 @@ export default function Profile() {
           </div>
         )}
 
+
+        {activeCategory === "sosial" && (() => {
+          // Load social data once when tab is first opened
+          if (!socialLoaded && userData?.id) {
+            setSocialLoaded(true);
+            fetch(`/api/sosial/posts`)
+              .then((r) => r.json().catch(() => []))
+              .then((all) => {
+                const arr = Array.isArray(all) ? all : [];
+                setMyPosts(arr.filter((p) => String(p.userid) === String(userData.id)));
+              });
+            fetch(`/api/sosial/follows?userId=${userData.id}`)
+              .then((r) => r.json().catch(() => ({ following: [], followers: [] })))
+              .then((d) => setFollowStats({ following: (d.following ?? []).length, followers: (d.followers ?? []).length }));
+          }
+          return (
+            <div>
+              <h2 style={{ marginBottom: "1.5rem", fontSize: "1.8rem" }}>Sosial aktivitet</h2>
+
+              {/* Stats row */}
+              <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem" }}>
+                {[{ label: "Innlegg", value: myPosts.length }, { label: "Følger", value: followStats.following }, { label: "Følgere", value: followStats.followers }].map(({ label, value }) => (
+                  <div key={label} style={{ flex: 1, background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "1.25rem", textAlign: "center", boxShadow: themeColors.shadow }}>
+                    <div style={{ fontSize: "2rem", fontWeight: 800, color: themeColors.accent }}>{value}</div>
+                    <div style={{ fontSize: "0.78rem", color: themeColors.lightText, marginTop: "0.25rem", textTransform: "uppercase", letterSpacing: "0.1em" }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Go to social platform */}
+              <div style={{ marginBottom: "2rem" }}>
+                <a href="/sosial" style={{ display: "inline-block", padding: "0.65rem 1.5rem", background: themeColors.accent, color: "#fff", borderRadius: 8, textDecoration: "none", fontWeight: 700, fontSize: "0.9rem" }}>
+                  Gå til sosialplattformen →
+                </a>
+              </div>
+
+              {/* My posts */}
+              <h3 style={{ marginBottom: "1rem", fontSize: "1.1rem", color: themeColors.text }}>Mine innlegg</h3>
+              {myPosts.length === 0 ? (
+                <div style={{ background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "2rem", textAlign: "center", color: themeColors.lightText }}>
+                  Du har ikke publisert noen innlegg ennå.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {myPosts.map((p) => {
+                    const ts = new Date(p.timestamp);
+                    const ago = Date.now() - ts.getTime();
+                    const timeStr = ago < 3600000 ? `${Math.floor(ago/60000)} min siden` : ago < 86400000 ? `${Math.floor(ago/3600000)} t siden` : ts.toLocaleDateString("no-NO");
+                    return (
+                      <div key={p.postid} style={{ background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "1rem 1.25rem", boxShadow: themeColors.shadow }}>
+                        <div style={{ fontSize: "0.72rem", color: themeColors.lightText, marginBottom: "0.4rem" }}>{timeStr}</div>
+                        <div style={{ fontSize: "0.92rem", lineHeight: 1.6, color: themeColors.text }}>{p.caption}</div>
+                        <div style={{ display: "flex", gap: "1.25rem", marginTop: "0.75rem", fontSize: "0.78rem", color: themeColors.lightText }}>
+                          <span>❤️ {p.likes || 0} liker</span>
+                          <span>💬 {p.comment_count || 0} kommentarer</span>
+                          <a href={`/sosial#post-${p.postid}`} style={{ color: themeColors.accent, textDecoration: "none", fontWeight: 600 }}>Vis →</a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         </div>{/* end padding div */}
       </section>

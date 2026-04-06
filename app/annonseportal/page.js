@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 
@@ -42,10 +42,10 @@ const PACKAGES = [
 ];
 
 const PLACEMENTS = [
-  { label: "Høyre sidebar", icon: "▶", desc: "Vises på alle sider, synlig for alle besøkende" },
-  { label: "Venstre sidebar", icon: "◀", desc: "Fremtredende posisjon, høy klikk-rate" },
-  { label: "Toppbanner", icon: "▲", desc: "Første ting brukeren ser – maks synlighet" },
-  { label: "Midtside-banner", icon: "◆", desc: "Vises mellom innhold, naturlig integrert" },
+  { label: "Høyre sidebar", icon: "â–¶", desc: "Vises på alle sider, synlig for alle besøkende" },
+  { label: "Venstre sidebar", icon: "â—€", desc: "Fremtredende posisjon, høy klikk-rate" },
+  { label: "Toppbanner", icon: "â–²", desc: "Første ting brukeren ser â€“ maks synlighet" },
+  { label: "Midtside-banner", icon: "â—†", desc: "Vises mellom innhold, naturlig integrert" },
 ];
 
 export default function Annonseportal() {
@@ -62,7 +62,7 @@ export default function Annonseportal() {
     if (!form.company || !form.email) return;
     setSending(true);
     // Opens email client with pre-filled inquiry
-    const subject = encodeURIComponent(`Annonseforespørsel – ${form.company} (${form.package || "Ikke valgt"})`);
+    const subject = encodeURIComponent(`Annonseforespørsel â€“ ${form.company} (${form.package || "Ikke valgt"})`);
     const body = encodeURIComponent(
       `Bedrift: ${form.company}\nKontaktperson: ${form.contact}\nE-post: ${form.email}\nTelefon: ${form.phone}\nPakke: ${form.package}\n\nMelding:\n${form.message}`
     );
@@ -77,15 +77,15 @@ export default function Annonseportal() {
       {/* Hero */}
       <div style={{ background: "linear-gradient(135deg, #111827 0%, #1f2937 100%)", color: "#fff", padding: "5rem 2rem 4rem" }}>
         <div style={{ maxWidth: "860px", margin: "0 auto", textAlign: "center" }}>
-          <p style={{ margin: "0 0 0.75rem", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "#9ca3af" }}>
+          <p style={{ margin: "0 0 0.75rem", fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "var(--text-muted)" }}>
             For bedrifter
           </p>
           <h1 style={{ margin: "0 0 1.25rem", fontSize: "clamp(2rem, 5vw, 3.2rem)", fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1.15 }}>
             Nå turentusiastene<br />der de faktisk er
           </h1>
-          <p style={{ margin: "0 auto", fontSize: "1.15rem", color: "#d1d5db", maxWidth: "580px", lineHeight: 1.65 }}>
+          <p style={{ margin: "0 auto", fontSize: "1.15rem", color: "var(--text)", maxWidth: "580px", lineHeight: 1.65 }}>
             FrittFram er Norges møteplass for friluftsliv. Knytt merkevaren din til turliv, hytter og naturopplevelser
-            – og vær synlig der kundene dine allerede er.
+            â€“ og vær synlig der kundene dine allerede er.
           </p>
         </div>
       </div>
@@ -93,7 +93,7 @@ export default function Annonseportal() {
       {/* Placements visual */}
       <div style={{ background: "#fff", padding: "4rem 2rem", borderBottom: "1px solid #e5e7eb" }}>
         <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.6rem", fontWeight: 800, color: "#111827", textAlign: "center" }}>
+          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.6rem", fontWeight: 800, color: "var(--bg-panel)", textAlign: "center" }}>
             Tilgjengelige plasseringer
           </h2>
           <p style={{ margin: "0 0 2.5rem", color: "#667085", textAlign: "center", fontSize: "0.95rem" }}>
@@ -101,10 +101,10 @@ export default function Annonseportal() {
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1.25rem" }}>
             {PLACEMENTS.map((p) => (
-              <div key={p.label} style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "1.5rem", textAlign: "center" }}>
+              <div key={p.label} style={{ background: "var(--text)", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "1.5rem", textAlign: "center" }}>
                 <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>{p.icon}</div>
-                <div style={{ fontWeight: 700, fontSize: "1rem", color: "#111827", marginBottom: "0.4rem" }}>{p.label}</div>
-                <div style={{ fontSize: "0.82rem", color: "#6b7280", lineHeight: 1.5 }}>{p.desc}</div>
+                <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--bg-panel)", marginBottom: "0.4rem" }}>{p.label}</div>
+                <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", lineHeight: 1.5 }}>{p.desc}</div>
               </div>
             ))}
           </div>
@@ -114,7 +114,7 @@ export default function Annonseportal() {
       {/* Packages */}
       <div style={{ padding: "4rem 2rem" }}>
         <div style={{ maxWidth: "960px", margin: "0 auto" }}>
-          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.6rem", fontWeight: 800, color: "#111827", textAlign: "center" }}>
+          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.6rem", fontWeight: 800, color: "var(--bg-panel)", textAlign: "center" }}>
             Velg pakke
           </h2>
           <p style={{ margin: "0 0 2.5rem", color: "#667085", textAlign: "center", fontSize: "0.95rem" }}>
@@ -125,8 +125,8 @@ export default function Annonseportal() {
               <div
                 key={pkg.name}
                 style={{
-                  background: pkg.highlight ? "#111827" : "#fff",
-                  color: pkg.highlight ? "#fff" : "#111827",
+                  background: pkg.highlight ? "var(--bg-panel)" : "#fff",
+                  color: pkg.highlight ? "#fff" : "var(--bg-panel)",
                   border: pkg.highlight ? "none" : "1px solid #e5e7eb",
                   borderRadius: "16px",
                   padding: "2rem 1.5rem",
@@ -138,26 +138,26 @@ export default function Annonseportal() {
                 }}
               >
                 {pkg.highlight && (
-                  <div style={{ position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)", background: "#f59e0b", color: "#111827", fontSize: "0.7rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.25rem 0.9rem", borderRadius: "999px", whiteSpace: "nowrap" }}>
+                  <div style={{ position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)", background: "#f59e0b", color: "var(--bg-panel)", fontSize: "0.7rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", padding: "0.25rem 0.9rem", borderRadius: "999px", whiteSpace: "nowrap" }}>
                     Mest populær
                   </div>
                 )}
                 <div>
-                  <div style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: pkg.highlight ? "#9ca3af" : "#667085", marginBottom: "0.3rem" }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: pkg.highlight ? "var(--text-muted)" : "#667085", marginBottom: "0.3rem" }}>
                     {pkg.name}
                   </div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: "0.3rem" }}>
                     <span style={{ fontSize: "2rem", fontWeight: 900 }}>{pkg.price}</span>
-                    <span style={{ fontSize: "0.8rem", color: pkg.highlight ? "#9ca3af" : "#6b7280" }}>{pkg.period}</span>
+                    <span style={{ fontSize: "0.8rem", color: pkg.highlight ? "var(--text-muted)" : "var(--text-muted)" }}>{pkg.period}</span>
                   </div>
                 </div>
-                <div style={{ fontSize: "0.82rem", color: pkg.highlight ? "#d1d5db" : "#6b7280" }}>
-                  {pkg.spots} {pkg.spots === 1 ? "plassering" : "plasseringer"} · {pkg.duration}
+                <div style={{ fontSize: "0.82rem", color: pkg.highlight ? "var(--text)" : "var(--text-muted)" }}>
+                  {pkg.spots} {pkg.spots === 1 ? "plassering" : "plasseringer"} Â· {pkg.duration}
                 </div>
                 <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
                   {pkg.positions.map((pos) => (
                     <li key={pos} style={{ fontSize: "0.83rem", display: "flex", alignItems: "flex-start", gap: "0.4rem", color: pkg.highlight ? "#e5e7eb" : "#374151" }}>
-                      <span style={{ color: "#22c55e", flexShrink: 0 }}>✓</span> {pos}
+                      <span style={{ color: "#22c55e", flexShrink: 0 }}>âœ“</span> {pos}
                     </li>
                   ))}
                 </ul>
@@ -170,17 +170,17 @@ export default function Annonseportal() {
       {/* Inquiry form */}
       <div style={{ background: "#fff", padding: "4rem 2rem", borderTop: "1px solid #e5e7eb" }}>
         <div style={{ maxWidth: "600px", margin: "0 auto" }}>
-          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.6rem", fontWeight: 800, color: "#111827" }}>
+          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1.6rem", fontWeight: 800, color: "var(--bg-panel)" }}>
             Send en forespørsel
           </h2>
           <p style={{ margin: "0 0 2rem", color: "#667085", fontSize: "0.95rem" }}>
-            Fyll ut skjemaet, så tar vi kontakt med deg innen 1–2 virkedager.
+            Fyll ut skjemaet, så tar vi kontakt med deg innen 1â€“2 virkedager.
           </p>
           {sent ? (
             <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "12px", padding: "2rem", textAlign: "center" }}>
-              <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>✅</div>
+              <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>âœ…</div>
               <p style={{ margin: 0, fontWeight: 700, color: "#166534", fontSize: "1.05rem" }}>Forespørselen er sendt!</p>
-              <p style={{ margin: "0.5rem 0 0", color: "#15803d", fontSize: "0.9rem" }}>Vi svarer på e-post innen 1–2 virkedager.</p>
+              <p style={{ margin: "0.5rem 0 0", color: "#15803d", fontSize: "0.9rem" }}>Vi svarer på e-post innen 1â€“2 virkedager.</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -203,11 +203,11 @@ export default function Annonseportal() {
                 </div>
               </div>
               <div>
-                <label style={labelStyle}>Ønsket pakke</label>
+                <label style={labelStyle}>Ã˜nsket pakke</label>
                 <select name="package" value={form.package} onChange={handleChange} style={inputStyle}>
-                  <option value="">– Velg pakke –</option>
+                  <option value="">â€“ Velg pakke â€“</option>
                   {PACKAGES.map((p) => (
-                    <option key={p.name} value={p.name}>{p.name} – {p.price} kr/mnd</option>
+                    <option key={p.name} value={p.name}>{p.name} â€“ {p.price} kr/mnd</option>
                   ))}
                   <option value="Tilpasset">Tilpasset / spesialtilbud</option>
                 </select>
@@ -219,7 +219,7 @@ export default function Annonseportal() {
               <button
                 type="submit"
                 disabled={sending}
-                style={{ padding: "0.9rem", background: "#111827", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 700, fontSize: "0.95rem", cursor: sending ? "not-allowed" : "pointer", letterSpacing: "0.04em", textTransform: "uppercase" }}
+                style={{ padding: "0.9rem", background: "var(--bg-panel)", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 700, fontSize: "0.95rem", cursor: sending ? "not-allowed" : "pointer", letterSpacing: "0.04em", textTransform: "uppercase" }}
               >
                 {sending ? "Sender..." : "Send forespørsel"}
               </button>

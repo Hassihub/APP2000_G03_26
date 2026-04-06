@@ -101,7 +101,7 @@ export default function Annonser() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#f4f6f8",
+        background: "var(--bg)",
         fontFamily: "Poppins, sans-serif",
         padding: "2rem",
       }}
@@ -136,7 +136,7 @@ export default function Annonser() {
                 margin: "0 0 0.5rem",
                 fontSize: "2.2rem",
                 fontWeight: 800,
-                color: "#111827",
+                color: "var(--text)",
                 letterSpacing: "-0.03em",
               }}
             >
@@ -150,7 +150,7 @@ export default function Annonser() {
             onClick={() => { setShowNew(!showNew); setSubmitError(""); }}
             style={{
               padding: "0.9rem 1.6rem",
-              background: "#111827",
+              background: "var(--accent)",
               color: "#fff",
               border: "none",
               borderRadius: "8px",
@@ -169,12 +169,12 @@ export default function Annonser() {
         {showNew && (
           <div
             style={{
-              background: "#fff",
+              background: "var(--bg-panel)",
               borderRadius: "12px",
               padding: "2rem",
               marginBottom: "2rem",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-              border: "1px solid #e5e7eb",
+              boxShadow: "var(--shadow)",
+              border: "1px solid var(--border)",
             }}
           >
             <h2 style={{ margin: "0 0 1.5rem", fontSize: "1.2rem", fontWeight: 700 }}>
@@ -237,7 +237,7 @@ export default function Annonser() {
                           style={{ height: "64px", width: "96px", objectFit: "cover", borderRadius: "6px", border: "1px solid #d1d5db" }}
                         />
                       ) : (
-                        <div style={{ height: "64px", width: "96px", borderRadius: "6px", border: "1px solid #d1d5db", background: "#f9fafb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px" }}>
+                        <div style={{ height: "64px", width: "96px", borderRadius: "6px", border: "1px solid var(--border)", background: "var(--bg-input)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px" }}>
                           <span style={{ fontSize: "1.4rem" }}>📄</span>
                           <span style={{ fontSize: "0.55rem", color: "#6b7280", textAlign: "center", overflow: "hidden", width: "88px", whiteSpace: "nowrap", textOverflow: "ellipsis", padding: "0 4px" }}>
                             {newAd.image_url.split("/").pop()}
@@ -254,7 +254,7 @@ export default function Annonser() {
                           width: "20px",
                           height: "20px",
                           borderRadius: "50%",
-                          background: "#111827",
+                        background: "var(--text)",
                           color: "#fff",
                           border: "none",
                           cursor: "pointer",
@@ -298,7 +298,7 @@ export default function Annonser() {
                 disabled={submitting}
                 style={{
                   padding: "0.8rem 1.5rem",
-                  background: submitting ? "#6b7280" : "#111827",
+                  background: submitting ? "var(--text-muted)" : "var(--accent)",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
@@ -315,9 +315,9 @@ export default function Annonser() {
                 onClick={() => { setShowNew(false); setSubmitError(""); }}
                 style={{
                   padding: "0.8rem 1.5rem",
-                  background: "#fff",
-                  color: "#111827",
-                  border: "1px solid #d1d5db",
+                  background: "var(--bg-panel)",
+                  color: "var(--text)",
+                  border: "1px solid var(--border)",
                   borderRadius: "6px",
                   fontWeight: 600,
                   fontSize: "0.85rem",
@@ -339,9 +339,9 @@ export default function Annonser() {
               style={{
                 padding: "0.5rem 1.1rem",
                 borderRadius: "999px",
-                border: `1px solid ${activeCategory === cat ? "#111827" : "#d1d5db"}`,
-                background: activeCategory === cat ? "#111827" : "#fff",
-                color: activeCategory === cat ? "#fff" : "#374151",
+                border: `1px solid ${activeCategory === cat ? "var(--accent)" : "var(--border)"}`,
+                background: activeCategory === cat ? "var(--accent)" : "var(--bg-panel)",
+                color: activeCategory === cat ? "#fff" : "var(--text-muted)",
                 fontWeight: 600,
                 fontSize: "0.85rem",
                 cursor: "pointer",
@@ -374,10 +374,10 @@ export default function Annonser() {
             {/* Sponsored ad — always first */}
             <div
               style={{
-                background: "linear-gradient(135deg,#1a1f2e 0%,#252b3b 100%)",
+                background: "var(--bg-panel)",
                 borderRadius: "12px",
                 padding: "1.5rem",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.18)",
+                boxShadow: "var(--shadow)",
                 border: "1px solid rgba(79,110,247,0.35)",
                 display: "flex",
                 flexDirection: "column",
@@ -388,20 +388,20 @@ export default function Annonser() {
                 <img src="/images/hytte.jpg" alt="Norlandia Hytter" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ padding: "0.25rem 0.7rem", borderRadius: 999, background: "rgba(79,110,247,0.15)", color: "#818cf8", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", border: "1px solid rgba(79,110,247,0.3)" }}>
+                <span style={{ padding: "0.25rem 0.7rem", borderRadius: 999, background: "rgba(102,117,255,0.15)", color: "#a5b4fc", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", border: "1px solid rgba(102,117,255,0.3)" }}>
                   Betalt plassering
                 </span>
-                <span style={{ fontWeight: 800, color: "#f9fafb" }}>Fra 1 290 kr/natt</span>
+                <span style={{ fontWeight: 800, color: "var(--text)" }}>Fra 1 290 kr/natt</span>
               </div>
-              <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#f9fafb", lineHeight: 1.3 }}>
+              <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "var(--text)", lineHeight: 1.3 }}>
                 Norlandia Hytter — Gaustablikk
               </h3>
-              <p style={{ margin: 0, fontSize: "0.88rem", color: "#9ca3af", lineHeight: 1.55, flexGrow: 1 }}>
+              <p style={{ margin: 0, fontSize: "0.88rem", color: "var(--text-muted)", lineHeight: 1.55, flexGrow: 1 }}>
                 Eksklusive fjellhytter med panoramautsikt. Nyt natur og ro — 15 % rabatt ved bestilling denne uken.
               </p>
               <div style={{ paddingTop: "0.75rem", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem" }}>
-                <span style={{ color: "#6b7280" }}>📍 Gaustablikk, Telemark</span>
-                <a href="/reserver" style={{ padding: "0.5rem 1rem", background: "#4f6ef7", color: "#fff", borderRadius: 6, textDecoration: "none", fontWeight: 700, fontSize: "0.78rem" }}>Se pakker →</a>
+                <span style={{ color: "var(--text-muted)" }}>📍 Gaustablikk, Telemark</span>
+                <a href="/reserver" style={{ padding: "0.5rem 1rem", background: "var(--accent)", color: "#fff", borderRadius: 6, textDecoration: "none", fontWeight: 700, fontSize: "0.78rem" }}>Se pakker →</a>
               </div>
             </div>
 
@@ -409,11 +409,11 @@ export default function Annonser() {
               <div
                 key={ad.id}
                 style={{
-                  background: "#fff",
+                  background: "var(--bg-panel)",
                   borderRadius: "12px",
                   padding: "1.5rem",
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
-                  border: "1px solid #e5e7eb",
+                  boxShadow: "var(--shadow)",
+                  border: "1px solid var(--border)",
                   display: "flex",
                   flexDirection: "column",
                   gap: "0.75rem",
@@ -457,7 +457,7 @@ export default function Annonser() {
                     </span>
                   )}
                 </div>
-                <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#111827", lineHeight: 1.3 }}>
+                <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "var(--text)", lineHeight: 1.3 }}>
                   {ad.title}
                 </h3>
                 {ad.description && (

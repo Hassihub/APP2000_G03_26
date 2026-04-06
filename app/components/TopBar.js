@@ -144,23 +144,24 @@ export default function TopBar() {
         justifyContent: "space-between",
         alignItems: "center",
         padding: "1rem 2rem",
-        backgroundColor: "#fff",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+        backgroundColor: "var(--nav-bg)",
+        borderBottom: "1px solid var(--nav-border)",
         position: "fixed",
         top: 0,
         left: 0,
         right: 0,
         zIndex: 1000,
         boxSizing: "border-box",
+        transition: "background-color 0.25s ease",
       }}
     >
       {/* Left: Logo */}
       <Link href="/" style={{ display: "flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}>
         <svg viewBox="0 0 48 32" width="44" height="30" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M2 30 L16 5 L24 17 L30 9 L46 30 Z" fill="#111827" />
+          <path d="M2 30 L16 5 L24 17 L30 9 L46 30 Z" fill="var(--nav-text)" />
           <circle cx="36" cy="7" r="3.5" fill="#f59e0b" />
         </svg>
-        <span style={{ fontWeight: 800, fontSize: "1.1rem", color: "#111827", letterSpacing: "-0.02em" }}>
+        <span style={{ fontWeight: 800, fontSize: "1.1rem", color: "var(--nav-text)", letterSpacing: "-0.02em" }}>
           FrittFram
         </span>
       </Link>
@@ -169,7 +170,7 @@ export default function TopBar() {
       <div style={{ display: "flex", alignItems: "center", gap: "1rem", position: "relative" }}>
 
         {/* Search icon */}
-        <Link href="/search" style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "#374151" }}>
+        <Link href="/search" style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "var(--nav-icon)" }}>
           <FiSearch size={22} />
         </Link>
 
@@ -185,7 +186,7 @@ export default function TopBar() {
               style={{ borderRadius: "50%", objectFit: "cover", border: "2px solid #e5e7eb" }}
             />
           ) : (
-            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f3f4f6", border: "2px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--bg-input)", border: "2px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <FiUser size={16} color="#6b7280" />
             </div>
           )}
@@ -195,7 +196,7 @@ export default function TopBar() {
         <div style={{ position: "relative" }}>
           <FiMenu
             size={28}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", color: "var(--nav-icon)" }}
             onClick={() => setOpen(!open)}
           />
 
@@ -221,26 +222,26 @@ export default function TopBar() {
                   right: 0,
                   bottom: 0,
                   width: "360px",
-                  backgroundColor: "#1a1f2e",
-                  borderLeft: "1px solid #2d3347",
-                  boxShadow: "-5px 0 15px rgba(0,0,0,0.4)",
+                  backgroundColor: "var(--nav-drawer)",
+                  borderLeft: "1px solid var(--nav-drawer-border)",
+                  boxShadow: "-5px 0 15px rgba(0,0,0,0.2)",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
                   zIndex: 2000,
                   overflowY: "auto",
-                  color: "#f9fafb",
+                  color: "var(--nav-text)",
                   fontFamily: "Poppins, sans-serif",
                 }}
               >
                 {/* Header */}
-                <div style={{ padding: "1.5rem 2rem", display: "flex", alignItems: "center", gap: "1rem", borderBottom: "1px solid #2d3347" }}>
+                <div style={{ padding: "1.5rem 2rem", display: "flex", alignItems: "center", gap: "1rem", borderBottom: "1px solid var(--nav-drawer-border)" }}>
                   <FiChevronLeft
                     size={26}
-                    style={{ cursor: "pointer", color: "#9ca3af" }}
+                    style={{ cursor: "pointer", color: "var(--nav-icon)" }}
                     onClick={() => setOpen(false)}
                   />
-                  <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0, color: "#f9fafb" }}>
+                  <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0, color: "var(--nav-text)" }}>
                     {translations.navigate}
                   </h2>
                 </div>
@@ -253,8 +254,8 @@ export default function TopBar() {
                     style={{
                       padding: "1rem",
                       borderRadius: "14px",
-                      background: "#252b3b",
-                      border: "1px solid #2d3347",
+                      background: "var(--nav-drawer-card)",
+                      border: "1px solid var(--nav-drawer-border)",
                       textDecoration: "none",
                       display: "flex",
                       alignItems: "center",
@@ -271,18 +272,18 @@ export default function TopBar() {
                         style={{ borderRadius: "50%", objectFit: "cover", border: "2px solid #3d4460", flexShrink: 0 }}
                       />
                     ) : (
-                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#3d4460", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <FiUser size={20} color="#9ca3af" />
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <FiUser size={20} color="var(--nav-icon)" />
                       </div>
                     )}
                     <div>
-                      <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "#6b7280", marginBottom: "0.2rem" }}>
+                      <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--nav-muted)", marginBottom: "0.2rem" }}>
                         {translations.account}
                       </div>
-                      <div style={{ fontWeight: 700, color: "#f9fafb", fontSize: "0.95rem" }}>
+                      <div style={{ fontWeight: 700, color: "var(--nav-text)", fontSize: "0.95rem" }}>
                         {currentUser?.username || currentUser?.email || translations.guest}
                       </div>
-                      <div style={{ color: "#6b7280", fontSize: "0.82rem" }}>
+                      <div style={{ color: "var(--nav-muted)", fontSize: "0.82rem" }}>
                         {currentUser?.email
                           ? `${translations.signedInAs} ${currentUser.email}`
                           : translations.guest}
@@ -292,7 +293,7 @@ export default function TopBar() {
 
                   {/* Navigation links */}
                   <section>
-                    <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b7280", marginBottom: "0.75rem" }}>
+                    <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--nav-muted)", marginBottom: "0.75rem" }}>
                       {translations.navigate}
                     </div>
                     <div style={{ display: "grid", gap: "0.45rem" }}>
@@ -305,11 +306,11 @@ export default function TopBar() {
                             style={{
                               padding: "0.8rem 1rem",
                               textDecoration: "none",
-                              color: isActive ? "#f9fafb" : "#9ca3af",
+                              color: isActive ? "var(--nav-text)" : "var(--nav-icon)",
                               fontWeight: isActive ? 700 : 500,
                               borderRadius: "10px",
-                              background: isActive ? "#252b3b" : "transparent",
-                              border: `1px solid ${isActive ? "#3d4460" : "transparent"}`,
+                              background: isActive ? "var(--nav-active-bg)" : "transparent",
+                              border: `1px solid ${isActive ? "var(--nav-active-border)" : "transparent"}`,
                               fontSize: "0.92rem",
                             }}
                             onClick={() => setOpen(false)}
@@ -323,7 +324,7 @@ export default function TopBar() {
 
                   {/* Quick actions */}
                   <section>
-                    <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b7280", marginBottom: "0.75rem" }}>
+                    <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--nav-muted)", marginBottom: "0.75rem" }}>
                       {translations.quickActions}
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem" }}>
@@ -339,9 +340,9 @@ export default function TopBar() {
                             justifyContent: "center",
                             padding: "0.8rem",
                             borderRadius: "10px",
-                            border: "1px solid #2d3347",
-                            background: "#252b3b",
-                            color: "#d1d5db",
+                            border: "1px solid var(--nav-drawer-border)",
+                            background: "var(--nav-drawer-card)",
+                            color: "var(--nav-text)",
                             cursor: "pointer",
                             fontWeight: 600,
                             fontSize: "0.85rem",
@@ -357,8 +358,8 @@ export default function TopBar() {
                 </div>
 
                 {/* Language picker at bottom */}
-                <div style={{ padding: "1.25rem 2rem", borderTop: "1px solid #2d3347" }}>
-                  <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b7280", marginBottom: "0.6rem" }}>
+                <div style={{ padding: "1.25rem 2rem", borderTop: "1px solid var(--nav-drawer-border)" }}>
+                  <div style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--nav-muted)", marginBottom: "0.6rem" }}>
                     {translations.language}
                   </div>
                   <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
@@ -369,8 +370,8 @@ export default function TopBar() {
                         style={{
                           padding: "0.45rem 0.7rem",
                           borderRadius: "8px",
-                          border: language === lang ? "2px solid #4f6ef7" : "1px solid #2d3347",
-                          background: language === lang ? "#252b3b" : "transparent",
+                          border: language === lang ? "2px solid var(--accent)" : "1px solid var(--nav-drawer-border)",
+                          background: language === lang ? "var(--nav-drawer-card)" : "transparent",
                           cursor: "pointer",
                           fontSize: "1.1rem",
                         }}

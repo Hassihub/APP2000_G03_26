@@ -2,13 +2,30 @@
 
 import Link from "next/link";
 import TopBar from "./TopBar";
+import { useEffect, useState } from "react";
 
 export default function AppShell({ children }) {
+  const [dark, setDark] = useState(false);
+
+  // Persist & apply theme on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("ff-theme") === "dark";
+    setDark(saved);
+    document.documentElement.setAttribute("data-theme", saved ? "dark" : "light");
+  }, []);
+
+  function toggleTheme() {
+    const next = !dark;
+    setDark(next);
+    document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
+    localStorage.setItem("ff-theme", next ? "dark" : "light");
+  }
+
   return (
     <>
       <TopBar />
       <div style={{ paddingTop: "64px" }}>{children}</div>
-      <footer style={{ background: "#111827", color: "#d1d5db", fontFamily: "Poppins, sans-serif", marginTop: "auto" }}>
+      <footer style={{ background: "var(--nav-bg)", color: "var(--nav-text)", fontFamily: "Poppins, sans-serif", marginTop: "auto" }}>
         {/* Main footer grid */}
         <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "4rem 2rem 3rem", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "3rem", flexWrap: "wrap" }}>
 
@@ -79,7 +96,7 @@ export default function AppShell({ children }) {
             </div>
             <div style={{ marginTop: "1.5rem" }}>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#6b7280" }}>Annonser?</p>
-              <Link href="/annonseportal" style={{ display: "inline-block", padding: "0.6rem 1.1rem", background: "#fff", color: "#111827", borderRadius: "6px", textDecoration: "none", fontWeight: 700, fontSize: "0.82rem", letterSpacing: "0.04em" }}>
+              <Link href="/annonseportal" style={{ display: "inline-block", padding: "0.6rem 1.1rem", background: "var(--accent)", color: "#fff", borderRadius: "6px", textDecoration: "none", fontWeight: 700, fontSize: "0.82rem", letterSpacing: "0.04em" }}>
                 Se pakker →
               </Link>
             </div>
@@ -91,7 +108,7 @@ export default function AppShell({ children }) {
           <span style={{ fontSize: "0.82rem", color: "#6b7280" }}>
             © {new Date().getFullYear()} FrittFram AS · Alle rettigheter forbeholdt
           </span>
-          <div style={{ display: "flex", gap: "1.5rem" }}>
+          <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
             {[
               { label: "Bruksvilkår", href: "/bruksvilkar" },
               { label: "Informasjonskapsler", href: "/cookies" },
@@ -101,6 +118,13 @@ export default function AppShell({ children }) {
                 onMouseLeave={(e) => e.target.style.color = "#6b7280"}
               >{label}</Link>
             ))}
+            <button
+              onClick={toggleTheme}
+              title={dark ? "Bytt til lyst tema" : "Bytt til mørkt tema"}
+              style={{ background: "rgba(255,255,255,0.08)", border: "1px solid #2d3a4a", borderRadius: "999px", padding: "0.35rem 0.9rem", color: "#9ca3af", cursor: "pointer", fontSize: "0.82rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.4rem", fontFamily: "inherit" }}
+            >
+              {dark ? "☀️ Lyst" : "🌙 Mørkt"}
+            </button>
           </div>
         </div>
       </footer>

@@ -45,8 +45,8 @@ export default function CookieBanner() {
         left: 0,
         right: 0,
         zIndex: 9999,
-        background: "#111827",
-        color: "#f9fafb",
+        background: "var(--nav-bg)",
+        color: "var(--nav-text)",
         padding: "1.25rem 2rem",
         display: "flex",
         alignItems: "center",
@@ -56,7 +56,7 @@ export default function CookieBanner() {
         fontFamily: "Poppins, sans-serif",
       }}
     >
-      <p style={{ margin: 0, fontSize: "0.88rem", flex: 1, lineHeight: 1.6, color: "#d1d5db", minWidth: "240px" }}>
+        <p style={{ margin: 0, fontSize: "0.88rem", flex: 1, lineHeight: 1.6, color: "var(--nav-text)", minWidth: "240px" }}>
         🍪 Vi bruker informasjonskapsler (cookies) for å gi deg en bedre opplevelse på FrittFram.
         Ved å klikke <strong style={{ color: "#fff" }}>Aksepter</strong> godtar du bruk av cookies i henhold til vår personvernpolicy.
       </p>

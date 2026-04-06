@@ -11,11 +11,14 @@ export async function GET(request) {
         p.caption,
         p.timestamp,
         p.userid,
-        COUNT(l.likeid) AS likes
+        u.username,
+        COUNT(DISTINCT l.likeid)   AS likes,
+        COUNT(DISTINCT c.commentid) AS comment_count
       FROM posts p
-      LEFT JOIN post_liked l
-        ON p.postid = l.postid
-      GROUP BY p.postid
+      LEFT JOIN users u          ON p.userid  = u.id
+      LEFT JOIN post_liked l     ON p.postid  = l.postid
+      LEFT JOIN post_comments c  ON p.postid  = c.postid
+      GROUP BY p.postid, u.username
       ORDER BY p.timestamp DESC
     `);
 
@@ -33,6 +36,7 @@ export async function GET(request) {
       rows.map((row) => ({
         ...row,
         likes: Number(row.likes) || 0,
+        comment_count: Number(row.comment_count) || 0,
         likedByCurrentUser: likedPostIds.has(row.postid),
       }))
     );

@@ -1,8 +1,71 @@
 /* Globale stiler */
+
+/* ── Light mode (default) — medium-light blue ── */
+:root {
+  --bg:         #dce8f5;
+  --bg-panel:   #ecf3fb;
+  --bg-input:   #f4f8fd;
+  --border:     #b8d0e8;
+  --text:       #0c1f35;
+  --text-muted: #3d617e;
+  --text-dim:   #6887a2;
+  --accent:     #1a5fd8;
+  --accent-h:   #2b72ef;
+  --accent-bg:  rgba(26,95,216,0.10);
+  --shadow:     0 1px 6px rgba(20,60,120,0.12);
+  --card-bg:    #ffffff;
+  --divider:    #a8c8e6;
+
+  /* TopBar / nav drawer */
+  --nav-bg:           #ffffff;
+  --nav-border:       #dce8f5;
+  --nav-text:         #0c1f35;
+  --nav-icon:         #4a6a8a;
+  --nav-drawer:       #f0f6fc;
+  --nav-drawer-border:#b8d0e8;
+  --nav-drawer-card:  #dce8f5;
+  --nav-active-bg:    #dce8f5;
+  --nav-active-border:#b8d0e8;
+  --nav-muted:        #3d617e;
+}
+
+/* ── Dark mode ── */
+[data-theme="dark"] {
+  --bg:         #0d1117;
+  --bg-panel:   #111827;
+  --bg-input:   #0d1117;
+  --border:     #1e2539;
+  --text:       #f9fafb;
+  --text-muted: #6b7280;
+  --text-dim:   #4b5563;
+  --accent:     #6675ff;
+  --accent-h:   #818cf8;
+  --accent-bg:  rgba(102,117,255,0.12);
+  --shadow:     0 1px 8px rgba(0,0,0,0.4);
+  --card-bg:    #161d2e;
+  --divider:    #2d3347;
+
+  /* TopBar / nav drawer */
+  --nav-bg:           #111827;
+  --nav-border:       #1e2539;
+  --nav-text:         #f9fafb;
+  --nav-icon:         #9ca3af;
+  --nav-drawer:       #1a1f2e;
+  --nav-drawer-border:#2d3347;
+  --nav-drawer-card:  #252b3b;
+  --nav-active-bg:    #252b3b;
+  --nav-active-border:#3d4460;
+  --nav-muted:        #6b7280;
+}
+
+html { scroll-padding-top: 64px; }
+
 body {
   margin: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #eef2ff;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 /* Boksene på hovedsiden */

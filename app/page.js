@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -34,18 +34,68 @@ export default function Home() {
     return () => { cancelled = true; };
   }, []);
 
-  // Move scroll snap to html so footer is reachable by scrolling past slide 3
+  // Wheel-based section navigation: 1 scroll = 1 section
   useEffect(() => {
     const html = document.documentElement;
-    html.style.scrollSnapType = "y mandatory";
-    html.style.overflowY = "scroll";
     html.style.overflowX = "hidden";
-    html.style.scrollPaddingTop = "64px";
+
+    let locked = false;
+
+    const getActiveIdx = () => {
+      const ids = ["hero-section", "recommended-section", "social-section"];
+      const sections = ids.map((id) => document.getElementById(id)).filter(Boolean);
+      let best = 0;
+      let bestOverlap = 0;
+      sections.forEach((el, i) => {
+        const rect = el.getBoundingClientRect();
+        const overlap = Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 64));
+        if (overlap > bestOverlap) { bestOverlap = overlap; best = i; }
+      });
+      return best;
+    };
+
+    const onWheel = (e) => {
+      const ids = ["hero-section", "recommended-section", "social-section"];
+      const sections = ids.map((id) => document.getElementById(id)).filter(Boolean);
+      if (sections.length < 3) return;
+
+      const currentIdx = getActiveIdx();
+      const feedWrapper = document.getElementById("social-feed-scroll");
+
+      // Social section: allow internal scroll; navigate out only when at edge
+      if (currentIdx === 2) {
+        if (e.deltaY > 0) return; // scrolling down inside social — let it go
+        const scrollTop = feedWrapper ? feedWrapper.scrollTop : 0;
+        if (scrollTop > 0) return; // has content above — let it scroll up
+        // At top of social, scrolling up → go to section 2
+        if (!locked) {
+          e.preventDefault();
+          locked = true;
+          sections[1].scrollIntoView({ behavior: "smooth", block: "start" });
+          setTimeout(() => { locked = false; }, 900);
+        } else {
+          e.preventDefault();
+        }
+        return;
+      }
+
+      if (locked) { e.preventDefault(); return; }
+
+      const dir = e.deltaY > 0 ? 1 : -1;
+      const nextIdx = Math.max(0, Math.min(sections.length - 1, currentIdx + dir));
+      if (nextIdx === currentIdx) return;
+
+      e.preventDefault();
+      locked = true;
+      sections[nextIdx].scrollIntoView({ behavior: "smooth", block: "start" });
+      setTimeout(() => { locked = false; }, 900);
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: false });
+
     return () => {
-      html.style.scrollSnapType = "";
-      html.style.overflowY = "";
+      window.removeEventListener("wheel", onWheel);
       html.style.overflowX = "";
-      html.style.scrollPaddingTop = "";
     };
   }, []);
 
@@ -115,10 +165,7 @@ export default function Home() {
     if (nextSection) nextSection.scrollIntoView({ behavior: "smooth" });
   };
 
-  const scrollToSocial = () => {
-    const section = document.getElementById("social-section");
-    if (section) section.scrollIntoView({ behavior: "smooth" });
-  };
+
 
   return (
     <div
@@ -155,6 +202,7 @@ export default function Home() {
         />
 
         <section
+          id="hero-section"
           style={{
             height: "100vh",
             scrollSnapAlign: "start",
@@ -204,7 +252,7 @@ export default function Home() {
             <Category icon={<FiSun size={42} />} label={t.weather} link="/vaer" />
             <Category icon={<FiGlobe size={42} />} label={t.explore} link="/explore" />
             <Category icon={<FiMap size={42} />} label={t.map} link="/map" />
-            <CategoryBtn icon={<FiUsers size={42} />} label={t.social} onClick={scrollToSocial} />
+            <Category icon={<FiUsers size={42} />} label={t.social} link="/sosial" />
             <Category icon={<FiHome size={42} />} label={t.reserve} link="/reserver" />
           </div>
 
@@ -241,13 +289,13 @@ export default function Home() {
                   border: "none",
                   borderRadius: "999px",
                   background: "#fff",
-                  color: "#111827",
+                  color: "var(--bg-panel)",
                   padding: "0.7rem 1rem",
                   fontWeight: 700,
                   cursor: "pointer",
                 }}
               >
-                Søk
+                {t.searchBtn}
               </button>
             </form>
 
@@ -290,7 +338,7 @@ export default function Home() {
                     cursor: "pointer",
                   }}
                 >
-                  Se alle treff
+                  {t.showAllResults}
                 </button>
               </div>
             ) : null}
@@ -311,19 +359,20 @@ export default function Home() {
         </section>
       </div>
 
-      {/* SLIDE 2 — AKTIVITETSKARUSELL */}
+      {/* SLIDE 2 â€” AKTIVITETSKARUSELL */}
       <section
         id="recommended-section"
         style={{
-          minHeight: "100vh",
+          height: "100vh",
           scrollSnapAlign: "start",
-          background: "linear-gradient(160deg, #0f1117 0%, #1a2035 100%)",
-          color: "#fff",
+          background: "var(--bg)",
+          color: "var(--text)",
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
           padding: "4rem 2rem",
           overflow: "hidden",
+          boxSizing: "border-box",
         }}
       >
         <ActivityCarousel cabins={cabins} />
@@ -333,16 +382,29 @@ export default function Home() {
       <section
         id="social-section"
         style={{
-          minHeight: "100vh",
+          height: "100vh",
           scrollSnapAlign: "start",
-          background: "linear-gradient(160deg, #0d1117 0%, #111827 100%)",
-          color: "#fff",
+          background: "var(--bg)",
+          color: "var(--text)",
           display: "flex",
           flexDirection: "column",
-          overflowY: "auto",
+          overflow: "hidden",
+          boxSizing: "border-box",
         }}
       >
-        <SosialFeed currentUser={currentUser} embedded />
+        {/* Section header */}
+        <div style={{ padding: "1.25rem 2rem 1rem", borderBottom: "1px solid var(--border)", flexShrink: 0, paddingTop: "calc(1.25rem + 64px)" }}>
+          <h2 style={{ margin: 0, fontSize: "clamp(1.4rem,3vw,2rem)", fontWeight: 800, color: "var(--text)", letterSpacing: "-0.02em" }}>
+            {t.social}
+          </h2>
+        </div>
+        {/* Scrollable feed */}
+        <div
+          id="social-feed-scroll"
+          style={{ flex: 1, overflowY: "auto", padding: "1.25rem 2rem 2rem" }}
+        >
+          <SosialFeed currentUser={currentUser} embedded />
+        </div>
       </section>
     </div>
   );
@@ -385,25 +447,31 @@ function buildLocationSuggestions(trips, cabins) {
   return uniqueSuggestions;
 }
 
-// ─── Activity Carousel ────────────────────────────────────────────────────────
-const STATIC_CARDS = [
-  // Page 0
-  { label: "Overnatting", title: "Fjellhytte i Jotunheimen", desc: "Rustikk hytte med utsikt over Besseggen. Plass til 8.", img: "/images/hytte.jpg", tag: "Hytte", href: "/reserver", cta: "Reserver nå" },
-  { label: "Aktivitet", title: "Langtur på Hardangervidda", desc: "5-dagersrute gjennom ett av Europas største høyfjellsplatåer.", img: "/images/fjell.jpg", tag: "Fottur", href: "/explore", cta: "Se ruten" },
-  { label: "Utstyr", title: "Fjellsko til alle terreng", desc: "Testet og godkjent av norske turfolk. Nå i Marked.", img: "/images/Explore.jpg", tag: "Marked", href: "/annonser", cta: "Se tilbud" },
-  // Page 1
-  { label: "Overnatting", title: "Kystferie på Lofoten", desc: "Rorbu rett ved sjøen. Sol, sjømat og midnattssol.", img: "/images/Reserve.jpg", tag: "Rorbu", href: "/reserver", cta: "Reserver nå" },
-  { label: "Aktivitet", title: "Sykkeltur langs Rallarvegen", desc: "82 km over fjellet – Norges kuleste sykkelrute.", img: "/images/Map.jpg", tag: "Sykkel", href: "/explore", cta: "Se ruten" },
-  { label: "Fellesskap", title: "Del din neste tur", desc: "Finn turkamerater og del opplevelser i forumet.", img: "/images/Social.jpg", tag: "Forum", href: "/sosial", cta: "Gå til forum" },
-  // Page 2
-  { label: "Vær", title: "Sjekk værvarselet", desc: "Oppdatert fjellvær for over 500 norske topper.", img: "/images/Weather.jpg", tag: "Vær", href: "/vaer", cta: "Åpne kart" },
-  { label: "Aktivitet", title: "Toppturer i Romsdalen", desc: "Klassiske ruter med spektakulær utsikt. Alle nivåer.", img: "/images/Galdhopiggen.jpg", tag: "Klatring", href: "/explore", cta: "Utforsk" },
-  { label: "Overnatting", title: "Sommerhytte ved innsjø", desc: "Stillhet, padling og fiske. Booking åpent for sommer.", img: "/images/hytte.jpg", tag: "Hytte", href: "/reserver", cta: "Reserver nå" },
+// â”€â”€â”€ Activity Carousel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Activity Carousel ─────────────────────────────────────────────────
+// Static technical data only — all display text comes from translations
+const CARD_DATA = [
+  { img: "/images/hytte.jpg",        href: "/reserver", tag: "cabin"   },
+  { img: "/images/fjell.jpg",        href: "/explore",  tag: "hike"    },
+  { img: "/images/Explore.jpg",      href: "/annonser", tag: "market"  },
+  { img: "/images/Reserve.jpg",      href: "/reserver", tag: "rorbu"   },
+  { img: "/images/Map.jpg",          href: "/explore",  tag: "bike"    },
+  { img: "/images/Social.jpg",       href: "/sosial",   tag: "forum"   },
+  { img: "/images/Weather.jpg",      href: "/vaer",     tag: "weather" },
+  { img: "/images/Galdhopiggen.jpg", href: "/explore",  tag: "climb"   },
+  { img: "/images/hytte.jpg",        href: "/reserver", tag: "cabin"   },
 ];
 
+const TAG_COLORS = {
+  cabin: "#6675ff", hike: "#10b981", market: "#f59e0b",
+  rorbu: "#6675ff", bike: "#10b981", forum: "#8b5cf6",
+  weather: "#0ea5e9", climb: "#ef4444", default: "#6b7280",
+};
+
 function ActivityCarousel({ cabins }) {
+  const t = useTranslations("home");
   const [page, setPage] = useState(0);
-  const totalPages = Math.ceil(STATIC_CARDS.length / 3);
+  const totalPages = Math.ceil(CARD_DATA.length / 3);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -412,61 +480,65 @@ function ActivityCarousel({ cabins }) {
     return () => clearInterval(timer);
   }, [totalPages]);
 
-  const cards = STATIC_CARDS.slice(page * 3, page * 3 + 3);
+  const cards = CARD_DATA.slice(page * 3, page * 3 + 3).map((data, i) => ({
+    ...data,
+    ...(Array.isArray(t.cards) ? t.cards[page * 3 + i] : {}),
+  }));
 
-  const tagColors = {
-    Hytte: "#4f6ef7", Fottur: "#10b981", Marked: "#f59e0b",
-    Rorbu: "#4f6ef7", Sykkel: "#10b981", Forum: "#8b5cf6",
-    Vær: "#0ea5e9", Klatring: "#ef4444", default: "#6b7280",
-  };
+  const tagLabels = t.tagLabels && typeof t.tagLabels === "object" ? t.tagLabels : {};
 
   return (
     <div style={{ maxWidth: "1100px", margin: "0 auto", width: "100%" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "2.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
-          <p style={{ margin: "0 0 0.4rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "#6b7280" }}>Populært nå</p>
-          <h2 style={{ margin: 0, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 900, letterSpacing: "-0.03em", color: "#f9fafb" }}>Utforsk det beste</h2>
+          <p style={{ margin: "0 0 0.4rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "var(--text-dim)" }}>
+            {t.carouselEyebrow}
+          </p>
+          <h2 style={{ margin: 0, fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 900, letterSpacing: "-0.03em", color: "var(--text)" }}>
+            {t.carouselTitle}
+          </h2>
         </div>
         {/* Arrows + dots */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <button
             onClick={() => setPage((p) => (p - 1 + totalPages) % totalPages)}
-            style={{ width: 44, height: 44, borderRadius: "50%", border: "1px solid #2d3347", background: "#1a2035", color: "#f9fafb", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}
-          >‹</button>
+            style={{ width: 44, height: 44, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}
+          >&#8249;</button>
           {Array.from({ length: totalPages }).map((_, i) => (
-            <button key={i} onClick={() => setPage(i)} style={{ width: 8, height: 8, borderRadius: "50%", border: "none", background: i === page ? "#f9fafb" : "#2d3347", cursor: "pointer", padding: 0, transition: "background 0.2s" }} />
+            <button key={`${page}-dot-${i}`} onClick={() => setPage(i)} style={{ width: 8, height: 8, borderRadius: "50%", border: "none", background: i === page ? "var(--accent)" : "var(--border)", cursor: "pointer", padding: 0, transition: "background 0.2s" }} />
           ))}
           <button
             onClick={() => setPage((p) => (p + 1) % totalPages)}
-            style={{ width: 44, height: 44, borderRadius: "50%", border: "1px solid #2d3347", background: "#1a2035", color: "#f9fafb", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}
-          >›</button>
+            style={{ width: 44, height: 44, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--card-bg)", color: "var(--text)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}
+          >&#8250;</button>
         </div>
       </div>
 
-      {/* Cards — 3 sharp boxes */}
+      {/* Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.25rem" }}>
         {cards.map((card, i) => (
           <Link key={`${page}-${i}`} href={card.href} style={{ textDecoration: "none" }}>
-            <div style={{ background: "#111827", border: "1px solid #1e2538", borderRadius: "4px", overflow: "hidden", display: "flex", flexDirection: "column", height: "100%", transition: "border-color 0.2s" }}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = "#4f6ef7"}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = "#1e2538"}
+            <div
+              style={{ background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: "6px", overflow: "hidden", display: "flex", flexDirection: "column", height: "100%", transition: "border-color 0.2s", boxShadow: "var(--shadow)" }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = "var(--accent)"}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = "var(--border)"}
             >
               {/* Image */}
               <div style={{ position: "relative", height: 200, flexShrink: 0 }}>
-                <Image src={card.img} alt={card.title} fill unoptimized style={{ objectFit: "cover" }} />
-                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.7) 100%)" }} />
-                <span style={{ position: "absolute", top: "1rem", left: "1rem", background: tagColors[card.tag] || tagColors.default, color: "#fff", fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", padding: "0.25rem 0.65rem", borderRadius: "2px" }}>
-                  {card.tag}
+                <Image src={card.img} alt={card.title || ""} fill unoptimized style={{ objectFit: "cover" }} />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.6) 100%)" }} />
+                <span style={{ position: "absolute", top: "1rem", left: "1rem", background: TAG_COLORS[card.tag] || TAG_COLORS.default, color: "#fff", fontSize: "0.68rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", padding: "0.25rem 0.65rem", borderRadius: "2px" }}>
+                  {tagLabels[card.tag] || card.tag}
                 </span>
               </div>
               {/* Content */}
-              <div style={{ padding: "1.4rem 1.5rem 1.6rem", display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
-                <p style={{ margin: 0, fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6b7280" }}>{card.label}</p>
-                <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 800, color: "#f9fafb", lineHeight: 1.25, letterSpacing: "-0.01em" }}>{card.title}</h3>
-                <p style={{ margin: 0, fontSize: "0.88rem", color: "#9ca3af", lineHeight: 1.6, flex: 1 }}>{card.desc}</p>
-                <div style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: "0.4rem", color: "#4f6ef7", fontWeight: 700, fontSize: "0.82rem" }}>
-                  {card.cta} <span>→</span>
+              <div style={{ padding: "1.4rem 1.5rem 1.6rem", display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1, borderTop: "1px solid var(--divider)" }}>
+                <p style={{ margin: 0, fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-dim)" }}>{card.label}</p>
+                <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 800, color: "var(--text)", lineHeight: 1.25, letterSpacing: "-0.01em" }}>{card.title}</h3>
+                <p style={{ margin: 0, fontSize: "0.88rem", color: "var(--text-muted)", lineHeight: 1.6, flex: 1 }}>{card.desc}</p>
+                <div style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: "0.4rem", color: "var(--accent)", fontWeight: 700, fontSize: "0.82rem" }}>
+                  {card.cta} <span>&#8594;</span>
                 </div>
               </div>
             </div>
@@ -475,8 +547,8 @@ function ActivityCarousel({ cabins }) {
       </div>
 
       {/* Progress bar */}
-      <div style={{ marginTop: "2rem", height: 2, background: "#1e2538", borderRadius: 2, overflow: "hidden" }}>
-        <div style={{ height: "100%", background: "#4f6ef7", width: `${((page + 1) / totalPages) * 100}%`, transition: "width 0.4s ease" }} />
+      <div style={{ marginTop: "2rem", height: 2, background: "var(--border)", borderRadius: 2, overflow: "hidden" }}>
+        <div style={{ height: "100%", background: "var(--accent)", width: `${((page + 1) / totalPages) * 100}%`, transition: "width 0.4s ease" }} />
       </div>
     </div>
   );

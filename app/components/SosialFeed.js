@@ -83,8 +83,8 @@ export default function SosialFeed({ embedded = false, currentUser: userProp = n
 
   const S = {
     composeBox: {
-      background: "rgba(255,255,255,0.05)",
-      border: "1px solid rgba(255,255,255,0.1)",
+      background: "var(--bg-panel)",
+      border: "1px solid var(--border)",
       borderRadius: 16,
       padding: "1.25rem",
       marginBottom: "1.5rem",
@@ -92,10 +92,10 @@ export default function SosialFeed({ embedded = false, currentUser: userProp = n
     textarea: {
       width: "100%",
       minHeight: embedded ? 60 : 90,
-      background: "rgba(255,255,255,0.05)",
-      border: "1px solid rgba(255,255,255,0.1)",
+      background: "var(--bg-input)",
+      border: "1px solid var(--border)",
       borderRadius: 10,
-      color: "#f9fafb",
+      color: "var(--text)",
       fontSize: "0.95rem",
       padding: "0.75rem 1rem",
       resize: "vertical",
@@ -106,8 +106,8 @@ export default function SosialFeed({ embedded = false, currentUser: userProp = n
     publishBtn: {
       marginTop: "0.65rem",
       padding: "0.6rem 1.4rem",
-      background: "#fff",
-      color: "#111827",
+      background: "var(--accent)",
+      color: "#fff",
       border: "none",
       borderRadius: 8,
       fontWeight: 700,
@@ -117,57 +117,60 @@ export default function SosialFeed({ embedded = false, currentUser: userProp = n
     errorMsg: {
       background: "rgba(239,68,68,0.12)",
       border: "1px solid rgba(239,68,68,0.3)",
-      color: "#fca5a5",
+      color: "#dc2626",
       padding: "0.75rem 1rem",
       borderRadius: 10,
       marginBottom: "1rem",
       fontSize: "0.88rem",
     },
     postCard: {
-      background: "rgba(255,255,255,0.04)",
-      border: "1px solid rgba(255,255,255,0.08)",
+      background: "var(--card-bg)",
+      border: "1px solid var(--border)",
       borderRadius: 16,
       padding: "1.1rem 1.25rem",
       marginBottom: "0.85rem",
+      boxShadow: "var(--shadow)",
     },
     postHeader: { display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.65rem" },
     avatar: {
       width: 36, height: 36, borderRadius: "50%",
-      background: "rgba(255,255,255,0.1)",
+      background: "var(--bg-panel)",
+      border: "1px solid var(--border)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      color: "#9ca3af", fontWeight: 700, fontSize: "0.9rem", flexShrink: 0,
+      color: "var(--text-muted)", fontWeight: 700, fontSize: "0.9rem", flexShrink: 0,
     },
-    postUser: { fontWeight: 700, color: "#f9fafb", fontSize: "0.9rem" },
-    postTime: { color: "#6b7280", fontSize: "0.75rem" },
-    postBody: { color: "#d1d5db", lineHeight: 1.6, marginBottom: "0.8rem", fontSize: "0.9rem" },
+    postUser: { fontWeight: 700, color: "var(--text)", fontSize: "0.9rem" },
+    postTime: { color: "var(--text-dim)", fontSize: "0.75rem" },
+    postBody: { color: "var(--text-muted)", lineHeight: 1.6, marginBottom: "0.8rem", fontSize: "0.9rem" },
     postActions: { display: "flex", gap: "0.5rem", flexWrap: "wrap" },
     actionBtn: {
       display: "flex", alignItems: "center", gap: 5,
-      background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)",
-      color: "#9ca3af", borderRadius: 8, padding: "0.4rem 0.8rem",
+      background: "var(--bg-input)", border: "1px solid var(--border)",
+      color: "var(--text-muted)", borderRadius: 8, padding: "0.4rem 0.8rem",
       cursor: "pointer", fontSize: "0.8rem", fontWeight: 600,
     },
     actionBtnLiked: {
-      background: "rgba(239,68,68,0.15)", borderColor: "rgba(239,68,68,0.3)", color: "#f87171",
+      background: "rgba(239,68,68,0.12)", borderColor: "rgba(239,68,68,0.4)", color: "#dc2626",
     },
     adCard: {
-      background: "rgba(79,110,247,0.08)", border: "1px solid rgba(79,110,247,0.25)",
+      background: "var(--accent-bg)",
+      border: "1px solid var(--border)",
       borderRadius: 16, padding: "1.1rem", marginBottom: "0.85rem",
     },
   };
 
   const AD_CARD = (
     <div style={S.adCard}>
-      <div style={{ display: "inline-block", fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#818cf8", background: "rgba(79,110,247,0.15)", border: "1px solid rgba(79,110,247,0.3)", borderRadius: 6, padding: "0.15rem 0.5rem", marginBottom: "0.6rem" }}>
+      <div style={{ display: "inline-block", fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", background: "var(--accent-bg)", border: "1px solid var(--border)", borderRadius: 6, padding: "0.15rem 0.5rem", marginBottom: "0.6rem" }}>
         Betalt plassering
       </div>
-      <div style={{ color: "#f9fafb", fontWeight: 800, fontSize: "1rem", marginBottom: "0.3rem" }}>
+      <div style={{ color: "var(--text)", fontWeight: 800, fontSize: "1rem", marginBottom: "0.3rem" }}>
         Norlandia Hytter — Natur & Ro på Fjelltoppen
       </div>
-      <div style={{ color: "#9ca3af", fontSize: "0.85rem", lineHeight: 1.55, marginBottom: "0.75rem" }}>
+      <div style={{ color: "var(--text-muted)", fontSize: "0.85rem", lineHeight: 1.55, marginBottom: "0.75rem" }}>
         Eksklusive fjellhytter med panoramautsikt. Spar 15 % denne uken.
       </div>
-      <a href="/reserver" style={{ display: "inline-block", padding: "0.5rem 1.1rem", background: "#4f6ef7", color: "#fff", borderRadius: 7, textDecoration: "none", fontWeight: 700, fontSize: "0.8rem" }}>
+      <a href="/reserver" style={{ display: "inline-block", padding: "0.5rem 1.1rem", background: "var(--accent)", color: "#fff", borderRadius: 7, textDecoration: "none", fontWeight: 700, fontSize: "0.8rem" }}>
         Se pakker →
       </a>
     </div>
@@ -188,8 +191,8 @@ export default function SosialFeed({ embedded = false, currentUser: userProp = n
   };
 
   const guestPrompt = !currentUser && (
-    <div style={{ color: "#6b7280", textAlign: "center", padding: "2rem 0", fontSize: "0.9rem" }}>
-      <a href="/login" style={{ color: "#818cf8", fontWeight: 700, textDecoration: "none" }}>Logg inn</a> for å se og delta i forumet.
+    <div style={{ color: "var(--text-muted)", textAlign: "center", padding: "2rem 0", fontSize: "0.9rem" }}>
+      <a href="/login" style={{ color: "var(--accent)", fontWeight: 700, textDecoration: "none" }}>Logg inn</a> for å se og delta i forumet.
     </div>
   );
 

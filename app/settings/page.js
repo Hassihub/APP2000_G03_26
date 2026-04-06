@@ -16,7 +16,7 @@ function Toggle({ on, onToggle, disabled }) {
         width: "50px",
         height: "28px",
         borderRadius: "999px",
-        background: on ? "#111827" : "#d1d5db",
+        background: on ? "var(--accent)" : "var(--border)",
         position: "relative",
         cursor: disabled ? "not-allowed" : "pointer",
         transition: "background 0.25s",
@@ -49,16 +49,16 @@ function SettingRow({ icon, title, description, children }) {
         justifyContent: "space-between",
         alignItems: "center",
         padding: "1.25rem 1.5rem",
-        borderBottom: "1px solid #f3f4f6",
+        borderBottom: "1px solid var(--border)",
         gap: "1rem",
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: "0.85rem", flex: 1 }}>
-        <span style={{ color: "#6b7280", marginTop: "2px", flexShrink: 0 }}>{icon}</span>
+        <span style={{ color: "var(--text-muted)", marginTop: "2px", flexShrink: 0 }}>{icon}</span>
         <div>
-          <p style={{ margin: "0 0 0.2rem", fontWeight: 600, fontSize: "0.95rem", color: "#111827" }}>{title}</p>
+          <p style={{ margin: "0 0 0.2rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--text)" }}>{title}</p>
           {description && (
-            <p style={{ margin: 0, fontSize: "0.83rem", color: "#6b7280", lineHeight: 1.5 }}>{description}</p>
+            <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: 1.5 }}>{description}</p>
           )}
         </div>
       </div>
@@ -70,10 +70,10 @@ function SettingRow({ icon, title, description, children }) {
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: "2rem" }}>
-      <p style={{ margin: "0 0 0.6rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#9ca3af" }}>
+      <p style={{ margin: "0 0 0.6rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>
         {title}
       </p>
-      <div style={{ background: "#fff", borderRadius: "10px", border: "1px solid #e5e7eb", overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}>
+      <div style={{ background: "var(--bg-panel)", borderRadius: 4, border: "1px solid var(--border)", overflow: "hidden" }}>
         {children}
       </div>
     </div>
@@ -197,7 +197,7 @@ export default function Settings() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#f4f6f8",
+        background: "var(--bg)",
         fontFamily: "Poppins, sans-serif",
         padding: "2.5rem 2rem",
       }}
@@ -206,26 +206,26 @@ export default function Settings() {
 
         {/* Header */}
         <div style={{ marginBottom: "2rem" }}>
-          <p style={{ margin: "0 0 0.3rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#9ca3af" }}>
+          <p style={{ margin: "0 0 0.3rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>
             Konto
           </p>
-          <h1 style={{ margin: "0 0 0.4rem", fontSize: "2rem", fontWeight: 800, color: "#111827", letterSpacing: "-0.03em" }}>
+          <h1 style={{ margin: "0 0 0.4rem", fontSize: "2rem", fontWeight: 800, color: "var(--text)", letterSpacing: "-0.03em" }}>
             Innstillinger
           </h1>
-          <p style={{ margin: 0, color: "#6b7280", fontSize: "0.95rem" }}>
+          <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "0.95rem" }}>
             Tilpass FrittFram etter dine preferanser
           </p>
         </div>
 
         {/* Saved toast */}
         {saved && (
-          <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "0.7rem 1.2rem", marginBottom: "1.5rem", fontSize: "0.88rem", color: "#15803d", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <div style={{ background: "#132a1e", border: "1px solid #166534", borderRadius: 4, padding: "0.7rem 1.2rem", marginBottom: "1.5rem", fontSize: "0.88rem", color: "#4ade80", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
             ✅ Lagret
           </div>
         )}
 
         {loading ? (
-          <p style={{ color: "#9ca3af", textAlign: "center", padding: "3rem" }}>Laster innstillinger...</p>
+          <p style={{ color: "var(--text-muted)", textAlign: "center", padding: "3rem" }}>Laster innstillinger...</p>
         ) : (
           <>
             {/* ── Varslinger ── */}
@@ -250,10 +250,10 @@ export default function Settings() {
             <Section title="Utseende">
               <div style={{ padding: "1.25rem 1.5rem" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "0.85rem", marginBottom: "1rem" }}>
-                  <span style={{ color: "#6b7280", marginTop: "2px" }}><FiSun size={18} /></span>
+                  <span style={{ color: "var(--text-muted)", marginTop: "2px" }}><FiSun size={18} /></span>
                   <div>
-                    <p style={{ margin: "0 0 0.2rem", fontWeight: 600, fontSize: "0.95rem", color: "#111827" }}>Tema</p>
-                    <p style={{ margin: 0, fontSize: "0.83rem", color: "#6b7280" }}>Velg farge- og designpreferanse</p>
+                    <p style={{ margin: "0 0 0.2rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--text)" }}>Tema</p>
+                    <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)" }}>Velg farge- og designpreferanse</p>
                   </div>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem" }}>
@@ -264,9 +264,9 @@ export default function Settings() {
                       style={{
                         padding: "0.75rem 0.5rem",
                         borderRadius: "8px",
-                        border: theme === key ? "2px solid #111827" : "1px solid #e5e7eb",
-                        background: theme === key ? "#111827" : "#f9fafb",
-                        color: theme === key ? "#fff" : "#374151",
+                        border: theme === key ? "2px solid var(--accent)" : "1px solid var(--border)",
+                        background: theme === key ? "var(--bg-panel)" : "var(--bg)",
+                        color: theme === key ? "var(--text)" : "var(--text-muted)",
                         cursor: "pointer",
                         fontFamily: "inherit",
                         fontWeight: theme === key ? 700 : 500,
@@ -288,12 +288,12 @@ export default function Settings() {
 
             {/* ── Søk & kart ── */}
             <Section title="Søk og kart">
-              <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #f3f4f6" }}>
+              <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #1e2539" }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "0.85rem", marginBottom: "1rem" }}>
                   <span style={{ color: "#6b7280", marginTop: "2px" }}><FiMap size={18} /></span>
                   <div>
-                    <p style={{ margin: "0 0 0.2rem", fontWeight: 600, fontSize: "0.95rem", color: "#111827" }}>Søkeradius</p>
-                    <p style={{ margin: 0, fontSize: "0.83rem", color: "#6b7280" }}>
+                    <p style={{ margin: "0 0 0.2rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--text)" }}>Søkeradius</p>
+                    <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)" }}>
                       Vis turer innenfor <strong>{radius} km</strong> fra hjemsted
                     </p>
                   </div>
@@ -308,9 +308,9 @@ export default function Settings() {
                     onChange={(e) => setRadius(Number(e.target.value))}
                     onMouseUp={(e) => handleRadiusSave(Number(e.target.value))}
                     onTouchEnd={(e) => handleRadiusSave(Number(e.target.value))}
-                    style={{ flex: 1, accentColor: "#111827" }}
+                    style={{ flex: 1, accentColor: "#6675ff" }}
                   />
-                  <span style={{ minWidth: "60px", fontWeight: 700, fontSize: "1rem", color: "#111827", textAlign: "right" }}>
+                  <span style={{ minWidth: "60px", fontWeight: 700, fontSize: "1rem", color: "var(--text)", textAlign: "right" }}>
                     {radius} km
                   </span>
                 </div>
@@ -338,7 +338,7 @@ export default function Settings() {
                 title="To-faktor autentisering"
                 description="Konto er ikke satt opp med 2FA"
               >
-                <span style={{ fontSize: "0.78rem", color: "#9ca3af", fontWeight: 600 }}>Kommer snart</span>
+                <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600 }}>Kommer snart</span>
               </SettingRow>
             </Section>
           </>

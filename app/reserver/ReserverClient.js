@@ -84,14 +84,14 @@ export default function CabinsPage() {
   }, [selectedCabin]);
 
   return (
-    <div style={{ background: "#0d1117", minHeight: "100vh", color: "#f9fafb", fontFamily: "'Inter','Poppins',sans-serif" }}>
+    <div style={{ background: "var(--bg)", minHeight: "100vh", color: "var(--text)", fontFamily: "'Inter','Poppins',sans-serif" }}>
 
       {/* Page header */}
-      <div style={{ background: "linear-gradient(160deg,#0f1117 0%,#1a2035 100%)", padding: "3rem 2rem 2.5rem", borderBottom: "1px solid #1e2539" }}>
+      <div style={{ background: "var(--bg-panel)", padding: "3rem 2rem 2.5rem", borderBottom: "1px solid var(--border)" }}>
         <div style={{ maxWidth: 1160, margin: "0 auto" }}>
-          <p style={{ margin: "0 0 0.4rem", fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "#4b5563" }}>Hytter</p>
+          <p style={{ margin: "0 0 0.4rem", fontSize: "0.68rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "var(--text-muted)" }}>Hytter</p>
           <h1 style={{ margin: "0 0 0.5rem", fontSize: "clamp(1.6rem,4vw,2.4rem)", fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1.1 }}>Reserver hytte</h1>
-          <p style={{ margin: 0, fontSize: "0.9rem", color: "#6b7280" }}>
+          <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-muted)" }}>
             {loading ? t.loadingCabins : errorMsg ? errorMsg : formatTranslation(t.availableCabins, { count: cabins.length })}
           </p>
         </div>
@@ -101,14 +101,14 @@ export default function CabinsPage() {
       <div style={{ maxWidth: 1160, margin: "0 auto", padding: "2rem 2rem 6rem", display: "grid", gridTemplateColumns: "280px 1fr", gap: "1.5rem", alignItems: "start" }}>
 
         {/* LEFT — list */}
-        <div style={{ background: "#111827", border: "1px solid #1e2539", borderRadius: 4, overflow: "hidden", position: "sticky", top: 80 }}>
-          <div style={{ padding: "1rem 1rem 0.5rem", borderBottom: "1px solid #1e2539" }}>
-            <p style={{ margin: 0, fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#4b5563" }}>{t.selectCabin}</p>
+        <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, overflow: "hidden", position: "sticky", top: 80 }}>
+          <div style={{ padding: "1rem 1rem 0.5rem", borderBottom: "1px solid var(--border)" }}>
+            <p style={{ margin: 0, fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--text-muted)" }}>{t.selectCabin}</p>
           </div>
 
           <div>
             {!loading && !errorMsg && cabins.length === 0 ? (
-              <div style={{ padding: "2rem", color: "#4b5563", fontSize: "0.88rem", textAlign: "center" }}>{t.noCabins}</div>
+              <div style={{ padding: "2rem", color: "var(--text-muted)", fontSize: "0.88rem", textAlign: "center" }}>{t.noCabins}</div>
             ) : null}
 
             {cabins.map((cabin) => {
@@ -121,17 +121,17 @@ export default function CabinsPage() {
                   style={{
                     display: "block", width: "100%", textAlign: "left",
                     padding: "0.9rem 1rem", background: "transparent",
-                    borderTop: "none", borderRight: "none", borderBottom: "1px solid #1e2539",
-                    borderLeft: isActive ? "3px solid #4f6ef7" : "3px solid transparent",
-                    color: isActive ? "#f9fafb" : "#9ca3af", cursor: "pointer",
+                    borderTop: "none", borderRight: "none", borderBottom: "1px solid var(--border)",
+                    borderLeft: isActive ? "3px solid var(--accent)" : "3px solid transparent",
+                    color: isActive ? "var(--text)" : "var(--text-muted)", cursor: "pointer",
                     fontFamily: "inherit",
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "0.5rem", marginBottom: "0.2rem" }}>
-                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: isActive ? "#f9fafb" : "#d1d5db" }}>{cabin.name}</span>
-                    <span style={{ fontWeight: 800, fontSize: "0.8rem", color: "#f9fafb", whiteSpace: "nowrap" }}>{cabin.price_per_night} kr</span>
+                    <span style={{ fontWeight: 700, fontSize: "0.88rem", color: isActive ? "var(--text)" : "var(--text-muted)" }}>{cabin.name}</span>
+                    <span style={{ fontWeight: 800, fontSize: "0.8rem", color: "var(--text)", whiteSpace: "nowrap" }}>{cabin.price_per_night} kr</span>
                   </div>
-                  <div style={{ fontSize: "0.75rem", color: "#4b5563" }}>{cabin.location} &middot; {cabin.capacity} {t.people}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{cabin.location} &middot; {cabin.capacity} {t.people}</div>
                 </button>
               );
             })}
@@ -140,7 +140,7 @@ export default function CabinsPage() {
           <div style={{ padding: "0.85rem 1rem" }}>
             <Link
               href="/reserver/ny"
-              style={{ display: "block", padding: "0.7rem", background: "#0d1117", border: "1px solid #1e2539", borderRadius: 4, color: "#9ca3af", textDecoration: "none", fontWeight: 700, fontSize: "0.8rem", textAlign: "center", letterSpacing: "0.02em" }}
+              style={{ display: "block", padding: "0.7rem", background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text-muted)", textDecoration: "none", fontWeight: 700, fontSize: "0.8rem", textAlign: "center", letterSpacing: "0.02em" }}
             >
               + {t.addCabin}
             </Link>
@@ -149,44 +149,44 @@ export default function CabinsPage() {
 
         {/* RIGHT — detail */}
         {selectedCabin ? (
-          <div style={{ background: "#111827", border: "1px solid #1e2539", borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, overflow: "hidden" }}>
 
             {/* Hero image */}
-            <div style={{ height: 260, position: "relative", background: "#0d1117" }}>
+            <div style={{ height: 260, position: "relative", background: "var(--bg)" }}>
               <img
                 src="/images/hytte.jpg"
                 alt={selectedCabin.name}
                 style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.5 }}
               />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, #111827 100%)" }} />
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, var(--bg-panel) 100%)" }} />
               <div style={{ position: "absolute", bottom: "1.5rem", left: "1.75rem", right: "1.75rem" }}>
-                <p style={{ margin: "0 0 0.2rem", fontSize: "0.62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#6b7280" }}>{t.location}: {selectedCabin.location}</p>
-                <h2 style={{ margin: 0, fontSize: "clamp(1.4rem,3vw,2rem)", fontWeight: 900, color: "#f9fafb", letterSpacing: "-0.04em", lineHeight: 1.1 }}>{selectedCabin.name}</h2>
+                <p style={{ margin: "0 0 0.2rem", fontSize: "0.62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--text-muted)" }}>{t.location}: {selectedCabin.location}</p>
+                <h2 style={{ margin: 0, fontSize: "clamp(1.4rem,3vw,2rem)", fontWeight: 900, color: "var(--text)", letterSpacing: "-0.04em", lineHeight: 1.1 }}>{selectedCabin.name}</h2>
               </div>
             </div>
 
             {/* Info rows */}
-            <div style={{ borderBottom: "1px solid #1e2539" }}>
+            <div style={{ borderBottom: "1px solid var(--border)" }}>
               {[
                 { label: "Kapasitet", value: `${selectedCabin.capacity} personer` },
                 { label: "Pris", value: `${selectedCabin.price_per_night} kr / natt` },
                 { label: "Sted", value: selectedCabin.location },
                 ...(selectedCabin.description ? [{ label: "Beskrivelse", value: selectedCabin.description }] : []),
               ].map(({ label, value }) => (
-                <div key={label} style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: "1rem", padding: "0.9rem 1.75rem", borderBottom: "1px solid #1e2539" }}>
-                  <span style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#4b5563", paddingTop: "0.1rem" }}>{label}</span>
-                  <span style={{ fontSize: "0.9rem", color: "#d1d5db", lineHeight: 1.6 }}>{value}</span>
+                <div key={label} style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: "1rem", padding: "0.9rem 1.75rem", borderBottom: "1px solid var(--border)" }}>
+                  <span style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", paddingTop: "0.1rem" }}>{label}</span>
+                  <span style={{ fontSize: "0.9rem", color: "var(--text)", lineHeight: 1.6 }}>{value}</span>
                 </div>
               ))}
             </div>
 
             {/* Amenities */}
             {selectedCabin.amenities?.length > 0 && (
-              <div style={{ padding: "1.1rem 1.75rem", borderBottom: "1px solid #1e2539" }}>
-                <p style={{ margin: "0 0 0.65rem", fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#4b5563" }}>Fasiliteter</p>
+              <div style={{ padding: "1.1rem 1.75rem", borderBottom: "1px solid var(--border)" }}>
+                <p style={{ margin: "0 0 0.65rem", fontSize: "0.65rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>Fasiliteter</p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
                   {selectedCabin.amenities.map((a) => (
-                    <span key={a} style={{ padding: "0.25rem 0.75rem", background: "#0d1117", border: "1px solid #1e2539", borderRadius: 4, fontSize: "0.78rem", color: "#9ca3af", fontWeight: 600 }}>{a}</span>
+                    <span key={a} style={{ padding: "0.25rem 0.75rem", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 4, fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600 }}>{a}</span>
                   ))}
                 </div>
               </div>
@@ -197,14 +197,14 @@ export default function CabinsPage() {
               {bookingHref && (
                 <Link
                   href={bookingHref}
-                  style={{ flex: "1 1 160px", display: "block", padding: "0.9rem 1.5rem", background: "#fff", color: "#111827", borderRadius: 4, textDecoration: "none", fontWeight: 800, fontSize: "0.88rem", textAlign: "center", letterSpacing: "0.02em" }}
+                  style={{ flex: "1 1 160px", display: "block", padding: "0.9rem 1.5rem", background: "var(--accent)", color: "#fff", borderRadius: 4, textDecoration: "none", fontWeight: 800, fontSize: "0.88rem", textAlign: "center", letterSpacing: "0.02em" }}
                 >
                   {t.reserveCabin} →
                 </Link>
               )}
               <Link
                 href="/reserver/ny"
-                style={{ flex: "1 1 130px", display: "block", padding: "0.9rem 1.5rem", background: "transparent", color: "#6b7280", border: "1px solid #1e2539", borderRadius: 4, textDecoration: "none", fontWeight: 700, fontSize: "0.88rem", textAlign: "center" }}
+                style={{ flex: "1 1 130px", display: "block", padding: "0.9rem 1.5rem", background: "transparent", color: "var(--text-muted)", border: "1px solid var(--border)", borderRadius: 4, textDecoration: "none", fontWeight: 700, fontSize: "0.88rem", textAlign: "center" }}
               >
                 {t.addCabin}
               </Link>
@@ -212,7 +212,7 @@ export default function CabinsPage() {
 
           </div>
         ) : (
-          <div style={{ background: "#111827", border: "1px solid #1e2539", borderRadius: 4, padding: "4rem 2rem", color: "#4b5563", textAlign: "center", fontSize: "0.9rem" }}>
+          <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "4rem 2rem", color: "var(--text-muted)", textAlign: "center", fontSize: "0.9rem" }}>
             {loading ? t.loading : errorMsg ? t.loadError : t.selectPrompt}
           </div>
         )}

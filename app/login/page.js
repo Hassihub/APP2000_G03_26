@@ -84,44 +84,45 @@ export default function LoginPage() {
         display: "grid",
         placeItems: "center",
         padding: "2rem",
-        background:
-          "linear-gradient(135deg, rgba(17,24,39,1) 0%, rgba(32,78,59,1) 100%)",
+        background: "var(--bg)",
+        fontFamily: "'Inter','Poppins',sans-serif",
       }}
     >
       <section
         style={{
           width: "100%",
-          maxWidth: "430px",
-          padding: "2rem",
-          borderRadius: "20px",
-          background: "rgba(255,255,255,0.96)",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.22)",
+          maxWidth: "420px",
+          padding: "2.5rem 2rem",
+          borderRadius: 4,
+          background: "var(--bg-panel)",
+          border: "1px solid var(--border)",
         }}
       >
         <p
           style={{
-            margin: 0,
-            fontSize: "0.8rem",
+            margin: "0 0 0.4rem",
+            fontSize: "0.68rem",
             textTransform: "uppercase",
-            letterSpacing: "0.12em",
-            color: "#4b6356",
+            letterSpacing: "0.14em",
+            color: "#6675ff",
+            fontWeight: 700,
           }}
         >
           {t.eyebrow}
         </p>
-        <h1 style={{ margin: "0.5rem 0 0.75rem", color: "#10261b" }}>
+        <h1 style={{ margin: "0 0 0.4rem", color: "var(--text)", fontSize: "1.8rem", fontWeight: 900, letterSpacing: "-0.03em" }}>
           {t.title}
         </h1>
-        <p style={{ marginTop: 0, color: "#587062", lineHeight: 1.5 }}>
+        <p style={{ marginTop: 0, marginBottom: "1.75rem", color: "#6b7280", lineHeight: 1.5, fontSize: "0.9rem" }}>
           {t.subtitle}
         </p>
 
         {checkingAuth ? (
-          <p style={{ color: "#3b5246" }}>{t.checking}</p>
+          <p style={{ color: "var(--text-muted)" }}>{t.checking}</p>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
             <label style={{ display: "grid", gap: "0.35rem" }}>
-              <span style={{ color: "#163324", fontWeight: 600 }}>{t.email}</span>
+              <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.email}</span>
               <input
                 type="email"
                 value={formData.email}
@@ -135,7 +136,7 @@ export default function LoginPage() {
             </label>
 
             <label style={{ display: "grid", gap: "0.35rem" }}>
-              <span style={{ color: "#163324", fontWeight: 600 }}>{t.password}</span>
+              <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.password}</span>
               <input
                 type="password"
                 value={formData.password}
@@ -152,7 +153,7 @@ export default function LoginPage() {
             </label>
 
             {error ? (
-              <p style={{ margin: 0, color: "#b42318", fontWeight: 500 }}>
+              <p style={{ margin: 0, color: "#f87171", fontWeight: 500, fontSize: "0.87rem" }}>
                 {error}
               </p>
             ) : null}
@@ -161,13 +162,16 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               style={{
-                padding: "0.95rem 1rem",
-                borderRadius: "12px",
+                padding: "0.9rem 1rem",
+                borderRadius: 4,
                 border: "none",
-                background: "#163324",
+                background: "var(--accent)",
                 color: "#fff",
-                fontWeight: 700,
+                fontWeight: 800,
+                fontSize: "0.95rem",
                 cursor: loading ? "wait" : "pointer",
+                letterSpacing: "0.02em",
+                marginTop: "0.25rem",
               }}
             >
               {loading ? t.submitting : t.submit}
@@ -175,8 +179,8 @@ export default function LoginPage() {
           </form>
         )}
 
-        <p style={{ margin: "1rem 0 0", color: "#587062" }}>
-          {t.noAccount} <Link href="/signup">{t.signUp}</Link>
+        <p style={{ margin: "1.25rem 0 0", color: "var(--text-muted)", fontSize: "0.87rem" }}>
+          {t.noAccount} <Link href="/signup" style={{ color: "#6675ff", fontWeight: 700, textDecoration: "none" }}>{t.signUp}</Link>
         </p>
       </section>
     </main>
@@ -185,9 +189,13 @@ export default function LoginPage() {
 
 const inputStyle = {
   width: "100%",
-  padding: "0.85rem 0.9rem",
-  borderRadius: "12px",
-  border: "1px solid #c7d7cd",
-  fontSize: "1rem",
+  padding: "0.75rem 0.9rem",
+  borderRadius: 4,
+  border: "1px solid var(--border)",
+  fontSize: "0.95rem",
   boxSizing: "border-box",
+  background: "var(--bg-input)",
+  color: "var(--text)",
+  outline: "none",
+  fontFamily: "inherit",
 };

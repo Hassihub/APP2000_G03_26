@@ -1,13 +1,15 @@
-/* Hovedcontainer */
+﻿/* ── Explore Module — uses CSS custom properties from globals.css ── */
+
 .container {
   padding: 32px;
   max-width: 1400px;
   margin: 0 auto;
   font-family: sans-serif;
-  color: #111827;
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100vh;
 }
 
-/* Header */
 .header {
   margin-bottom: 24px;
 }
@@ -16,14 +18,14 @@
   font-size: 2.5rem;
   margin-bottom: 8px;
   font-weight: 700;
+  color: var(--text);
 }
 
 .subheading {
-  color: #555;
+  color: var(--text-muted);
   font-size: 1.1rem;
 }
 
-/* Filters */
 .filters {
   display: flex;
   gap: 12px;
@@ -35,79 +37,79 @@
   flex: 1;
   padding: 12px;
   font-size: 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text);
+  outline: none;
 }
 
 .select {
   padding: 12px;
   font-size: 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background: white;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text);
   cursor: pointer;
 }
 
-/* Kart-seksjon (placeholder) */
 .mapSection {
   margin-bottom: 32px;
 }
 
 .map {
   height: 350px;
-  background: #e5e7eb;
+  background: var(--bg-panel);
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  color: #555;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
   font-weight: 500;
 }
 
-/* Resultater */
 .results h2 {
   margin-bottom: 16px;
   font-size: 1.8rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
 }
 
-/* Grid for kortene */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
 
-/* Kortene */
 .card {
-  background: white;
-  border-radius: 10px;
+  background: var(--bg-panel);
+  border-radius: 4px;
+  border: 1px solid var(--border);
   overflow: hidden;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--shadow);
 }
 
 .card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px var(--accent-bg);
 }
 
-/* Bilde/placeholder for kort */
 .imagePlaceholder {
   height: 160px;
-  background: linear-gradient(135deg, #c7d2fe, #a7f3d0);
+  background: linear-gradient(135deg, var(--bg) 0%, var(--border) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1rem;
-  color: #fff;
+  color: var(--text-muted);
   font-weight: 500;
 }
 
-/* Innhold i kort */
 .cardContent {
   padding: 16px;
   display: flex;
@@ -119,44 +121,42 @@
   margin: 0;
   font-size: 1.2rem;
   font-weight: 600;
+  color: var(--text);
 }
 
 .location {
-  color: #666;
+  color: var(--text-muted);
   font-size: 0.9rem;
   margin-top: 4px;
 }
 
-/* Meta-informasjon (distance/difficulty/beds) */
 .meta {
   display: flex;
   justify-content: space-between;
   margin: 12px 0;
   font-size: 0.9rem;
-  color: #444;
+  color: var(--text-muted);
 }
 
-/* Button */
 .button {
   padding: 10px;
   border: none;
-  background: #065f46;
-  color: white;
-  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 4px;
   cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s ease;
+  font-weight: 700;
+  transition: opacity 0.2s ease;
   margin-top: auto;
 }
 
 .button:hover {
-  background: #047857;
+  opacity: 0.88;
 }
 
-/* Ekstra styling for CABINS om Ã¸nskelig */
 .cabinBeds {
   font-size: 0.9rem;
-  color: #444;
+  color: var(--text-muted);
 }
 
 .checkbox {
@@ -165,8 +165,9 @@
   gap: 6px;
   font-size: 0.95rem;
   cursor: pointer;
-  color: #111827;
+  color: var(--text-muted);
 }
+
 .headerRow {
   display: flex;
   align-items: flex-start;
@@ -178,23 +179,22 @@
 .createButton {
   padding: 10px 14px;
   border: none;
-  background: #111827;
-  color: white;
-  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 4px;
   cursor: pointer;
-  font-weight: 600;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  font-weight: 700;
+  transition: opacity 0.15s ease;
   white-space: nowrap;
 }
 .createButton:hover {
-  transform: translateY(-1px);
-  opacity: 0.95;
+  opacity: 0.88;
 }
 
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(17, 24, 39, 0.55);
+  background: rgba(0,0,0,0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -205,8 +205,9 @@
 .modal {
   width: 100%;
   max-width: 560px;
-  background: white;
-  border-radius: 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
   box-shadow: 0 18px 50px rgba(0,0,0,0.25);
   overflow: hidden;
 }
@@ -216,7 +217,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 16px 10px 16px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border);
 }
 
 .iconButton {
@@ -226,10 +227,11 @@
   font-size: 18px;
   line-height: 1;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: 4px;
+  color: var(--text-muted);
 }
 .iconButton:hover {
-  background: #f3f4f6;
+  background: var(--border);
 }
 
 .form {
@@ -245,7 +247,7 @@
 }
 
 .field span {
-  color: #374151;
+  color: var(--text-muted);
   font-weight: 600;
 }
 
@@ -253,9 +255,12 @@
 .field textarea,
 .field select {
   padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
   font-size: 1rem;
+  background: var(--bg-input);
+  color: var(--text);
+  outline: none;
 }
 
 .row {
@@ -273,9 +278,10 @@
 
 .secondaryButton {
   padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  background: white;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  border-radius: 4px;
   cursor: pointer;
   font-weight: 600;
 }
@@ -283,319 +289,22 @@
 .primaryButton {
   padding: 10px 12px;
   border: none;
-  background: #065f46;
-  color: white;
-  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 4px;
   cursor: pointer;
   font-weight: 700;
 }
 
 .primaryButton:disabled {
-  opacity: 0.7;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .error {
   color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: rgba(185,28,28,0.08);
+  border: 1px solid rgba(185,28,28,0.3);
   padding: 10px 12px;
-  border-radius: 10px;
-}
-
-.headerRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.createButton {
-  padding: 10px 14px;
-  border: none;
-  background: #111827;
-  color: white;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: transform 0.15s ease, opacity 0.15s ease;
-  white-space: nowrap;
-}
-
-.createButton:hover {
-  transform: translateY(-1px);
-  opacity: 0.95;
-}
-
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(17, 24, 39, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  z-index: 50;
-}
-
-.modal {
-  width: 100%;
-  max-width: 600px;
-  background: white;
-  border-radius: 14px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
-  overflow: hidden;
-}
-
-.modalHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 16px 10px 16px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.iconButton {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  padding: 6px 8px;
-  border-radius: 8px;
-}
-
-.iconButton:hover {
-  background: #f3f4f6;
-}
-
-.form {
-  padding: 16px;
-  display: grid;
-  gap: 12px;
-}
-
-.field {
-  display: grid;
-  gap: 6px;
-  font-size: 0.95rem;
-}
-
-.field span {
-  color: #374151;
-  font-weight: 600;
-}
-
-.field input,
-.field textarea,
-.field select {
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 1rem;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 6px;
-}
-
-.secondaryButton {
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  background: white;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.primaryButton {
-  padding: 10px 12px;
-  border: none;
-  background: #065f46;
-  color: white;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.primaryButton:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.error {
-  color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  padding: 10px 12px;
-  border-radius: 10px;
-}
-
-.tiuBadge {
-  color: #047857;
-  font-weight: 600;
-  margin-bottom: 10px;
-  display: inline-block;
-}
-
-.headerRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.createButton {
-  padding: 10px 14px;
-  border: none;
-  background: #111827;
-  color: white;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: transform 0.15s ease, opacity 0.15s ease;
-  white-space: nowrap;
-}
-
-.createButton:hover {
-  transform: translateY(-1px);
-  opacity: 0.95;
-}
-
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(17, 24, 39, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  z-index: 50;
-}
-
-.modal {
-  width: 100%;
-  max-width: 600px;
-  background: white;
-  border-radius: 14px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
-  overflow: hidden;
-}
-
-.modalHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 16px 10px 16px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.iconButton {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  padding: 6px 8px;
-  border-radius: 8px;
-}
-
-.iconButton:hover {
-  background: #f3f4f6;
-}
-
-.form {
-  padding: 16px;
-  display: grid;
-  gap: 12px;
-}
-
-.field {
-  display: grid;
-  gap: 6px;
-  font-size: 0.95rem;
-}
-
-.field span {
-  color: #374151;
-  font-weight: 600;
-}
-
-.field input,
-.field textarea,
-.field select {
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 1rem;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 6px;
-}
-
-.secondaryButton {
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  background: white;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.primaryButton {
-  padding: 10px 12px;
-  border: none;
-  background: #065f46;
-  color: white;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.primaryButton:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.error {
-  color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  padding: 10px 12px;
-  border-radius: 10px;
-}
-
-.tiuBadge {
-  color: #047857;
-  font-weight: 600;
-  margin-bottom: 10px;
-  display: inline-block;
-}
-
-.tripImage {
-  width: 100%;
-  height: 160px;
-  object-fit: cover;
-  display: block;
+  border-radius: 4px;
 }
