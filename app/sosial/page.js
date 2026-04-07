@@ -58,6 +58,8 @@ export default function SosialPage() {
   const [caption,       setCaption]       = useState("");
   const [likedPosts,    setLikedPosts]    = useState(new Set());
   const [followedUsers, setFollowedUsers] = useState(new Set());
+  const [followers,     setFollowers]     = useState(new Set());
+  const [savedPosts,    setSavedPosts]    = useState(new Set());
   const [commentStates, setCommentStates] = useState({});
   const [activeTab,     setActiveTab]     = useState("feed");
   const [loading,       setLoading]       = useState(true);
@@ -116,14 +118,27 @@ export default function SosialPage() {
   /* ── follows ── */
   const loadFollows = useCallback(async (userId) => {
     const res  = await fetch(`/api/sosial/follows?userId=${userId}`);
-    const data = await res.json().catch(() => ({ following: [] }));
+    const data = await res.json().catch(() => ({ following: [], followers: [] }));
     setFollowedUsers(new Set((data.following ?? []).map(String)));
+    setFollowers(new Set((data.followers ?? []).map(String)));
   }, []);
 
   useEffect(() => {
     if (!currentUser?.id) return;
     loadFollows(currentUser.id);
   }, [currentUser, loadFollows]);
+
+  /* ── saved posts ── */
+  const loadSavedPosts = useCallback(async (userId) => {
+    const res  = await fetch(`/api/sosial/saves?userId=${userId}`);
+    const data = await res.json().catch(() => []);
+    setSavedPosts(new Set(Array.isArray(data) ? data.map(String) : []));
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    loadSavedPosts(currentUser.id);
+  }, [currentUser, loadSavedPosts]);
 
   /* ── actions ── */
   async function submitPost() {
@@ -164,6 +179,22 @@ export default function SosialPage() {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ followerId: currentUser.id, followingId: targetId }),
+    });
+    loadFollows(currentUser.id);
+  }
+
+  async function toggleSave(postid) {
+    if (!currentUser?.id) return;
+    const isSaved = savedPosts.has(String(postid));
+    setSavedPosts((prev) => {
+      const next = new Set(prev);
+      isSaved ? next.delete(String(postid)) : next.add(String(postid));
+      return next;
+    });
+    await fetch("/api/sosial/saves", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ userid: currentUser.id, postid }),
     });
   }
 
@@ -209,11 +240,157 @@ export default function SosialPage() {
 
   function sharePost(postid) {
     const url = `${window.location.origin}/sosial#post-${postid}`;
-    if (navigator.share) navigator.share({ url });
-    else navigator.clipboard.writeText(url).catch(() => {});
+    if (navigator.share) {
+      navigator.share({ title: "Del innlegg", url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => alert("Lenke kopiert!")).catch(() => {});
+    }
   }
 
-  const otherUsers = users.filter((u) => String(u.id) !== String(currentUser?.id));
+  const otherUsers     = users.filter((u) => String(u.id) !== String(currentUser?.id));
+  const friendIds      = new Set([...followedUsers, String(currentUser?.id ?? "")]);
+  const feedPosts      = posts.filter((p) => friendIds.has(String(p.userid)));
+  const savedPostsList = posts.filter((p) => savedPosts.has(String(p.postid)));
+  const followingUsers = users.filter((u) => followedUsers.has(String(u.id)));
+  const followerUsers  = users.filter((u) => followers.has(String(u.id)));
+
+  /* ── post card renderer ── */
+  function renderPostCard(p, idx, showAd = true) {
+    const liked     = likedPosts.has(p.postid);
+    const saved     = savedPosts.has(String(p.postid));
+    const name      = p.username ?? "Anonym";
+    const cs        = getCommentState(p.postid);
+    const avatarSrc = userAvatars[String(p.userid)] || null;
+    return (
+      <div key={p.postid}>
+        {showAd && idx > 0 && idx % 4 === 0 && (
+          <div style={{
+            background: "var(--bg-panel)", border: "1px solid var(--border)",
+            borderLeft: "3px solid var(--accent)", borderRadius: 4,
+            padding: "1rem 1.25rem", marginBottom: "0.85rem",
+          }}>
+            <div style={{ fontSize: "0.62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--accent)", marginBottom: "0.35rem" }}>Sponset</div>
+            <div style={{ fontWeight: 800, fontSize: "0.92rem", marginBottom: "0.25rem" }}>Norlandia Hytter — Natur &amp; Ro på Fjelltoppen</div>
+            <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: "0.6rem" }}>Eksklusive fjellhytter med panoramautsikt. Spar 15 % denne uken.</div>
+            <a href="/reserver" style={{ display: "inline-block", padding: "0.4rem 1rem", background: "var(--accent)", color: "#fff", borderRadius: 4, textDecoration: "none", fontWeight: 700, fontSize: "0.78rem" }}>Se pakker →</a>
+          </div>
+        )}
+        <div id={`post-${p.postid}`} style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, marginBottom: "0.85rem", overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "1rem 1.25rem 0.6rem" }}>
+            <UserAvatar src={avatarSrc} username={name} size={40} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>{name}</div>
+              <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{relTime(p.timestamp)}</div>
+            </div>
+            {currentUser && String(p.userid) !== String(currentUser.id) && (
+              <button
+                onClick={() => toggleFollow(p.userid)}
+                style={{
+                  padding: "0.3rem 0.75rem",
+                  background: followedUsers.has(String(p.userid)) ? "var(--accent)" : "transparent",
+                  border: "1px solid var(--accent)", borderRadius: 4,
+                  color: followedUsers.has(String(p.userid)) ? "#fff" : "var(--accent)",
+                  fontSize: "0.73rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                {followedUsers.has(String(p.userid)) ? "Følger ✓" : "Følg"}
+              </button>
+            )}
+          </div>
+          <div style={{ padding: "0 1.25rem 0.85rem", fontSize: "0.92rem", color: "var(--text)", lineHeight: 1.7 }}>
+            {p.caption}
+          </div>
+          {(p.likes > 0 || p.comment_count > 0) && (
+            <div style={{ padding: "0 1.25rem 0.4rem", fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", gap: "1rem" }}>
+              {p.likes > 0 && <span>{p.likes} liker dette</span>}
+              {p.comment_count > 0 && (
+                <button
+                  onClick={() => toggleComments(p.postid)}
+                  style={{ background: "none", border: "none", padding: 0, color: "var(--text-muted)", fontSize: "0.75rem", cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  {p.comment_count} kommentar{p.comment_count !== 1 ? "er" : ""}
+                </button>
+              )}
+            </div>
+          )}
+          <div style={{ height: 1, background: "var(--border)", margin: "0 1rem" }} />
+          <div style={{ display: "flex" }}>
+            <button
+              onClick={() => toggleLike(p.postid, liked)}
+              style={{ flex: 1, padding: "0.55rem", background: "transparent", border: "none", color: liked ? "#ef4444" : "var(--text-muted)", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer", fontFamily: "inherit" }}
+            >
+              {liked ? "❤️" : "🤍"} Liker
+            </button>
+            <button
+              onClick={() => toggleComments(p.postid)}
+              style={{ flex: 1, padding: "0.55rem", background: cs.open ? "var(--accent-bg)" : "transparent", border: "none", color: cs.open ? "var(--accent)" : "var(--text-muted)", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer", fontFamily: "inherit" }}
+            >
+              💬 {p.comment_count > 0 ? `${p.comment_count} ` : ""}Kommenter
+            </button>
+            <button
+              onClick={() => sharePost(p.postid)}
+              style={{ flex: 1, padding: "0.55rem", background: "transparent", border: "none", color: "var(--text-muted)", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer", fontFamily: "inherit" }}
+            >
+              ↗ Del
+            </button>
+            <button
+              onClick={() => toggleSave(p.postid)}
+              style={{ flex: 1, padding: "0.55rem", background: "transparent", border: "none", color: saved ? "var(--accent)" : "var(--text-muted)", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer", fontFamily: "inherit" }}
+            >
+              {saved ? "🔖" : "📌"} Lagre
+            </button>
+          </div>
+          {cs.open && (
+            <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg)", padding: "0.75rem 1.25rem" }}>
+              {cs.loading && (
+                <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", paddingBottom: "0.5rem" }}>Laster kommentarer...</div>
+              )}
+              {!cs.loading && cs.comments.length === 0 && (
+                <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", paddingBottom: "0.6rem" }}>Ingen kommentarer ennå.</div>
+              )}
+              {cs.comments.map((c) => (
+                <div key={c.commentid} style={{ display: "flex", gap: "0.6rem", marginBottom: "0.6rem", alignItems: "flex-start" }}>
+                  <UserAvatar src={userAvatars[String(c.userid)] || null} username={c.username} size={28} />
+                  <div style={{ flex: 1, background: "var(--bg-panel)", borderRadius: 4, padding: "0.45rem 0.75rem" }}>
+                    <div style={{ fontWeight: 700, fontSize: "0.78rem" }}>{c.username || "Anonym"}</div>
+                    <div style={{ fontSize: "0.82rem", color: "var(--text)", marginTop: "0.1rem" }}>{c.content}</div>
+                    <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>{relTime(c.created_at)}</div>
+                  </div>
+                </div>
+              ))}
+              {currentUser && (
+                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.4rem", alignItems: "center" }}>
+                  <UserAvatar src={myAvatar} username={currentUser.username} size={28} />
+                  <input
+                    value={cs.text}
+                    onChange={(e) => setCommentField(p.postid, { text: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitComment(p.postid); } }}
+                    placeholder="Skriv en kommentar…"
+                    style={{
+                      flex: 1, background: "var(--bg-panel)", border: "1px solid var(--border)",
+                      borderRadius: 16, color: "var(--text)", fontSize: "0.82rem",
+                      padding: "0.4rem 0.85rem", outline: "none", fontFamily: "inherit",
+                    }}
+                  />
+                  <button
+                    onClick={() => submitComment(p.postid)}
+                    disabled={!cs.text.trim()}
+                    style={{
+                      padding: "0.4rem 0.9rem",
+                      background: cs.text.trim() ? "var(--accent)" : "var(--border)",
+                      color: cs.text.trim() ? "#fff" : "var(--text-muted)",
+                      border: "none", borderRadius: 16, fontWeight: 700, fontSize: "0.78rem",
+                      cursor: cs.text.trim() ? "pointer" : "default", fontFamily: "inherit",
+                    }}
+                  >Send</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   /* ════════════════════════ RENDER ════════════════════════ */
   return (
@@ -291,207 +468,213 @@ export default function SosialPage() {
           </div>
         </aside>
 
-        {/* ══════════ MAIN FEED ══════════ */}
+        {/* ══════════ MAIN CONTENT ══════════ */}
         <main style={{ minWidth: 0 }}>
 
-          {/* Composer */}
-          {currentUser && (
-            <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "1rem", marginBottom: "1rem" }}>
-              <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
-                <UserAvatar src={myAvatar} username={currentUser.username} size={38} />
-                <textarea
-                  value={caption}
-                  onChange={(e) => setCaption(e.target.value)}
-                  placeholder={`Hva tenker du på, ${currentUser.username || "deg"}?`}
-                  style={{
-                    flex: 1, background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4,
-                    color: "var(--text)", fontSize: "0.9rem", padding: "0.65rem 0.9rem",
-                    resize: "vertical", outline: "none", fontFamily: "inherit",
-                    minHeight: 72, boxSizing: "border-box",
-                  }}
-                />
+          {/* ── FEED TAB ── */}
+          {activeTab === "feed" && (
+            <>
+              {currentUser && (
+                <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "1rem", marginBottom: "1rem" }}>
+                  <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
+                    <UserAvatar src={myAvatar} username={currentUser.username} size={38} />
+                    <textarea
+                      value={caption}
+                      onChange={(e) => setCaption(e.target.value)}
+                      placeholder={`Hva tenker du på, ${currentUser.username || "deg"}?`}
+                      style={{
+                        flex: 1, background: "var(--bg-input)", border: "1px solid var(--border)", borderRadius: 4,
+                        color: "var(--text)", fontSize: "0.9rem", padding: "0.65rem 0.9rem",
+                        resize: "vertical", outline: "none", fontFamily: "inherit",
+                        minHeight: 72, boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginTop: "0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center", paddingLeft: "calc(38px + 0.75rem)" }}>
+                    <div style={{ display: "flex", gap: "0.4rem" }}>
+                      {["📷 Bilde", "📍 Sted", "🏔️ Tur"].map((lbl) => (
+                        <button key={lbl} style={{
+                          padding: "0.3rem 0.65rem", background: "var(--bg)", border: "1px solid var(--border)",
+                          borderRadius: 4, color: "var(--text-muted)", fontSize: "0.73rem", fontWeight: 600,
+                          cursor: "pointer", fontFamily: "inherit",
+                        }}>{lbl}</button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={submitPost}
+                      disabled={!caption.trim()}
+                      style={{
+                        padding: "0.5rem 1.25rem",
+                        background: caption.trim() ? "var(--accent)" : "var(--border)",
+                        color: caption.trim() ? "#fff" : "var(--text-muted)",
+                        border: "none", borderRadius: 4, fontWeight: 800, fontSize: "0.82rem",
+                        cursor: caption.trim() ? "pointer" : "default",
+                        fontFamily: "inherit", transition: "all 0.15s",
+                      }}
+                    >Del</button>
+                  </div>
+                </div>
+              )}
+              {loading && (
+                <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "3rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                  Laster innlegg...
+                </div>
+              )}
+              {!loading && feedPosts.length === 0 && followedUsers.size === 0 && (
+                <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "2.5rem", textAlign: "center" }}>
+                  <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>👥</div>
+                  <div style={{ fontWeight: 700, fontSize: "0.95rem", marginBottom: "0.4rem" }}>Ingen venner ennå</div>
+                  <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: "1rem" }}>Følg folk for å se innlegg fra dem her.</div>
+                  <button onClick={() => setActiveTab("utforsk")} style={{
+                    padding: "0.5rem 1.25rem", background: "var(--accent)", color: "#fff",
+                    border: "none", borderRadius: 4, fontWeight: 700, fontSize: "0.82rem",
+                    cursor: "pointer", fontFamily: "inherit",
+                  }}>Utforsk folk →</button>
+                </div>
+              )}
+              {!loading && feedPosts.length === 0 && followedUsers.size > 0 && (
+                <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "3rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                  Ingen innlegg fra deg eller de du følger ennå.
+                </div>
+              )}
+              {feedPosts.map((p, idx) => renderPostCard(p, idx))}
+            </>
+          )}
+
+          {/* ── UTFORSK TAB ── */}
+          {activeTab === "utforsk" && (
+            <>
+              <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "1rem 1.25rem", marginBottom: "1rem" }}>
+                <div style={{ fontWeight: 800, fontSize: "1rem" }}>🔍 Utforsk</div>
+                <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>Oppdag innlegg og folk fra hele FrittFram-samfunnet.</div>
               </div>
-              <div style={{ marginTop: "0.75rem", display: "flex", justifyContent: "space-between", alignItems: "center", paddingLeft: "calc(38px + 0.75rem)" }}>
-                <div style={{ display: "flex", gap: "0.4rem" }}>
-                  {["📷 Bilde", "📍 Sted", "🏔️ Tur"].map((lbl) => (
-                    <button key={lbl} style={{
-                      padding: "0.3rem 0.65rem", background: "var(--bg)", border: "1px solid var(--border)",
-                      borderRadius: 4, color: "var(--text-muted)", fontSize: "0.73rem", fontWeight: 600,
-                      cursor: "pointer", fontFamily: "inherit",
-                    }}>{lbl}</button>
+              {loading && (
+                <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "3rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                  Laster innlegg...
+                </div>
+              )}
+              {!loading && posts.length === 0 && (
+                <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "3rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                  Ingen innlegg ennå — vær den første til å dele!
+                </div>
+              )}
+              {posts.map((p, idx) => renderPostCard(p, idx))}
+            </>
+          )}
+
+          {/* ── VENNER TAB ── */}
+          {activeTab === "venner" && (
+            <>
+              <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, marginBottom: "1rem", overflow: "hidden" }}>
+                <div style={{ padding: "0.75rem 1.25rem", borderBottom: "1px solid var(--border)" }}>
+                  <div style={{ fontWeight: 800, fontSize: "0.97rem" }}>👥 Følger ({followingUsers.length})</div>
+                </div>
+                {followingUsers.length === 0 ? (
+                  <div style={{ padding: "1.5rem 1.25rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                    Du følger ingen ennå. Gå til Utforsk for å finne folk!
+                  </div>
+                ) : (
+                  followingUsers.map((u, i) => (
+                    <div key={u.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.85rem 1.25rem", borderBottom: i < followingUsers.length - 1 ? "1px solid var(--border)" : "none" }}>
+                      <UserAvatar src={userAvatars[String(u.id)] || null} username={u.username || u.email} size={40} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>{u.username || u.email}</div>
+                        <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>Du følger</div>
+                      </div>
+                      <button
+                        onClick={() => toggleFollow(u.id)}
+                        style={{
+                          padding: "0.35rem 0.9rem", background: "var(--accent)", border: "none", borderRadius: 4,
+                          color: "#fff", fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                        }}
+                      >Slutt å følge</button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, marginBottom: "1rem", overflow: "hidden" }}>
+                <div style={{ padding: "0.75rem 1.25rem", borderBottom: "1px solid var(--border)" }}>
+                  <div style={{ fontWeight: 800, fontSize: "0.97rem" }}>❤️ Følgere ({followerUsers.length})</div>
+                </div>
+                {followerUsers.length === 0 ? (
+                  <div style={{ padding: "1.5rem 1.25rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                    Ingen følger deg ennå.
+                  </div>
+                ) : (
+                  followerUsers.map((u, i) => (
+                    <div key={u.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.85rem 1.25rem", borderBottom: i < followerUsers.length - 1 ? "1px solid var(--border)" : "none" }}>
+                      <UserAvatar src={userAvatars[String(u.id)] || null} username={u.username || u.email} size={40} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>{u.username || u.email}</div>
+                        <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>Følger deg</div>
+                      </div>
+                      <button
+                        onClick={() => toggleFollow(u.id)}
+                        style={{
+                          padding: "0.35rem 0.9rem",
+                          background: followedUsers.has(String(u.id)) ? "var(--accent)" : "transparent",
+                          border: "1px solid var(--accent)", borderRadius: 4,
+                          color: followedUsers.has(String(u.id)) ? "#fff" : "var(--accent)",
+                          fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                        }}
+                      >{followedUsers.has(String(u.id)) ? "Følger ✓" : "Følg tilbake"}</button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {otherUsers.filter((u) => !followedUsers.has(String(u.id))).length > 0 && (
+                <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ padding: "0.75rem 1.25rem", borderBottom: "1px solid var(--border)" }}>
+                    <div style={{ fontWeight: 800, fontSize: "0.97rem" }}>🔍 Folk du kanskje kjenner</div>
+                  </div>
+                  {otherUsers.filter((u) => !followedUsers.has(String(u.id))).slice(0, 10).map((u, i, arr) => (
+                    <div key={u.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.85rem 1.25rem", borderBottom: i < arr.length - 1 ? "1px solid var(--border)" : "none" }}>
+                      <UserAvatar src={userAvatars[String(u.id)] || null} username={u.username || u.email} size={40} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>{u.username || u.email}</div>
+                        <div style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>Friluftsentusiast</div>
+                      </div>
+                      <button
+                        onClick={() => toggleFollow(u.id)}
+                        style={{
+                          padding: "0.35rem 0.9rem",
+                          background: "transparent", border: "1px solid var(--accent)", borderRadius: 4,
+                          color: "var(--accent)", fontSize: "0.78rem", fontWeight: 700,
+                          cursor: "pointer", fontFamily: "inherit",
+                        }}
+                      >Følg</button>
+                    </div>
                   ))}
                 </div>
-                <button
-                  onClick={submitPost}
-                  disabled={!caption.trim()}
-                  style={{
-                    padding: "0.5rem 1.25rem",
-                    background: caption.trim() ? "var(--accent)" : "var(--border)",
-                    color: caption.trim() ? "#fff" : "var(--text-muted)",
-                    border: "none", borderRadius: 4, fontWeight: 800, fontSize: "0.82rem",
-                    cursor: caption.trim() ? "pointer" : "default",
-                    fontFamily: "inherit", transition: "all 0.15s",
-                  }}
-                >Del</button>
+              )}
+            </>
+          )}
+
+          {/* ── LAGRET TAB ── */}
+          {activeTab === "lagret" && (
+            <>
+              <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "1rem 1.25rem", marginBottom: "1rem" }}>
+                <div style={{ fontWeight: 800, fontSize: "1rem" }}>🔖 Lagret innhold</div>
+                <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>Innlegg du har lagret.</div>
               </div>
-            </div>
-          )}
-
-          {/* Loading / empty */}
-          {loading && (
-            <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "3rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.9rem" }}>
-              Laster innlegg...
-            </div>
-          )}
-          {!loading && posts.length === 0 && (
-            <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "3rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.9rem" }}>
-              Ingen innlegg ennå — vær den første til å dele!
-            </div>
-          )}
-
-          {/* Posts */}
-          {posts.map((p, idx) => {
-            const liked     = likedPosts.has(p.postid);
-            const name      = p.username ?? "Anonym";
-            const cs        = getCommentState(p.postid);
-            const avatarSrc = userAvatars[String(p.userid)] || null;
-            return (
-              <div key={p.postid}>
-                {/* Sponsored ad every 4 posts */}
-                {idx > 0 && idx % 4 === 0 && (
-                  <div style={{
-                    background: "var(--bg-panel)", border: "1px solid var(--border)",
-                    borderLeft: "3px solid var(--accent)", borderRadius: 4,
-                    padding: "1rem 1.25rem", marginBottom: "0.85rem",
-                  }}>
-                    <div style={{ fontSize: "0.62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--accent)", marginBottom: "0.35rem" }}>Sponset</div>
-                    <div style={{ fontWeight: 800, fontSize: "0.92rem", marginBottom: "0.25rem" }}>Norlandia Hytter — Natur & Ro på Fjelltoppen</div>
-                    <div style={{ fontSize: "0.83rem", color: "var(--text-muted)", marginBottom: "0.6rem" }}>Eksklusive fjellhytter med panoramautsikt. Spar 15 % denne uken.</div>
-                    <a href="/reserver" style={{ display: "inline-block", padding: "0.4rem 1rem", background: "var(--accent)", color: "#fff", borderRadius: 4, textDecoration: "none", fontWeight: 700, fontSize: "0.78rem" }}>Se pakker →</a>
-                  </div>
-                )}
-
-                <div id={`post-${p.postid}`} style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, marginBottom: "0.85rem", overflow: "hidden" }}>
-                  {/* Header */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "1rem 1.25rem 0.6rem" }}>
-                    <UserAvatar src={avatarSrc} username={name} size={40} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 700, fontSize: "0.9rem" }}>{name}</div>
-                      <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{relTime(p.timestamp)}</div>
-                    </div>
-                    {currentUser && String(p.userid) !== String(currentUser.id) && (
-                      <button
-                        onClick={() => toggleFollow(p.userid)}
-                        style={{
-                          padding: "0.3rem 0.75rem",
-                          background: followedUsers.has(String(p.userid)) ? "var(--accent)" : "transparent",
-                          border: "1px solid var(--accent)", borderRadius: 4,
-                          color: followedUsers.has(String(p.userid)) ? "#fff" : "var(--accent)",
-                          fontSize: "0.73rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-                        }}
-                      >
-                        {followedUsers.has(String(p.userid)) ? "Følger ✓" : "Følg"}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Body */}
-                  <div style={{ padding: "0 1.25rem 0.85rem", fontSize: "0.92rem", color: "var(--text)", lineHeight: 1.7 }}>
-                    {p.caption}
-                  </div>
-
-                  {/* Like + comment counts */}
-                  {(p.likes > 0 || p.comment_count > 0) && (
-                    <div style={{ padding: "0 1.25rem 0.4rem", fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", gap: "1rem" }}>
-                      {p.likes > 0 && <span>{p.likes} liker dette</span>}
-                      {p.comment_count > 0 && (
-                        <button
-                          onClick={() => toggleComments(p.postid)}
-                          style={{ background: "none", border: "none", padding: 0, color: "var(--text-muted)", fontSize: "0.75rem", cursor: "pointer", fontFamily: "inherit" }}
-                        >
-                          {p.comment_count} kommentar{p.comment_count !== 1 ? "er" : ""}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Divider */}
-                  <div style={{ height: 1, background: "var(--border)", margin: "0 1rem" }} />
-
-                  {/* Action buttons */}
-                  <div style={{ display: "flex" }}>
-                    <button
-                      onClick={() => toggleLike(p.postid, liked)}
-                      style={{ flex: 1, padding: "0.55rem", background: "transparent", border: "none", color: liked ? "#ef4444" : "var(--text-muted)", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer", fontFamily: "inherit" }}
-                    >
-                      {liked ? "❤️" : "🤍"} Liker
-                    </button>
-                    <button
-                      onClick={() => toggleComments(p.postid)}
-                      style={{ flex: 1, padding: "0.55rem", background: cs.open ? "var(--accent-bg)" : "transparent", border: "none", color: cs.open ? "var(--accent)" : "var(--text-muted)", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer", fontFamily: "inherit" }}
-                    >
-                      💬 {p.comment_count > 0 ? `${p.comment_count} ` : ""}Kommenter
-                    </button>
-                    <button
-                      onClick={() => sharePost(p.postid)}
-                      style={{ flex: 1, padding: "0.55rem", background: "transparent", border: "none", color: "var(--text-muted)", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer", fontFamily: "inherit" }}
-                    >
-                      ↗ Del
-                    </button>
-                  </div>
-
-                  {/* Comment section */}
-                  {cs.open && (
-                    <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg)", padding: "0.75rem 1.25rem" }}>
-                      {cs.loading && (
-                        <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", paddingBottom: "0.5rem" }}>Laster kommentarer...</div>
-                      )}
-                      {!cs.loading && cs.comments.length === 0 && (
-                        <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", paddingBottom: "0.6rem" }}>Ingen kommentarer ennå.</div>
-                      )}
-                      {cs.comments.map((c) => (
-                        <div key={c.commentid} style={{ display: "flex", gap: "0.6rem", marginBottom: "0.6rem", alignItems: "flex-start" }}>
-                          <UserAvatar src={userAvatars[String(c.userid)] || null} username={c.username} size={28} />
-                          <div style={{ flex: 1, background: "var(--bg-panel)", borderRadius: 4, padding: "0.45rem 0.75rem" }}>
-                            <div style={{ fontWeight: 700, fontSize: "0.78rem" }}>{c.username || "Anonym"}</div>
-                            <div style={{ fontSize: "0.82rem", color: "var(--text)", marginTop: "0.1rem" }}>{c.content}</div>
-                            <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>{relTime(c.created_at)}</div>
-                          </div>
-                        </div>
-                      ))}
-                      {currentUser && (
-                        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.4rem", alignItems: "center" }}>
-                          <UserAvatar src={myAvatar} username={currentUser.username} size={28} />
-                          <input
-                            value={cs.text}
-                            onChange={(e) => setCommentField(p.postid, { text: e.target.value })}
-                            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitComment(p.postid); } }}
-                            placeholder="Skriv en kommentar…"
-                            style={{
-                              flex: 1, background: "var(--bg-panel)", border: "1px solid var(--border)",
-                              borderRadius: 16, color: "var(--text)", fontSize: "0.82rem",
-                              padding: "0.4rem 0.85rem", outline: "none", fontFamily: "inherit",
-                            }}
-                          />
-                          <button
-                            onClick={() => submitComment(p.postid)}
-                            disabled={!cs.text.trim()}
-                            style={{
-                              padding: "0.4rem 0.9rem",
-                              background: cs.text.trim() ? "var(--accent)" : "var(--border)",
-                              color: cs.text.trim() ? "#fff" : "var(--text-muted)",
-                              border: "none", borderRadius: 16, fontWeight: 700, fontSize: "0.78rem",
-                              cursor: cs.text.trim() ? "pointer" : "default", fontFamily: "inherit",
-                            }}
-                          >Send</button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+              {loading ? (
+                <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "3rem", textAlign: "center", color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                  Laster...
                 </div>
-              </div>
-            );
-          })}
+              ) : savedPostsList.length === 0 ? (
+                <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, padding: "2.5rem", textAlign: "center" }}>
+                  <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>🔖</div>
+                  <div style={{ fontWeight: 700, fontSize: "0.95rem", marginBottom: "0.4rem" }}>Ingen lagrede innlegg</div>
+                  <div style={{ fontSize: "0.83rem", color: "var(--text-muted)" }}>Trykk 📌 Lagre på et innlegg for å lagre det her.</div>
+                </div>
+              ) : (
+                savedPostsList.map((p, idx) => renderPostCard(p, idx, false))
+              )}
+            </>
+          )}
+
         </main>
 
         {/* ══════════ RIGHT SIDEBAR ══════════ */}

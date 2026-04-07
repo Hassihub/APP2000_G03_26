@@ -156,7 +156,16 @@ export default function TopBar() {
       }}
     >
       {/* Left: Logo */}
-      <Link href="/" style={{ display: "flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}>
+      <Link
+        href="/"
+        onClick={(e) => {
+          if (pathname === "/") {
+            e.preventDefault();
+            document.getElementById("hero-section")?.scrollIntoView({ behavior: "smooth" });
+          }
+        }}
+        style={{ display: "flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}
+      >
         <svg viewBox="0 0 48 32" width="44" height="30" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M2 30 L16 5 L24 17 L30 9 L46 30 Z" fill="var(--nav-text)" />
           <circle cx="36" cy="7" r="3.5" fill="#f59e0b" />
@@ -303,6 +312,13 @@ export default function TopBar() {
                           <Link
                             key={p.nameKey}
                             href={p.href}
+                            onClick={(e) => {
+                              setOpen(false);
+                              if (p.href === "/" && pathname === "/") {
+                                e.preventDefault();
+                                document.getElementById("hero-section")?.scrollIntoView({ behavior: "smooth" });
+                              }
+                            }}
                             style={{
                               padding: "0.8rem 1rem",
                               textDecoration: "none",
@@ -313,7 +329,6 @@ export default function TopBar() {
                               border: `1px solid ${isActive ? "var(--nav-active-border)" : "transparent"}`,
                               fontSize: "0.92rem",
                             }}
-                            onClick={() => setOpen(false)}
                           >
                             {translations[p.nameKey]}
                           </Link>

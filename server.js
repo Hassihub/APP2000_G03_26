@@ -61,6 +61,22 @@ async function getUserColumns() {
   return userColumnsPromise;
 }
 
+async function ensureUserColumns() {
+  const cols = [
+    "bio TEXT",
+    "phone TEXT",
+    "dob DATE",
+    "age INTEGER",
+    "interests TEXT DEFAULT '[]'",
+    "radius_km INTEGER DEFAULT 50",
+    "banner_image TEXT",
+  ];
+  for (const col of cols) {
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
+  }
+  userColumnsPromise = null; // reset cache so newly added columns are picked up
+}
+
 function pickFirstValue(source, keys, fallback = null) {
   for (const key of keys) {
     const value = source?.[key];
@@ -154,6 +170,11 @@ async function buildProfilePayload(user) {
     ["profile_image", "avatar_url", "avatar", "image_url"],
     "/images/profil.jpg"
   );
+  const bannerImage = pickFirstValue(
+    fullUser,
+    ["banner_image", "banner_url"],
+    null
+  );
 
   return {
     id: fullUser.id,
@@ -164,6 +185,7 @@ async function buildProfilePayload(user) {
     email: fullUser.email || "",
     bio: pickFirstValue(fullUser, ["bio", "about"], ""),
     profileImage,
+    bannerImage,
     lastTrip: latestTrip
       ? {
           title: latestTrip.navn,
@@ -496,6 +518,11 @@ appNext.prepare().then(() => {
         addUpdate(profileImageColumn, body.profileImage.trim());
       }
 
+      const bannerImageColumn = findColumn(["banner_image", "banner_url"]);
+      if (typeof body.bannerImage === "string" && bannerImageColumn) {
+        addUpdate(bannerImageColumn, body.bannerImage.trim());
+      }
+
       if (settings.notifications !== undefined && notificationsColumn) {
         addUpdate(notificationsColumn, toBoolean(settings.notifications, true));
       }
@@ -738,6 +765,9 @@ appNext.prepare().then(() => {
       return res.status(500).json({ error: "Kunne ikke hente meldinger" });
     }
   });
+
+  // Ensure all required user columns exist (adds missing cols silently)
+  ensureUserColumns().catch((err) => console.error("ensureUserColumns error", err));
 
   // Let Next.js handle everything else
   app.all("*", (req, res) => handle(req, res));

@@ -112,6 +112,16 @@ export default function Profile() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Session keepalive: ping every 4 minutes so the 30-min session doesnt expire
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
+        .then((r) => { if (r.status === 401) router.push("/login"); })
+        .catch(() => {});
+    }, 4 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [router]);
+
   function handleImageClick() {
     fileInputRef.current.click();
   }
@@ -132,11 +142,13 @@ export default function Profile() {
         setBannerImage(data.filePath);
         await updateProfile({ bannerImage: data.filePath });
       } else {
-        alert("Banner upload failed");
+        alert(data?.error || "Kunne ikke laste opp bakgrunnsbilde.");
       }
     } catch (err) {
-      console.error(err);
-      alert("Something went wrong");
+      // updateProfile redirects to /login on 401 — dont double-alert in that case
+      if (err?.message && !err.message.includes("utløpt")) {
+        alert(err.message);
+      }
     }
   }
 
@@ -160,6 +172,11 @@ export default function Profile() {
     });
 
     const json = await res.json().catch(() => ({}));
+
+    if (res.status === 401) {
+      router.push("/login");
+      throw new Error("Sesjonen er utføpt. Logg inn igjen.");
+    }
 
     if (!res.ok) {
       throw new Error(json?.error || "Kunne ikke oppdatere profil.");
@@ -232,8 +249,10 @@ export default function Profile() {
     setInterests(updated);
     try {
       await updateProfile({ interests: updated });
-    } catch {
-      // silently ignore if column doesn't exist in DB
+    } catch (err) {
+      if (err?.message && !err.message.includes("utløpt")) {
+        console.warn("Interesser ble ikke lagret:", err.message);
+      }
     }
   }
 
@@ -393,7 +412,7 @@ export default function Profile() {
       </aside>
 
       {/* HOVED */}
-      <section style={{ flex: 1, background: themeColors.bg, color: themeColors.text, transition: "background 0.3s ease, color 0.3s ease" }}>
+      <section style={{ flex: 1, display: "flex", flexDirection: "column", background: themeColors.bg, color: themeColors.text, transition: "background 0.3s ease, color 0.3s ease" }}>
         {/* BANNER */}
         <div style={{ position: "relative", height: 220, overflow: "hidden" }}>
           <Image src={bannerImage} alt="Profilbakgrunn" fill unoptimized style={{ objectFit: "cover" }} />
@@ -401,7 +420,7 @@ export default function Profile() {
           <button onClick={handleBannerClick} style={{ position: "absolute", bottom: 14, right: 14, padding: "0.5rem 1rem", background: "rgba(0,0,0,0.6)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 8, cursor: "pointer", fontSize: "0.78rem", fontWeight: 700, backdropFilter: "blur(4px)" }}>Endre bakgrunn</button>
           <input ref={bannerInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleBannerChange} />
         </div>
-        <div style={{ padding: "2rem" }}>
+        <div style={{ padding: "2rem", flex: 1 }}>
         {loading ? <p>{t.loading}</p> : null}
         {error ? <p style={{ color: "#b42318" }}>{error}</p> : null}
 
@@ -486,8 +505,26 @@ export default function Profile() {
                 </div>
               ) : (
                 <>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                    <div style={cardStyle}><strong>{t.bio}</strong><p>{userData.bio}</p></div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1.5rem" }}>
+                    <div style={cardStyle}>
+                      <strong>{t.bio}</strong>
+                      <p style={{ marginBottom: interests.length > 0 ? "0.75rem" : 0 }}>{userData.bio || "Ingen bio ennå."}</p>
+                      {interests.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                          {interests.map((tag) => (
+                            <span key={tag} style={{
+                              padding: "0.25rem 0.75rem",
+                              borderRadius: "999px",
+                              background: themeColors.accent,
+                              color: theme === "Mørk" ? "#0d0f12" : "#fff",
+                              fontSize: "0.75rem",
+                              fontWeight: 600,
+                              letterSpacing: "0.02em",
+                            }}>{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <div style={cardStyle}><strong>{t.details}</strong><p>{t.age}: {userData.age}</p><p>{t.phone}: {userData.phone}</p><p>{t.email}: {userData.email}</p><p>{t.birthDate}: {userData.dob}</p></div>
                   </div>
 
@@ -835,6 +872,28 @@ export default function Profile() {
         })()}
 
         </div>{/* end padding div */}
+
+        {/* Logg ut knapp — nederst på siden */}
+        <div style={{ padding: "1.5rem 2rem 3rem", borderTop: `1px solid ${themeColors.border}`, display: "flex", alignItems: "center" }}>
+          <button
+            onClick={() => setShowLogoutModal(true)}
+            style={{
+              padding: "0.85rem 2rem",
+              borderRadius: "4px",
+              border: "1px solid #ef4444",
+              background: "transparent",
+              color: "#ef4444",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: "0.82rem",
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+              fontFamily: "inherit",
+            }}
+          >
+            {t.logout}
+          </button>
+        </div>
       </section>
 
       <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} />
