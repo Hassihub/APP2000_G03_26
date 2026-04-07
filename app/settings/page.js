@@ -98,18 +98,26 @@ export default function Settings() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/profile", { credentials: "include", cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json().catch(() => ({}));
-          const p = data.profile;
-          if (p) {
-            setNotifications(Boolean(p.settings?.notifications ?? true));
-            setTheme(p.settings?.theme || "Lys");
-            setRadius(typeof p.radius_km === "number" ? p.radius_km : 50);
-            setLocationSharing(Boolean(p.settings?.locationSharing));
-            setPublicProfile(Boolean(p.settings?.publicProfile ?? true));
-            setEmailNotifications(Boolean(p.settings?.emailNotifications));
-          }
+        const [profileRes, preferencesRes] = await Promise.all([
+          fetch("/api/profile", { credentials: "include", cache: "no-store" }),
+          fetch("/api/preferences", { cache: "no-store" }),
+        ]);
+
+        const [profileData, preferencesData] = await Promise.all([
+          profileRes.json().catch(() => ({})),
+          preferencesRes.json().catch(() => ({})),
+        ]);
+
+        const p = profileData.profile;
+        if (profileRes.ok && p) {
+          setNotifications(Boolean(p.settings?.notifications ?? true));
+          setRadius(typeof p.radius_km === "number" ? p.radius_km : 50);
+          setLocationSharing(Boolean(p.settings?.locationSharing ?? false));
+          setPublicProfile(Boolean(p.settings?.publicProfile ?? true));
+          setEmailNotifications(Boolean(p.settings?.emailNotifications ?? false));
+          setTheme(preferencesData?.theme || p.settings?.theme || "Lys");
+        } else if (preferencesRes.ok && preferencesData?.theme) {
+          setTheme(preferencesData.theme);
         }
       } catch { /* ignore – use defaults */ }
       setLoading(false);
@@ -159,6 +167,7 @@ export default function Settings() {
 
   async function selectTheme(t) {
     setTheme(t);
+    window.dispatchEvent(new CustomEvent("ff-theme-change", { detail: { theme: t } }));
     await Promise.all([
       save({ settings: buildSettings({ theme: t }) }),
       fetch("/api/preferences", {

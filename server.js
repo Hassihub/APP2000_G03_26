@@ -70,6 +70,11 @@ async function ensureUserColumns() {
     "interests TEXT DEFAULT '[]'",
     "radius_km INTEGER DEFAULT 50",
     "banner_image TEXT",
+    "notifications BOOLEAN DEFAULT TRUE",
+    "theme TEXT DEFAULT 'Lys'",
+    "email_notifications BOOLEAN DEFAULT FALSE",
+    "location_sharing BOOLEAN DEFAULT FALSE",
+    "public_profile BOOLEAN DEFAULT TRUE",
   ];
   for (const col of cols) {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
@@ -225,6 +230,18 @@ async function buildProfilePayload(user) {
         true
       ),
       theme: pickFirstValue(fullUser, ["theme"], "Lys"),
+      emailNotifications: toBoolean(
+        pickFirstValue(fullUser, ["email_notifications", "emailNotifications"], false),
+        false
+      ),
+      locationSharing: toBoolean(
+        pickFirstValue(fullUser, ["location_sharing", "locationSharing"], false),
+        false
+      ),
+      publicProfile: toBoolean(
+        pickFirstValue(fullUser, ["public_profile", "publicProfile"], true),
+        true
+      ),
     },
     interests: (() => {
       try { return JSON.parse(fullUser?.interests || "[]"); } catch { return []; }
@@ -243,6 +260,22 @@ async function findUserByEmail(email) {
 async function findUserById(id) {
   const result = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
   return result.rows[0] || null;
+}
+
+async function clearUserSessions(userId) {
+  if (!userId) {
+    return;
+  }
+
+  try {
+    await pool.query(
+      `DELETE FROM session
+       WHERE sess -> 'passport' ->> 'user' = $1`,
+      [String(userId)]
+    );
+  } catch (error) {
+    console.error("clearUserSessions error", error);
+  }
 }
 
 passport.use(
@@ -394,6 +427,51 @@ appNext.prepare().then(() => {
     })(req, res, next);
   });
 
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    const { email, password, confirmPassword } = req.body || {};
+
+    const normalizedEmail = typeof email === "string" ? email.trim() : "";
+    const nextPassword = typeof password === "string" ? password : "";
+    const confirmedPassword =
+      typeof confirmPassword === "string" ? confirmPassword : "";
+
+    if (!normalizedEmail || !nextPassword || !confirmedPassword) {
+      return res.status(400).json({ error: "Alle felt må fylles ut" });
+    }
+
+    if (nextPassword.length < 8) {
+      return res
+        .status(400)
+        .json({ error: "Nytt passord må være minst 8 tegn" });
+    }
+
+    if (nextPassword !== confirmedPassword) {
+      return res.status(400).json({ error: "Passordene må være like" });
+    }
+
+    try {
+      const result = await pool.query(
+        `UPDATE users
+         SET password = $1
+         WHERE LOWER(email) = LOWER($2)
+         RETURNING id`,
+        [await bcrypt.hash(nextPassword, 10), normalizedEmail]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: "Fant ingen bruker med denne e-posten" });
+      }
+
+      await clearUserSessions(result.rows[0].id);
+
+      clearSessionCookie(res);
+      return res.json({ ok: true, message: "Passordet er oppdatert" });
+    } catch (err) {
+      console.error("/api/auth/forgot-password error", err);
+      return res.status(500).json({ error: "Kunne ikke oppdatere passordet" });
+    }
+  });
+
   // Logout
   app.post("/api/auth/logout", (req, res, next) => {
     req.logout((err) => {
@@ -465,6 +543,18 @@ appNext.prepare().then(() => {
         "notifications_enabled",
       ]);
       const themeColumn = findColumn(["theme"]);
+      const emailNotificationsColumn = findColumn([
+        "email_notifications",
+        "emailNotifications",
+      ]);
+      const locationSharingColumn = findColumn([
+        "location_sharing",
+        "locationSharing",
+      ]);
+      const publicProfileColumn = findColumn([
+        "public_profile",
+        "publicProfile",
+      ]);
       const ageColumn = findColumn(["age"]);
       const interestsColumn = findColumn(["interests"]);
       const radiusColumn = findColumn(["radius_km"]);
@@ -529,6 +619,24 @@ appNext.prepare().then(() => {
 
       if (typeof settings.theme === "string" && themeColumn) {
         addUpdate(themeColumn, settings.theme.trim());
+      }
+
+      if (settings.emailNotifications !== undefined && emailNotificationsColumn) {
+        addUpdate(
+          emailNotificationsColumn,
+          toBoolean(settings.emailNotifications, false)
+        );
+      }
+
+      if (settings.locationSharing !== undefined && locationSharingColumn) {
+        addUpdate(
+          locationSharingColumn,
+          toBoolean(settings.locationSharing, false)
+        );
+      }
+
+      if (settings.publicProfile !== undefined && publicProfileColumn) {
+        addUpdate(publicProfileColumn, toBoolean(settings.publicProfile, true));
       }
 
       if (Array.isArray(body.interests) && interestsColumn) {

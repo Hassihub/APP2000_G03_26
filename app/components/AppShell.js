@@ -4,21 +4,93 @@ import Link from "next/link";
 import TopBar from "./TopBar";
 import { useEffect, useState } from "react";
 
-export default function AppShell({ children }) {
-  const [dark, setDark] = useState(false);
+function normalizeTheme(theme) {
+  if (theme === "dark" || theme === "Mørk") return "dark";
+  if (theme === "auto" || theme === "Automatisk") return "auto";
+  return "light";
+}
 
-  // Persist & apply theme on mount
+function resolveTheme(theme) {
+  if (theme === "auto") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+
+  return theme;
+}
+
+export default function AppShell({ children }) {
+  const [theme, setTheme] = useState("light");
+
   useEffect(() => {
-    const saved = localStorage.getItem("ff-theme") === "dark";
-    setDark(saved);
-    document.documentElement.setAttribute("data-theme", saved ? "dark" : "light");
+    let cancelled = false;
+
+    async function loadTheme() {
+      try {
+        const res = await fetch("/api/preferences", { cache: "no-store" });
+        const json = await res.json().catch(() => ({}));
+
+        if (!cancelled) {
+          setTheme(normalizeTheme(json?.theme));
+        }
+      } catch {
+        if (!cancelled) {
+          setTheme("light");
+        }
+      }
+    }
+
+    loadTheme();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  function toggleTheme() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
-    localStorage.setItem("ff-theme", next ? "dark" : "light");
+  useEffect(() => {
+    const applyCurrentTheme = () => {
+      document.documentElement.setAttribute("data-theme", resolveTheme(theme));
+    };
+
+    applyCurrentTheme();
+
+    if (theme !== "auto") {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => applyCurrentTheme();
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, [theme]);
+
+  useEffect(() => {
+    const handleThemeChange = (event) => {
+      const nextTheme = normalizeTheme(event.detail?.theme);
+      setTheme(nextTheme);
+    };
+
+    window.addEventListener("ff-theme-change", handleThemeChange);
+    return () => window.removeEventListener("ff-theme-change", handleThemeChange);
+  }, []);
+
+  async function toggleTheme() {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    document.documentElement.setAttribute("data-theme", resolveTheme(nextTheme));
+
+    try {
+      await fetch("/api/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: nextTheme }),
+      });
+      window.dispatchEvent(new CustomEvent("ff-theme-change", { detail: { theme: nextTheme } }));
+    } catch {
+      // Ignore preference sync failures and keep the active theme in memory.
+    }
   }
 
   return (
@@ -120,10 +192,10 @@ export default function AppShell({ children }) {
             ))}
             <button
               onClick={toggleTheme}
-              title={dark ? "Bytt til lyst tema" : "Bytt til mørkt tema"}
+              title={resolveTheme(theme) === "dark" ? "Bytt til lyst tema" : "Bytt til mørkt tema"}
               style={{ background: "rgba(255,255,255,0.08)", border: "1px solid #2d3a4a", borderRadius: "999px", padding: "0.35rem 0.9rem", color: "#9ca3af", cursor: "pointer", fontSize: "0.82rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.4rem", fontFamily: "inherit" }}
             >
-              {dark ? "☀️ Lyst" : "🌙 Mørkt"}
+              {resolveTheme(theme) === "dark" ? "☀️ Lyst" : "🌙 Mørkt"}
             </button>
           </div>
         </div>
