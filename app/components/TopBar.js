@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   FiSettings,
@@ -21,6 +21,7 @@ export default function TopBar() {
   const [open, setOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
+  const scrollPositionRef = useRef(0);
   const { language, setLanguage, languages } = useLanguage();
   const translations = useTranslations("topBar");
 
@@ -89,6 +90,39 @@ export default function TopBar() {
     const handleKeyDown = (event) => { if (event.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
+
+  useEffect(() => {
+    const { body, documentElement } = document;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyPosition = body.style.position;
+    const previousBodyTop = body.style.top;
+    const previousBodyWidth = body.style.width;
+    const previousHtmlOverflow = documentElement.style.overflow;
+    const previousHtmlOverscrollBehavior = documentElement.style.overscrollBehavior;
+
+    if (open) {
+      scrollPositionRef.current = window.scrollY;
+      body.style.overflow = "hidden";
+      body.style.position = "fixed";
+      body.style.top = `-${scrollPositionRef.current}px`;
+      body.style.width = "100%";
+      documentElement.style.overflow = "hidden";
+      documentElement.style.overscrollBehavior = "none";
+    }
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      body.style.position = previousBodyPosition;
+      body.style.top = previousBodyTop;
+      body.style.width = previousBodyWidth;
+      documentElement.style.overflow = previousHtmlOverflow;
+      documentElement.style.overscrollBehavior = previousHtmlOverscrollBehavior;
+
+      if (open) {
+        window.scrollTo(0, scrollPositionRef.current);
+      }
+    };
   }, [open]);
 
   const quickActions = useMemo(() => {
@@ -239,6 +273,7 @@ export default function TopBar() {
                   justifyContent: "space-between",
                   zIndex: 2000,
                   overflowY: "auto",
+                  overscrollBehavior: "contain",
                   color: "var(--nav-text)",
                   fontFamily: "Poppins, sans-serif",
                 }}
