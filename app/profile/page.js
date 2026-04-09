@@ -3,17 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function Profile() {
+export default function ProfilePage() {
   const router = useRouter();
+
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const [error, setError] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState("");
-
   const [username, setUsername] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+
+  const [error, setError] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -26,23 +26,22 @@ export default function Profile() {
         const res = await fetch("/api/auth/me", {
           method: "GET",
           credentials: "include",
-          cache: "no-store", // 🔥 viktig for å unngå 304/cache på auth
+          cache: "no-store",
         });
-
-        if (res.status === 401) {
-          router.push("/login");
-          return;
-        }
 
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-          if (alive) setError(data?.error || "Kunne ikke hente bruker");
+          if (!alive) return;
+          if (res.status === 401) {
+            router.push("/login");
+            return;
+          }
+          setError(data?.error || "Kunne ikke hente bruker");
           return;
         }
 
         if (!alive) return;
-
         setUser(data.user);
         setUsername(data.user?.username || "");
       } catch (err) {
@@ -60,8 +59,8 @@ export default function Profile() {
   }, [router]);
 
   const handleLogout = async () => {
+    setError("");
     try {
-      setError("");
       const res = await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
@@ -156,7 +155,9 @@ export default function Profile() {
   };
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm("Er du sikker på at du vil slette profilen din?")) return;
+    if (!window.confirm("Er du sikker på at du vil slette profilen din?")) {
+      return;
+    }
 
     setError("");
 
@@ -187,7 +188,8 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div style={{ padding: "2rem" }}>
+      <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
+        <h1>Profil</h1>
         <p>Laster profil...</p>
       </div>
     );
@@ -198,7 +200,9 @@ export default function Profile() {
       <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
         <h1>Profil</h1>
         <p>Ingen bruker lastet.</p>
-        {error && <p style={{ color: "red", marginTop: "1rem" }}>{error}</p>}
+        {error && (
+          <p style={{ color: "red", marginTop: "1rem" }}>{error}</p>
+        )}
         <button
           type="button"
           onClick={() => router.push("/login")}
@@ -215,9 +219,7 @@ export default function Profile() {
       <h1>Profil</h1>
 
       {error && (
-        <p style={{ color: "red", marginTop: "1rem" }}>
-          {error}
-        </p>
+        <p style={{ color: "red", marginTop: "1rem" }}>{error}</p>
       )}
 
       <section style={{ marginTop: "1.5rem" }}>
@@ -243,7 +245,10 @@ export default function Profile() {
               marginBottom: "0.75rem",
             }}
           />
-          <button type="submit" style={{ padding: "0.5rem 1rem", cursor: "pointer" }}>
+          <button
+            type="submit"
+            style={{ padding: "0.5rem 1rem", cursor: "pointer" }}
+          >
             Lagre brukernavn
           </button>
         </form>
@@ -289,9 +294,7 @@ export default function Profile() {
         </form>
 
         {passwordMessage && (
-          <p style={{ color: "green", marginTop: "0.5rem" }}>
-            {passwordMessage}
-          </p>
+          <p style={{ color: "green", marginTop: "0.5rem" }}>{passwordMessage}</p>
         )}
       </section>
 

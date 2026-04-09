@@ -1,8 +1,14 @@
+"use client";
+
 import MapComponent from "../components/map/mapComponent";
+import { useTranslations } from "../components/LanguageProvider";
 
 export default function MapPage() {
+  const t = useTranslations("mapPage");
+
   return (
-    <main style={{ margin: 0, padding: 0 }}>
+    <main style={{ padding: "1rem" }}>
+      <h1>{t.title}</h1>
       <MapComponent />
     </main>
   );

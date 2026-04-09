@@ -7,7 +7,6 @@ let cabinImagesTableReady = false;
 
 async function ensureCabinImagesTable() {
   if (cabinImagesTableReady) return true;
-
   try {
     await db.query(`
       CREATE TABLE IF NOT EXISTS public.cabin_images (
@@ -84,22 +83,37 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const start_date = searchParams.get("start_date");
     const end_date = searchParams.get("end_date");
+    const search = searchParams.get("search")?.trim() || "";
 
     const values = [];
-    let whereClause = "";
+    const conditions = [];
+    let paramIndex = 1;
 
     // Hvis både start- og sluttdato er satt, filtrer på hytter som er ledige
     if (start_date && end_date) {
       // Overlappende reservasjoner: NOT (existing.end <= new.start OR existing.start >= new.end)
       // Vi vil ha hytter der det IKKE finnes en slik overlappende reservasjon
-      values.push(start_date, end_date);
-      whereClause = `WHERE NOT EXISTS (
+      conditions.push(`NOT EXISTS (
         SELECT 1 FROM public.reservations r
         WHERE r.cabin_id::text = c.id::text
           AND r.status <> 'cancelled'
-          AND NOT (r.end_date <= $1::date OR r.start_date >= $2::date)
-      )`;
+          AND NOT (r.end_date <= $${paramIndex}::date OR r.start_date >= $${paramIndex + 1}::date)
+      )`);
+      values.push(start_date, end_date);
+      paramIndex += 2;
     }
+
+    if (search) {
+      conditions.push(`(
+        c.name ILIKE $${paramIndex} OR
+        c.location ILIKE $${paramIndex} OR
+        COALESCE(c.description, '') ILIKE $${paramIndex}
+      )`);
+      values.push(`%${search}%`);
+      paramIndex += 1;
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const sql = `
       SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, c.created_at, c.owner_id

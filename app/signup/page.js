@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "../components/LanguageProvider";
 
-export default function SignupPage() {
+export default function SignUp() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState("USER");
+  const t = useTranslations("signupPage");
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -39,114 +43,90 @@ export default function SignupPage() {
     setError("");
     setLoading(true);
 
+    if (formData.password !== formData.confirmPassword) {
+      setError(t.passwordMismatch || "Passordene er ikke like");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ username, email, password, role }),
+        body: JSON.stringify(formData),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Kunne ikke opprette konto");
+        setError(data.error || t.signupError);
         setLoading(false);
         return;
       }
 
       router.push("/");
     } catch (err) {
-      setError("Noe gikk galt");
+      setError(t.genericError);
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "400px", margin: "0 auto" }}>
-      <h1>Registrer deg</h1>
-      {error && (
-        <p style={{ color: "red", marginTop: "1rem" }}>
-          {error}
+    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: "2rem", background: "var(--bg)", fontFamily: "'Inter','Poppins',sans-serif" }}>
+      <section style={{ width: "100%", maxWidth: "420px", padding: "2.5rem 2rem", borderRadius: 4, background: "var(--bg-panel)", border: "1px solid var(--border)" }}>
+        <p style={{ margin: "0 0 0.4rem", fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.14em", color: "#6675ff", fontWeight: 700 }}>
+          FrittFram
         </p>
-      )}
-      <form onSubmit={handleSubmit} style={{ marginTop: "1rem" }}>
-        <label style={{ display: "block", marginBottom: "0.5rem" }}>
-          Brukernavn
-        </label>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "0.5rem",
-            marginBottom: "0.75rem",
-          }}
-        />
+        <h1 style={{ margin: "0 0 0.4rem", color: "var(--text)", fontSize: "1.8rem", fontWeight: 900, letterSpacing: "-0.03em" }}>{t.title}</h1>
+        <p style={{ marginTop: 0, marginBottom: "1.75rem", color: "var(--text-muted)", lineHeight: 1.5, fontSize: "0.9rem" }}>Lag en konto for å komme i gang.</p>
 
-        <label style={{ display: "block", marginBottom: "0.5rem" }}>
-          E-post
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "0.5rem",
-            marginBottom: "0.75rem",
-          }}
-        />
+        {error && (
+          <p style={{ color: "#f87171", fontWeight: 500, fontSize: "0.87rem", marginBottom: "0.75rem" }}>{error}</p>
+        )}
 
-        <fieldset style={{ marginBottom: "0.75rem" }}>
-          <legend style={{ marginBottom: "0.25rem" }}>Velg rolle</legend>
-          <label style={{ display: "block", marginBottom: "0.25rem" }}>
-            <input
-              type="radio"
-              name="role"
-              value="USER"
-              checked={role === "USER"}
-              onChange={() => setRole("USER")}
-              style={{ marginRight: 4 }}
-            />
-            Bruker
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
+          <label style={{ display: "grid", gap: "0.35rem" }}>
+            <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.username}</span>
+            <input type="text" value={formData.username} onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value }))} required style={inputStyle} />
           </label>
-          <label style={{ display: "block" }}>
-            <input
-              type="radio"
-              name="role"
-              value="UTLEIER"
-              checked={role === "UTLEIER"}
-              onChange={() => setRole("UTLEIER")}
-              style={{ marginRight: 4 }}
-            />
-            Utleier
+
+          <label style={{ display: "grid", gap: "0.35rem" }}>
+            <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.email}</span>
+            <input type="email" value={formData.email} onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))} required autoComplete="email" style={inputStyle} />
           </label>
-        </fieldset>
 
-        <label style={{ display: "block", marginBottom: "0.5rem" }}>
-          Passord (minst 8 tegn)
-        </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "0.5rem",
-            marginBottom: "0.75rem",
-          }}
-        />
+          <label style={{ display: "grid", gap: "0.35rem" }}>
+            <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.password}</span>
+            <input type="password" value={formData.password} onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))} required autoComplete="new-password" style={inputStyle} />
+          </label>
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ padding: "0.5rem 1rem", cursor: "pointer" }}
-        >
-          {loading ? "Oppretter konto..." : "Opprett konto"}
-        </button>
-      </form>
-    </div>
+          <label style={{ display: "grid", gap: "0.35rem" }}>
+            <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.confirmPassword}</span>
+            <input type="password" value={formData.confirmPassword} onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))} required autoComplete="new-password" style={inputStyle} />
+          </label>
+
+          <button type="submit" disabled={loading} style={{ padding: "0.9rem 1rem", borderRadius: 4, border: "none", background: "var(--accent)", color: "#fff", fontWeight: 800, fontSize: "0.95rem", cursor: loading ? "wait" : "pointer", letterSpacing: "0.02em", marginTop: "0.25rem" }}>
+            {loading ? t.submitting : t.submit}
+          </button>
+        </form>
+
+        <p style={{ margin: "1.25rem 0 0", color: "var(--text-muted)", fontSize: "0.87rem" }}>
+          Har du allerede konto? <a href="/login" style={{ color: "#6675ff", fontWeight: 700, textDecoration: "none" }}>Logg inn</a>
+        </p>
+      </section>
+    </main>
   );
 }
+
+const inputStyle = {
+  width: "100%",
+  padding: "0.75rem 0.9rem",
+  borderRadius: 4,
+  border: "1px solid var(--border)",
+  fontSize: "0.95rem",
+  boxSizing: "border-box",
+  background: "var(--bg-input)",
+  color: "var(--text)",
+  outline: "none",
+  fontFamily: "inherit",
+};
