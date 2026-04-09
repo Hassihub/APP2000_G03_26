@@ -81,6 +81,7 @@ function EditCabinContent() {
     location: "",
     price_per_night: "",
     capacity: "",
+    is_staffed: false,
     amenities: "",
   });
 
@@ -151,6 +152,7 @@ function EditCabinContent() {
         location: c?.location ?? "",
         price_per_night: String(c?.price_per_night ?? ""),
         capacity: String(c?.capacity ?? ""),
+        is_staffed: Boolean(c?.is_staffed),
         amenities: Array.isArray(c?.amenities) ? c.amenities.join(", ") : "",
       });
       setExistingImageUrls(Array.isArray(c?.image_urls) ? c.image_urls : []);
@@ -165,8 +167,8 @@ function EditCabinContent() {
   }, [cabinId]);
 
   function handleChange(e) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   }
 
   async function handleImageChange(e) {
@@ -244,6 +246,7 @@ function EditCabinContent() {
         location: form.location.trim(),
         price_per_night: Number(form.price_per_night),
         capacity: Number(form.capacity),
+        is_staffed: Boolean(form.is_staffed),
         amenities: form.amenities
           ? form.amenities
               .split(",")
@@ -408,6 +411,19 @@ function EditCabinContent() {
                             required
                             min="1"
                           />
+                        </div>
+                      </div>
+
+                      <div className={styles.field}>
+                        <label className={styles.label}>Type hytte</label>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input
+                            name="is_staffed"
+                            type="checkbox"
+                            checked={Boolean(form.is_staffed)}
+                            onChange={handleChange}
+                          />
+                          <span>{form.is_staffed ? "Betjent" : "Ubetjent"}</span>
                         </div>
                       </div>
 

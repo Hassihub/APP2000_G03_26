@@ -109,6 +109,7 @@ export default function NewCabinPage() {
     location: "",
     price_per_night: "",
     capacity: "",
+    is_staffed: false,
     customAmenities: "",
   });
   const [selectedAmenities, setSelectedAmenities] = useState([]);
@@ -163,8 +164,8 @@ export default function NewCabinPage() {
   }, []);
 
   function handleChange(e) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   }
 
   function toggleAmenity(amenity) {
@@ -318,6 +319,7 @@ export default function NewCabinPage() {
         location: form.location.trim(),
         price_per_night: Number(form.price_per_night),
         capacity: Number(form.capacity),
+        is_staffed: Boolean(form.is_staffed),
         amenities: [
           ...selectedAmenities,
           ...form.customAmenities
@@ -359,6 +361,7 @@ export default function NewCabinPage() {
         location: "",
         price_per_night: "",
         capacity: "",
+        is_staffed: false,
         customAmenities: "",
       });
       setSelectedAmenities([]);
@@ -514,6 +517,19 @@ export default function NewCabinPage() {
                         required
                         min="1"
                       />
+
+                      <label className={styles.filterField}>
+                        <span className={styles.filterLabel}>Type hytte</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input
+                            name="is_staffed"
+                            type="checkbox"
+                            checked={Boolean(form.is_staffed)}
+                            onChange={handleChange}
+                          />
+                          <span>{form.is_staffed ? "Betjent" : "Ubetjent"}</span>
+                        </div>
+                      </label>
 
                       <div className={styles.field}>
                         <label className={styles.label}>Fasiliteter</label>

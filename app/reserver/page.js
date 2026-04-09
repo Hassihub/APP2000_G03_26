@@ -27,6 +27,7 @@ export default function ReserverPage() {
   const [maxPrice, setMaxPrice] = useState("");
   const [minCapacity, setMinCapacity] = useState("");
   const [locationQuery, setLocationQuery] = useState("");
+  const [staffedFilter, setStaffedFilter] = useState("all");
   const [selectedAmenities, setSelectedAmenities] = useState([]);
 
   useEffect(() => {
@@ -111,6 +112,7 @@ export default function ReserverPage() {
     return cabins.filter((cabin) => {
       const price = Number(cabin.price_per_night);
       const capacity = Number(cabin.capacity);
+      const isStaffed = Boolean(cabin.is_staffed);
       const amenities = Array.isArray(cabin.amenities)
         ? cabin.amenities.map((amenity) => String(amenity).toLowerCase())
         : [];
@@ -153,14 +155,18 @@ export default function ReserverPage() {
         if (!matchesAmenities) return false;
       }
 
+      if (staffedFilter === "staffed" && !isStaffed) return false;
+      if (staffedFilter === "unstaffed" && isStaffed) return false;
+
       return true;
     });
-  }, [cabins, locationQuery, maxPrice, minCapacity, selectedAmenities]);
+  }, [cabins, locationQuery, maxPrice, minCapacity, selectedAmenities, staffedFilter]);
 
   const hasFilters =
     String(maxPrice).trim() !== "" ||
     String(minCapacity).trim() !== "" ||
     String(locationQuery).trim() !== "" ||
+    staffedFilter !== "all" ||
     selectedAmenities.length > 0;
 
   return (
@@ -205,6 +211,7 @@ export default function ReserverPage() {
                         setMaxPrice("");
                         setMinCapacity("");
                         setLocationQuery("");
+                        setStaffedFilter("all");
                         setSelectedAmenities([]);
                       }}
                     >
@@ -247,6 +254,19 @@ export default function ReserverPage() {
                       value={minCapacity}
                       onChange={(e) => setMinCapacity(e.target.value)}
                     />
+                  </label>
+
+                  <label className={styles.filterField}>
+                    <span className={styles.filterLabel}>Type hytte</span>
+                    <select
+                      className={styles.filterInput}
+                      value={staffedFilter}
+                      onChange={(e) => setStaffedFilter(e.target.value)}
+                    >
+                      <option value="all">Alle</option>
+                      <option value="staffed">Betjent</option>
+                      <option value="unstaffed">Ubetjent</option>
+                    </select>
                   </label>
                 </div>
 
@@ -358,7 +378,7 @@ export default function ReserverPage() {
                               <h3 className={styles.tileTitle}>{cabin.name}</h3>
                               <div className={styles.tileMeta}>
                                 📍 {cabin.location} •{" "}
-                                <CabinWeather location={cabin.location} />
+                                <CabinWeather location={cabin.location} /> • {cabin.is_staffed ? "Betjent" : "Ubetjent"}
                               </div>
                               <div className={styles.tileStats}>
                                 <span>
