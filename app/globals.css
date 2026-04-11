@@ -58,7 +58,7 @@
   --nav-muted:        #6b7280;
 }
 
-html { scroll-padding-top: 64px; }
+html { scroll-padding-top: 104px; }
 
 body {
   margin: 0;
@@ -70,10 +70,18 @@ body {
 
 .school-project-banner {
   width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
   background-color: red;
   color: black;
-  text-align: center;
-  padding: 0.4rem 0.5rem;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.5rem;
   font-weight: 700;
   font-size: 0.9rem;
   box-sizing: border-box;

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import TopBar from "./TopBar";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 function normalizeTheme(theme) {
   if (theme === "dark" || theme === "Mørk") return "dark";
@@ -22,6 +23,8 @@ function resolveTheme(theme) {
 
 export default function AppShell({ children }) {
   const [theme, setTheme] = useState("light");
+  const pathname = usePathname();
+  const isMapPage = pathname === "/map";
 
   useEffect(() => {
     let cancelled = false;
@@ -95,8 +98,8 @@ export default function AppShell({ children }) {
 
   return (
     <>
-      <TopBar />
-      <div style={{ paddingTop: "64px" }}>{children}</div>
+      {!isMapPage && <TopBar />}
+      <div style={{ paddingTop: isMapPage ? 0 : "104px" }}>{children}</div>
       <footer style={{ background: "var(--nav-bg)", color: "var(--nav-text)", fontFamily: "Poppins, sans-serif", marginTop: "auto" }}>
         {/* Main footer grid */}
         <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "4rem 2rem 3rem", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "3rem", flexWrap: "wrap" }}>

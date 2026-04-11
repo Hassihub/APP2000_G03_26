@@ -23,7 +23,7 @@ export default function RootLayout({ children }) {
     <html lang="no">
       <body style={{ margin: 0, padding: 0 }}>
         <div className="school-project-banner">
-          DETTE ER ET SKOLEPROSJEKT
+          Dette er et skoleprosjekt
         </div>
         <LanguageProvider>
           <AppShell>{children}</AppShell>
