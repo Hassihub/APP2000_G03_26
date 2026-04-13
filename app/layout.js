@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import TopBar from "./components/TopBar";
+import ConditionalTopBar from "./components/ConditionalTopBar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,7 +23,7 @@ export default function RootLayout({ children }) {
         <div className="school-project-banner">
           DETTE ER ET SKOLEPROSJEKT
         </div>
-        <TopBar />
+        <ConditionalTopBar />
 
         {children}
 

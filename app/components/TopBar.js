@@ -259,6 +259,29 @@ export default function TopBar() {
 
                 <div
                   style={{
+                    padding: "1rem 2rem 0",
+                  }}
+                >
+                  <Link
+                    href="/login"
+                    onClick={() => setOpen(false)}
+                    style={{
+                      display: "block",
+                      textAlign: "center",
+                      padding: "0.75rem 1rem",
+                      borderRadius: 8,
+                      backgroundColor: "#111827",
+                      color: "#fff",
+                      textDecoration: "none",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Logg inn
+                  </Link>
+                </div>
+
+                <div
+                  style={{
                     display: "flex",
                     justifyContent: "center",
                     gap: "0.5rem",
