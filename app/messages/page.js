@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "../components/LanguageProvider";
 
 export default function MessagesPage() {
   const router = useRouter();
+  const t = useTranslations("messagesPage");
   const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -32,12 +34,12 @@ export default function MessagesPage() {
         const data = await res.json();
         setCurrentUser(data.user);
       } catch {
-        setError("Kunne ikke hente innlogget bruker");
+        setError(t.currentUserError);
       }
     };
 
     loadCurrentUser();
-  }, [router]);
+  }, [router, t.currentUserError]);
 
   // Load all users for selection
   useEffect(() => {
@@ -58,16 +60,16 @@ export default function MessagesPage() {
 
         setUsers(data.users || []);
       } catch {
-        setError("Kunne ikke hente brukere");
+        setError(t.usersError);
       } finally {
         setLoadingUsers(false);
       }
     };
 
     loadUsers();
-  }, []);
+  }, [t.usersError]);
 
-  const loadConversation = async (otherUserId, { silent } = {}) => {
+  const loadConversation = useCallback(async (otherUserId, { silent } = {}) => {
     if (!otherUserId) return;
     if (!silent) {
       setLoadingMessages(true);
@@ -81,7 +83,7 @@ export default function MessagesPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Kunne ikke hente meldinger");
+        setError(data.error || t.messagesError);
         setMessages([]);
         return;
       }
@@ -89,13 +91,13 @@ export default function MessagesPage() {
       const data = await res.json();
       setMessages(data.messages || []);
     } catch {
-      setError("Kunne ikke hente meldinger");
+      setError(t.messagesError);
     } finally {
       if (!silent) {
         setLoadingMessages(false);
       }
     }
-  };
+  }, [t.messagesError]);
 
   const handleSelectUser = (e) => {
     const otherId = e.target.value;
@@ -115,7 +117,7 @@ export default function MessagesPage() {
     }, 2000);
 
     return () => clearInterval(intervalId);
-  }, [selectedUserId]);
+  }, [loadConversation, selectedUserId]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -133,14 +135,14 @@ export default function MessagesPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Kunne ikke sende melding");
+        setError(data.error || t.sendError);
         return;
       }
 
       setMessages((prev) => [...prev, data.message]);
       setNewMessage("");
     } catch {
-      setError("Kunne ikke sende melding");
+      setError(t.sendError);
     }
   };
 
@@ -153,7 +155,7 @@ export default function MessagesPage() {
   if (!currentUser) {
     return (
       <div style={{ padding: "2rem" }}>
-        <p>Laster...</p>
+        <p>{t.loading}</p>
       </div>
     );
   }
@@ -162,7 +164,7 @@ export default function MessagesPage() {
 
   return (
     <div style={{ padding: "2rem", maxWidth: "800px", margin: "0 auto" }}>
-      <h1>Meldinger</h1>
+      <h1>{t.title}</h1>
       {error && (
         <p style={{ color: "red", marginTop: "1rem" }}>
           {error}
@@ -171,16 +173,16 @@ export default function MessagesPage() {
 
       <section style={{ marginTop: "1.5rem" }}>
         <label>
-          Velg bruker å chatte med:
+          {t.selectUser}
           <select
             value={selectedUserId}
             onChange={handleSelectUser}
             style={{ marginLeft: "0.5rem", padding: "0.25rem" }}
           >
-            <option value="">-- Velg --</option>
+            <option value="">-- {t.choose} --</option>
             {loadingUsers ? (
               <option value="" disabled>
-                Laster brukere...
+                {t.loadingUsers}
               </option>
             ) : (
               filteredUsers.map((u) => (
@@ -205,9 +207,9 @@ export default function MessagesPage() {
             }}
           >
             {loadingMessages ? (
-              <p>Laster meldinger...</p>
+              <p>{t.loadingMessages}</p>
             ) : messages.length === 0 ? (
-              <p>Ingen meldinger ennå. Skriv den første!</p>
+              <p>{t.noMessages}</p>
             ) : (
               messages.map((m) => {
                 const isMine = m.sender_id === currentUser.id;
@@ -244,13 +246,13 @@ export default function MessagesPage() {
           <form onSubmit={handleSendMessage} style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
             <input
               type="text"
-              placeholder="Skriv en melding..."
+              placeholder={t.inputPlaceholder}
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               style={{ flex: 1, padding: "0.5rem" }}
             />
             <button type="submit" style={{ padding: "0.5rem 1rem", cursor: "pointer" }}>
-              Send
+              {t.send}
             </button>
           </form>
         </section>

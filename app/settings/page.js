@@ -1,113 +1,359 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FiMoon, FiSun, FiBell, FiInfo, FiUser } from "react-icons/fi";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import {
+  FiBell, FiSun, FiMap, FiLock, FiMapPin, FiEye, FiMoon, FiMonitor,
+} from "react-icons/fi";
 
-export default function SettingsPage() {
-  const [theme, setTheme] = useState("light");
-  const [notifications, setNotifications] = useState(true);
-
-  // Hent lagrede preferanser
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    const savedNotif = localStorage.getItem("notifications");
-    if (savedTheme) setTheme(savedTheme);
-    if (savedNotif) setNotifications(savedNotif === "true");
-  }, []);
-
-  useEffect(() => {
-    document.body.style.backgroundColor = theme === "dark" ? "#121212" : "#f4f4f4";
-    document.body.style.color = theme === "dark" ? "#fff" : "#111";
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem("notifications", notifications);
-  }, [notifications]);
-
-  const cardStyle = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "1rem 1.5rem",
-    marginBottom: "1rem",
-    borderRadius: "12px",
-    background: theme === "dark" ? "#222" : "#fff",
-    boxShadow: theme === "dark" ? "0 3px 10px rgba(0,0,0,0.5)" : "0 3px 10px rgba(0,0,0,0.1)",
-    transition: "all 0.3s",
-  };
-
-  const toggleButtonStyle = (active) => ({
-    width: "50px",
-    height: "24px",
-    borderRadius: "12px",
-    background: active ? "#0070f3" : "#ccc",
-    position: "relative",
-    cursor: "pointer",
-    transition: "background 0.3s",
-  });
-
-  const toggleCircleStyle = (active) => ({
-    width: "20px",
-    height: "20px",
-    borderRadius: "50%",
-    background: "#fff",
-    position: "absolute",
-    top: "2px",
-    left: active ? "26px" : "2px",
-    transition: "left 0.3s",
-  });
-
+// ── helpers ──────────────────────────────────────────────────────────────
+function Toggle({ on, onToggle, disabled }) {
   return (
-    <div style={{ minHeight: "100vh", padding: "2rem", fontFamily: "'Inter', sans-serif" }}>
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "2rem" }}>Innstillinger</h1>
+    <div
+      onClick={disabled ? undefined : onToggle}
+      role="switch"
+      aria-checked={on}
+      style={{
+        width: "50px",
+        height: "28px",
+        borderRadius: "999px",
+        background: on ? "var(--accent)" : "var(--border)",
+        position: "relative",
+        cursor: disabled ? "not-allowed" : "pointer",
+        transition: "background 0.25s",
+        flexShrink: 0,
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          width: "22px",
+          height: "22px",
+          borderRadius: "50%",
+          background: "#fff",
+          top: "3px",
+          left: on ? "25px" : "3px",
+          transition: "left 0.25s",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+        }}
+      />
+    </div>
+  );
+}
 
-      {/* Dark mode */}
-      <div style={cardStyle}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          {theme === "dark" ? <FiMoon /> : <FiSun />}
-          <span style={{ fontSize: "1.2rem" }}>Mørk modus</span>
-        </div>
-        <div
-          style={toggleButtonStyle(theme === "dark")}
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        >
-          <div style={toggleCircleStyle(theme === "dark")} />
+function SettingRow({ icon, title, description, children }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "1.25rem 1.5rem",
+        borderBottom: "1px solid var(--border)",
+        gap: "1rem",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: "0.85rem", flex: 1 }}>
+        <span style={{ color: "var(--text-muted)", marginTop: "2px", flexShrink: 0 }}>{icon}</span>
+        <div>
+          <p style={{ margin: "0 0 0.2rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--text)" }}>{title}</p>
+          {description && (
+            <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: 1.5 }}>{description}</p>
+          )}
         </div>
       </div>
+      <div style={{ flexShrink: 0 }}>{children}</div>
+    </div>
+  );
+}
 
-      {/* Varslinger */}
-      <div style={cardStyle}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <FiBell />
-          <span style={{ fontSize: "1.2rem" }}>Varslinger</span>
-        </div>
-        <div
-          style={toggleButtonStyle(notifications)}
-          onClick={() => setNotifications(!notifications)}
-        >
-          <div style={toggleCircleStyle(notifications)} />
-        </div>
-      </div>
-
-      {/* Konto info */}
-      <div style={cardStyle}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <FiUser />
-          <span style={{ fontSize: "1.2rem" }}>Konto</span>
-        </div>
-        <Link href="/login" style={{ color: "#0070f3", fontWeight: 600 }}>Logg inn</Link>
-      </div>
-
-      {/* Om appen */}
-      <div style={cardStyle}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <FiInfo />
-          <span style={{ fontSize: "1.2rem" }}>Om appen</span>
-        </div>
-        <span>v1.0.0</span>
+function Section({ title, children }) {
+  return (
+    <div style={{ marginBottom: "2rem" }}>
+      <p style={{ margin: "0 0 0.6rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>
+        {title}
+      </p>
+      <div style={{ background: "var(--bg-panel)", borderRadius: 4, border: "1px solid var(--border)", overflow: "hidden" }}>
+        {children}
       </div>
     </div>
   );
 }
+
+// ── main component ────────────────────────────────────────────────────────
+export default function Settings() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // ---- settings state ----
+  const [notifications, setNotifications] = useState(true);
+  const [emailNotifications, setEmailNotifications] = useState(false);
+  const [theme, setTheme] = useState("Lys");
+  const [radius,  setRadius]  = useState(50);
+  const [locationSharing, setLocationSharing] = useState(false);
+  const [publicProfile, setPublicProfile] = useState(true);
+
+  // ---- load from API on mount ----
+  useEffect(() => {
+    async function load() {
+      try {
+        const [profileRes, preferencesRes] = await Promise.all([
+          fetch("/api/profile", { credentials: "include", cache: "no-store" }),
+          fetch("/api/preferences", { cache: "no-store" }),
+        ]);
+
+        const [profileData, preferencesData] = await Promise.all([
+          profileRes.json().catch(() => ({})),
+          preferencesRes.json().catch(() => ({})),
+        ]);
+
+        const p = profileData.profile;
+        if (profileRes.ok && p) {
+          setNotifications(Boolean(p.settings?.notifications ?? true));
+          setRadius(typeof p.radius_km === "number" ? p.radius_km : 50);
+          setLocationSharing(Boolean(p.settings?.locationSharing ?? false));
+          setPublicProfile(Boolean(p.settings?.publicProfile ?? true));
+          setEmailNotifications(Boolean(p.settings?.emailNotifications ?? false));
+          setTheme(preferencesData?.theme || p.settings?.theme || "Lys");
+        } else if (preferencesRes.ok && preferencesData?.theme) {
+          setTheme(preferencesData.theme);
+        }
+      } catch { /* ignore – use defaults */ }
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  // ---- save helper ----
+  async function save(patch) {
+    setSaving(true);
+    try {
+      await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(patch),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1800);
+    } catch { /* silently ignore */ }
+    setSaving(false);
+  }
+
+  // ---- individual handlers ----
+  function buildSettings(overrides) {
+    return {
+      notifications,
+      emailNotifications,
+      theme,
+      locationSharing,
+      publicProfile,
+      ...overrides,
+    };
+  }
+
+  async function toggleNotifications() {
+    const next = !notifications;
+    setNotifications(next);
+    await save({ settings: buildSettings({ notifications: next }) });
+  }
+
+  async function toggleEmailNotifications() {
+    const next = !emailNotifications;
+    setEmailNotifications(next);
+    await save({ settings: buildSettings({ emailNotifications: next }) });
+  }
+
+  async function selectTheme(t) {
+    setTheme(t);
+    window.dispatchEvent(new CustomEvent("ff-theme-change", { detail: { theme: t } }));
+    await Promise.all([
+      save({ settings: buildSettings({ theme: t }) }),
+      fetch("/api/preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: t }),
+      }),
+    ]);
+  }
+
+  async function handleRadiusSave(val) {
+    setRadius(val);
+    await save({ radius_km: val });
+  }
+
+  async function toggleLocationSharing() {
+    const next = !locationSharing;
+    setLocationSharing(next);
+    await save({ settings: buildSettings({ locationSharing: next }) });
+  }
+
+  async function togglePublicProfile() {
+    const next = !publicProfile;
+    setPublicProfile(next);
+    await save({ settings: buildSettings({ publicProfile: next }) });
+  }
+
+  // ---- theme button ----
+  const THEMES = [
+    { key: "Lys",        icon: <FiSun size={15} />,     label: "Lyst" },
+    { key: "Mørk",       icon: <FiMoon size={15} />,    label: "Mørkt" },
+    { key: "Automatisk", icon: <FiMonitor size={15} />, label: "Automatisk" },
+  ];
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--bg)",
+        fontFamily: "Poppins, sans-serif",
+        padding: "2.5rem 2rem",
+      }}
+    >
+      <div style={{ maxWidth: "680px", margin: "0 auto" }}>
+
+        {/* Header */}
+        <div style={{ marginBottom: "2rem" }}>
+          <p style={{ margin: "0 0 0.3rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>
+            Konto
+          </p>
+          <h1 style={{ margin: "0 0 0.4rem", fontSize: "2rem", fontWeight: 800, color: "var(--text)", letterSpacing: "-0.03em" }}>
+            Innstillinger
+          </h1>
+          <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "0.95rem" }}>
+            Tilpass FrittFram etter dine preferanser
+          </p>
+        </div>
+
+        {/* Saved toast */}
+        {saved && (
+          <div style={{ background: "#132a1e", border: "1px solid #166534", borderRadius: 4, padding: "0.7rem 1.2rem", marginBottom: "1.5rem", fontSize: "0.88rem", color: "#4ade80", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            ✅ Lagret
+          </div>
+        )}
+
+        {loading ? (
+          <p style={{ color: "var(--text-muted)", textAlign: "center", padding: "3rem" }}>Laster innstillinger...</p>
+        ) : (
+          <>
+            {/* ── Varslinger ── */}
+            <Section title="Varslinger">
+              <SettingRow
+                icon={<FiBell size={18} />}
+                title="Push-varslinger"
+                description="Motta varsler om nye meldinger og reservasjoner"
+              >
+                <Toggle on={notifications} onToggle={toggleNotifications} disabled={saving} />
+              </SettingRow>
+              <SettingRow
+                icon={<FiBell size={18} />}
+                title="E-postvarsler"
+                description="Ukentlig oppsummering og konto-varsler på e-post"
+              >
+                <Toggle on={emailNotifications} onToggle={toggleEmailNotifications} disabled={saving} />
+              </SettingRow>
+            </Section>
+
+            {/* ── Utseende ── */}
+            <Section title="Utseende">
+              <div style={{ padding: "1.25rem 1.5rem" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.85rem", marginBottom: "1rem" }}>
+                  <span style={{ color: "var(--text-muted)", marginTop: "2px" }}><FiSun size={18} /></span>
+                  <div>
+                    <p style={{ margin: "0 0 0.2rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--text)" }}>Tema</p>
+                    <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)" }}>Velg farge- og designpreferanse</p>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem" }}>
+                  {THEMES.map(({ key, icon, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => selectTheme(key)}
+                      style={{
+                        padding: "0.75rem 0.5rem",
+                        borderRadius: "8px",
+                        border: theme === key ? "2px solid var(--accent)" : "1px solid var(--border)",
+                        background: theme === key ? "var(--bg-panel)" : "var(--bg)",
+                        color: theme === key ? "var(--text)" : "var(--text-muted)",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        fontWeight: theme === key ? 700 : 500,
+                        fontSize: "0.85rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {icon}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </Section>
+
+            {/* ── Søk & kart ── */}
+            <Section title="Søk og kart">
+              <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid #1e2539" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.85rem", marginBottom: "1rem" }}>
+                  <span style={{ color: "#6b7280", marginTop: "2px" }}><FiMap size={18} /></span>
+                  <div>
+                    <p style={{ margin: "0 0 0.2rem", fontWeight: 600, fontSize: "0.95rem", color: "var(--text)" }}>Søkeradius</p>
+                    <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)" }}>
+                      Vis turer innenfor <strong>{radius} km</strong> fra hjemsted
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem", paddingLeft: "2.1rem" }}>
+                  <input
+                    type="range"
+                    min={5}
+                    max={500}
+                    step={5}
+                    value={radius}
+                    onChange={(e) => setRadius(Number(e.target.value))}
+                    onMouseUp={(e) => handleRadiusSave(Number(e.target.value))}
+                    onTouchEnd={(e) => handleRadiusSave(Number(e.target.value))}
+                    style={{ flex: 1, accentColor: "#6675ff" }}
+                  />
+                  <span style={{ minWidth: "60px", fontWeight: 700, fontSize: "1rem", color: "var(--text)", textAlign: "right" }}>
+                    {radius} km
+                  </span>
+                </div>
+              </div>
+              <SettingRow
+                icon={<FiMapPin size={18} />}
+                title="Del posisjon"
+                description="La andre brukere se omtrentlig posisjon på kart"
+              >
+                <Toggle on={locationSharing} onToggle={toggleLocationSharing} disabled={saving} />
+              </SettingRow>
+            </Section>
+
+            {/* ── Personvern ── */}
+            <Section title="Personvern">
+              <SettingRow
+                icon={<FiEye size={18} />}
+                title="Offentlig profil"
+                description="Andre brukere kan se profilen din og dine turer"
+              >
+                <Toggle on={publicProfile} onToggle={togglePublicProfile} disabled={saving} />
+              </SettingRow>
+              <SettingRow
+                icon={<FiLock size={18} />}
+                title="To-faktor autentisering"
+                description="Konto er ikke satt opp med 2FA"
+              >
+                <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600 }}>Kommer snart</span>
+              </SettingRow>
+            </Section>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+

@@ -16,24 +16,238 @@ try {
   // ignore if dotenv is not installed
 }
 
+const { getDatabaseConfig } = require("./lib/db-config.cjs");
+
 const dev = process.env.NODE_ENV !== "production";
 const appNext = next({ dev });
 const handle = appNext.getRequestHandler();
 
 const port = process.env.PORT || 3000;
 
-// Create a separate pool for the Express server
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: true,
-  },
-});
+const pool = new Pool(getDatabaseConfig());
+
+let userColumnsPromise = null;
 
 function sanitizeUser(row) {
   if (!row) return null;
   const { password, ...safe } = row;
   return safe;
+}
+
+function clearSessionCookie(res) {
+  res.clearCookie("connect.sid", {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+}
+
+async function getUserColumns() {
+  if (!userColumnsPromise) {
+    userColumnsPromise = pool
+      .query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = 'users'`
+      )
+      .then((result) => new Set(result.rows.map((row) => row.column_name)))
+      .catch((error) => {
+        userColumnsPromise = null;
+        throw error;
+      });
+  }
+
+  return userColumnsPromise;
+}
+
+async function ensureUserColumns() {
+  const cols = [
+    "bio TEXT",
+    "phone TEXT",
+    "dob DATE",
+    "age INTEGER",
+    "interests TEXT DEFAULT '[]'",
+    "radius_km INTEGER DEFAULT 50",
+    "banner_image TEXT",
+    "notifications BOOLEAN DEFAULT TRUE",
+    "theme TEXT DEFAULT 'Lys'",
+    "email_notifications BOOLEAN DEFAULT FALSE",
+    "location_sharing BOOLEAN DEFAULT FALSE",
+    "public_profile BOOLEAN DEFAULT TRUE",
+  ];
+  for (const col of cols) {
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col}`).catch(() => {});
+  }
+  userColumnsPromise = null; // reset cache so newly added columns are picked up
+}
+
+function pickFirstValue(source, keys, fallback = null) {
+  for (const key of keys) {
+    const value = source?.[key];
+    if (value !== undefined && value !== null && value !== "") {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
+function toBoolean(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (value === "true") return true;
+    if (value === "false") return false;
+  }
+  if (typeof value === "number") return value !== 0;
+  return fallback;
+}
+
+function calculateAge(dob) {
+  if (!dob) return "";
+
+  const birthDate = new Date(dob);
+  if (Number.isNaN(birthDate.getTime())) return "";
+
+  const now = new Date();
+  let age = now.getFullYear() - birthDate.getFullYear();
+  const monthDiff = now.getMonth() - birthDate.getMonth();
+
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && now.getDate() < birthDate.getDate())
+  ) {
+    age -= 1;
+  }
+
+  return age;
+}
+
+async function buildProfilePayload(user) {
+  const fullUser = await findUserById(user.id);
+
+  let latestTrip = null;
+  let transactions = [];
+
+  try {
+    const latestTripResult = await pool.query(
+      `SELECT navn, beskrivelse, bilde_url, vanskelighetsgrad, lengde_km
+       FROM public.trips
+       ORDER BY id DESC
+       LIMIT 1`
+    );
+
+    latestTrip = latestTripResult.rows[0] || null;
+  } catch (error) {
+    console.error("buildProfilePayload latestTrip error", error);
+  }
+
+  try {
+    if (fullUser?.email) {
+      const reservationsResult = await pool.query(
+        `SELECT r.start_date,
+                c.name AS cabin_name,
+                c.price_per_night
+         FROM public.reservations r
+         LEFT JOIN public.cabins c ON c.id = r.cabin_id
+         WHERE r.guest_email = $1
+         ORDER BY r.created_at DESC
+         LIMIT 10`,
+        [fullUser.email]
+      );
+
+      transactions = reservationsResult.rows.map((row) => ({
+        date: row.start_date,
+        amount: row.price_per_night
+          ? `${row.price_per_night} NOK`
+          : "Ukjent pris",
+        desc: row.cabin_name || "Reservasjon",
+      }));
+    }
+  } catch (error) {
+    console.error("buildProfilePayload reservations error", error);
+  }
+
+  const dob = pickFirstValue(fullUser, ["dob", "birth_date", "date_of_birth"], "");
+  const age = pickFirstValue(fullUser, ["age"], calculateAge(dob));
+  const profileImage = pickFirstValue(
+    fullUser,
+    ["profile_image", "avatar_url", "avatar", "image_url"],
+    "/images/profil.jpg"
+  );
+  const bannerImage = pickFirstValue(
+    fullUser,
+    ["banner_image", "banner_url"],
+    null
+  );
+
+  return {
+    id: fullUser.id,
+    name: pickFirstValue(fullUser, ["username", "name", "full_name"], "Bruker"),
+    dob,
+    age,
+    phone: pickFirstValue(fullUser, ["phone", "phone_number"], ""),
+    email: fullUser.email || "",
+    bio: pickFirstValue(fullUser, ["bio", "about"], ""),
+    profileImage,
+    bannerImage,
+    lastTrip: latestTrip
+      ? {
+          title: latestTrip.navn,
+          date: "Siste registrerte tur",
+          description:
+            latestTrip.beskrivelse || "Ingen beskrivelse registrert for turen.",
+          image: latestTrip.bilde_url || "/images/fjell.jpg",
+          difficulty: latestTrip.vanskelighetsgrad || "Ukjent",
+          distance: latestTrip.lengde_km
+            ? `${latestTrip.lengde_km} km`
+            : "Ukjent",
+          duration: "Ikke oppgitt",
+          elevation: "Ikke oppgitt",
+          rating: 4,
+          location: latestTrip.navn,
+        }
+      : {
+          title: "Ingen tur registrert",
+          date: "",
+          description: "Du har ingen registrerte turer ennå.",
+          image: "/images/fjell.jpg",
+          difficulty: "Ukjent",
+          distance: "Ukjent",
+          duration: "Ukjent",
+          elevation: "Ukjent",
+          rating: 0,
+          location: "",
+        },
+    transactions,
+    payment: {
+      card: "Ikke registrert",
+      billing: transactions[0]?.date || "Ingen fakturaperiode",
+    },
+    settings: {
+      notifications: toBoolean(
+        pickFirstValue(fullUser, ["notifications", "notifications_enabled"], true),
+        true
+      ),
+      theme: pickFirstValue(fullUser, ["theme"], "Lys"),
+      emailNotifications: toBoolean(
+        pickFirstValue(fullUser, ["email_notifications", "emailNotifications"], false),
+        false
+      ),
+      locationSharing: toBoolean(
+        pickFirstValue(fullUser, ["location_sharing", "locationSharing"], false),
+        false
+      ),
+      publicProfile: toBoolean(
+        pickFirstValue(fullUser, ["public_profile", "publicProfile"], true),
+        true
+      ),
+    },
+    interests: (() => {
+      try { return JSON.parse(fullUser?.interests || "[]"); } catch { return []; }
+    })(),
+    radius_km: fullUser?.radius_km != null ? Number(fullUser.radius_km) : 50,
+  };
 }
 
 async function findUserByEmail(email) {
@@ -46,6 +260,22 @@ async function findUserByEmail(email) {
 async function findUserById(id) {
   const result = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
   return result.rows[0] || null;
+}
+
+async function clearUserSessions(userId) {
+  if (!userId) {
+    return;
+  }
+
+  try {
+    await pool.query(
+      `DELETE FROM session
+       WHERE sess -> 'passport' ->> 'user' = $1`,
+      [String(userId)]
+    );
+  } catch (error) {
+    console.error("clearUserSessions error", error);
+  }
 }
 
 passport.use(
@@ -137,7 +367,16 @@ appNext.prepare().then(() => {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Apply body parsing middleware only to /api/auth routes
+  // Body parsers for selected Express endpoints (not global Next.js routes)
+  const jsonParser = express.json();
+  const urlencodedParser = express.urlencoded({ extended: true });
+
+  // Apply body parsing middleware for profile, messages and forgot-password routes
+  app.use("/api/profile", jsonParser, urlencodedParser);
+  app.use("/api/messages", jsonParser, urlencodedParser);
+  app.use("/api/auth/forgot-password", jsonParser, urlencodedParser);
+
+  // Register
   authRouter.post("/register", async (req, res) => {
     const { username, email, password, role } = req.body || {};
 
@@ -207,13 +446,59 @@ appNext.prepare().then(() => {
     })(req, res, next);
   });
 
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    const { email, password, confirmPassword } = req.body || {};
+
+    const normalizedEmail = typeof email === "string" ? email.trim() : "";
+    const nextPassword = typeof password === "string" ? password : "";
+    const confirmedPassword =
+      typeof confirmPassword === "string" ? confirmPassword : "";
+
+    if (!normalizedEmail || !nextPassword || !confirmedPassword) {
+      return res.status(400).json({ error: "Alle felt må fylles ut" });
+    }
+
+    if (nextPassword.length < 8) {
+      return res
+        .status(400)
+        .json({ error: "Nytt passord må være minst 8 tegn" });
+    }
+
+    if (nextPassword !== confirmedPassword) {
+      return res.status(400).json({ error: "Passordene må være like" });
+    }
+
+    try {
+      const result = await pool.query(
+        `UPDATE users
+         SET password = $1
+         WHERE LOWER(email) = LOWER($2)
+         RETURNING id`,
+        [await bcrypt.hash(nextPassword, 10), normalizedEmail]
+      );
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: "Fant ingen bruker med denne e-posten" });
+      }
+
+      await clearUserSessions(result.rows[0].id);
+
+      clearSessionCookie(res);
+      return res.json({ ok: true, message: "Passordet er oppdatert" });
+    } catch (err) {
+      console.error("/api/auth/forgot-password error", err);
+      return res.status(500).json({ error: "Kunne ikke oppdatere passordet" });
+    }
+  });
+
   // Logout
   authRouter.post("/logout", (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
       req.session.destroy(() => {
-        res.clearCookie("connect.sid");
-        res.clearCookie("sid");
+    clearSessionCookie(res);
+    res.clearCookie("sid");
+    res.set("Cache-Control", "no-store");
         res.json({ ok: true });
       });
     });
@@ -225,6 +510,190 @@ appNext.prepare().then(() => {
       return res.status(401).json({ user: null });
     }
     return res.json({ user: req.user });
+  });
+
+  app.get("/api/profile", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Ikke logget inn" });
+    }
+
+    try {
+      const profile = await buildProfilePayload(req.user);
+      return res.json({ profile });
+    } catch (err) {
+      console.error("/api/profile GET error", err);
+      return res.status(500).json({ error: "Kunne ikke hente profil" });
+    }
+  });
+
+  app.put("/api/profile", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Ikke logget inn" });
+    }
+
+    try {
+      const body = req.body || {};
+      const settings = body.settings && typeof body.settings === "object"
+        ? body.settings
+        : {};
+      const userColumns = await getUserColumns();
+      const updates = [];
+      const values = [];
+
+      const addUpdate = (column, value) => {
+        updates.push(`${column} = $${values.length + 1}`);
+        values.push(value);
+      };
+
+      const findColumn = (candidates) =>
+        candidates.find((candidate) => userColumns.has(candidate));
+
+      const usernameColumn = findColumn(["username", "name", "full_name"]);
+      const profileImageColumn = findColumn([
+        "profile_image",
+        "avatar_url",
+        "avatar",
+        "image_url",
+      ]);
+      const phoneColumn = findColumn(["phone", "phone_number"]);
+      const dobColumn = findColumn(["dob", "birth_date", "date_of_birth"]);
+      const bioColumn = findColumn(["bio", "about"]);
+      const notificationsColumn = findColumn([
+        "notifications",
+        "notifications_enabled",
+      ]);
+      const themeColumn = findColumn(["theme"]);
+      const emailNotificationsColumn = findColumn([
+        "email_notifications",
+        "emailNotifications",
+      ]);
+      const locationSharingColumn = findColumn([
+        "location_sharing",
+        "locationSharing",
+      ]);
+      const publicProfileColumn = findColumn([
+        "public_profile",
+        "publicProfile",
+      ]);
+      const ageColumn = findColumn(["age"]);
+      const interestsColumn = findColumn(["interests"]);
+      const radiusColumn = findColumn(["radius_km"]);
+
+      const nextName = typeof body.name === "string" ? body.name.trim() : "";
+      const nextEmail = typeof body.email === "string" ? body.email.trim() : "";
+
+      if (nextName && usernameColumn === "username") {
+        const existing = await pool.query(
+          "SELECT 1 FROM users WHERE username = $1 AND id <> $2",
+          [nextName, req.user.id]
+        );
+
+        if (existing.rowCount > 0) {
+          return res.status(400).json({ error: "Brukernavn er allerede i bruk" });
+        }
+      }
+
+      if (nextEmail && userColumns.has("email")) {
+        const existing = await pool.query(
+          "SELECT 1 FROM users WHERE email = $1 AND id <> $2",
+          [nextEmail, req.user.id]
+        );
+
+        if (existing.rowCount > 0) {
+          return res.status(400).json({ error: "E-post er allerede i bruk" });
+        }
+      }
+
+      if (nextName && usernameColumn) addUpdate(usernameColumn, nextName);
+      if (nextEmail && userColumns.has("email")) addUpdate("email", nextEmail);
+
+      if (typeof body.phone === "string" && phoneColumn) {
+        addUpdate(phoneColumn, body.phone.trim());
+      }
+
+      if (typeof body.bio === "string" && bioColumn) {
+        addUpdate(bioColumn, body.bio.trim());
+      }
+
+      if (typeof body.dob === "string" && dobColumn) {
+        addUpdate(dobColumn, body.dob.trim());
+      }
+
+      if (body.age !== undefined && ageColumn) {
+        const numericAge = Number(body.age);
+        addUpdate(ageColumn, Number.isFinite(numericAge) ? numericAge : null);
+      }
+
+      if (typeof body.profileImage === "string" && profileImageColumn) {
+        addUpdate(profileImageColumn, body.profileImage.trim());
+      }
+
+      const bannerImageColumn = findColumn(["banner_image", "banner_url"]);
+      if (typeof body.bannerImage === "string" && bannerImageColumn) {
+        addUpdate(bannerImageColumn, body.bannerImage.trim());
+      }
+
+      if (settings.notifications !== undefined && notificationsColumn) {
+        addUpdate(notificationsColumn, toBoolean(settings.notifications, true));
+      }
+
+      if (typeof settings.theme === "string" && themeColumn) {
+        addUpdate(themeColumn, settings.theme.trim());
+      }
+
+      if (settings.emailNotifications !== undefined && emailNotificationsColumn) {
+        addUpdate(
+          emailNotificationsColumn,
+          toBoolean(settings.emailNotifications, false)
+        );
+      }
+
+      if (settings.locationSharing !== undefined && locationSharingColumn) {
+        addUpdate(
+          locationSharingColumn,
+          toBoolean(settings.locationSharing, false)
+        );
+      }
+
+      if (settings.publicProfile !== undefined && publicProfileColumn) {
+        addUpdate(publicProfileColumn, toBoolean(settings.publicProfile, true));
+      }
+
+      if (Array.isArray(body.interests) && interestsColumn) {
+        addUpdate(interestsColumn, JSON.stringify(body.interests));
+      }
+
+      if (body.radius_km !== undefined && radiusColumn) {
+        const numericRadius = Number(body.radius_km);
+        addUpdate(radiusColumn, Number.isFinite(numericRadius) ? numericRadius : 50);
+      }
+
+      if (updates.length > 0) {
+        values.push(req.user.id);
+        const updateResult = await pool.query(
+          `UPDATE users SET ${updates.join(", ")} WHERE id = $${values.length} RETURNING *`,
+          values
+        );
+
+        const nextUser = sanitizeUser(updateResult.rows[0]);
+        req.login(nextUser, async (loginErr) => {
+          if (loginErr) {
+            return res.status(500).json({ error: "Kunne ikke oppdatere sesjon" });
+          }
+
+          const profile = await buildProfilePayload(nextUser);
+          return res.json({ profile });
+        });
+
+        return;
+      }
+
+      const profile = await buildProfilePayload(req.user);
+      return res.json({ profile });
+    } catch (err) {
+      console.error("/api/profile PUT error", err);
+      return res.status(500).json({ error: "Kunne ikke oppdatere profil" });
+    }
   });
 
   // Update username
@@ -329,7 +798,7 @@ appNext.prepare().then(() => {
           return res.status(500).json({ error: "Kunne ikke logge ut" });
         }
         req.session.destroy(() => {
-          res.clearCookie("connect.sid");
+          clearSessionCookie(res);
           return res.json({ ok: true });
         });
       });
@@ -339,8 +808,97 @@ appNext.prepare().then(() => {
     }
   });
 
+  // Create a new one-to-one message
+  app.post("/api/messages", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Ikke logget inn" });
+    }
+
+    const { receiverId, content } = req.body || {};
+
+    if (!receiverId || !content || !content.trim()) {
+      return res
+        .status(400)
+        .json({ error: "Mottaker og meldingstekst er påkrevd" });
+    }
+
+    try {
+      const insertResult = await pool.query(
+        "INSERT INTO messages (senderid, receiverid, text) VALUES ($1, $2, $3) RETURNING *",
+        [req.user.id, receiverId, content.trim()]
+      );
+
+      const row = insertResult.rows[0];
+      const message = {
+        id: row.id,
+        sender_id: row.senderid,
+        receiver_id: row.receiverid,
+        content: row.text,
+        created_at: row.createdat,
+        read_at: row.readat,
+      };
+
+      return res.status(201).json({ message });
+    } catch (err) {
+      console.error("/api/messages POST error", err);
+      return res.status(500).json({ error: "Kunne ikke sende melding" });
+    }
+  });
+
+  // Get all messages in a one-to-one conversation
+  app.get("/api/messages/:otherUserId", async (req, res) => {
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+      return res.status(401).json({ error: "Ikke logget inn" });
+    }
+
+    const { otherUserId } = req.params;
+
+    if (!otherUserId) {
+      return res.status(400).json({ error: "Mangler mottaker-id" });
+    }
+
+    try {
+      const result = await pool.query(
+        `SELECT m.id,
+                m.senderid,
+                m.receiverid,
+                m.text,
+                m.createdat,
+                m.readat,
+                su.username AS sender_username,
+                ru.username AS receiver_username
+         FROM messages m
+         JOIN users su ON su.id = m.senderid
+         JOIN users ru ON ru.id = m.receiverid
+         WHERE (m.senderid = $1 AND m.receiverid = $2)
+            OR (m.senderid = $2 AND m.receiverid = $1)
+         ORDER BY m.createdat ASC`,
+        [req.user.id, otherUserId]
+      );
+
+      const messages = result.rows.map((row) => ({
+        id: row.id,
+        sender_id: row.senderid,
+        receiver_id: row.receiverid,
+        content: row.text,
+        created_at: row.createdat,
+        read_at: row.readat,
+        sender_username: row.sender_username,
+        receiver_username: row.receiver_username,
+      }));
+
+      return res.json({ messages });
+    } catch (err) {
+      console.error("/api/messages GET error", err);
+      return res.status(500).json({ error: "Kunne ikke hente meldinger" });
+    }
+  });
+
   // Mount auth router with body parsing middleware
   app.use("/api/auth", authRouter);
+
+  // Ensure all required user columns exist (adds missing cols silently)
+  ensureUserColumns().catch((err) => console.error("ensureUserColumns error", err));
 
   // Let Next.js handle everything else
   app.all("*", (req, res) => handle(req, res));

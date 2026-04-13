@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FiArrowRight, FiCompass, FiHome, FiMapPin, FiSearch } from "react-icons/fi";
 import styles from "./page.module.css";
@@ -29,6 +29,14 @@ function ResultCard({ title, subtitle, meta, href, icon }) {
 }
 
 export default function SearchPage() {
+  return (
+    <Suspense fallback={<main className={styles.page}><section className={styles.content}><div className={styles.emptyState}><h2>Laster</h2><p>Henter søkesiden...</p></div></section></main>}>
+      <SearchPageContent />
+    </Suspense>
+  );
+}
+
+function SearchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") ?? "";
@@ -94,7 +102,10 @@ export default function SearchPage() {
     e.preventDefault();
     const nextQuery = query.trim();
 
-    if (!nextQuery) return;
+    if (!nextQuery) {
+      router.push("/search");
+      return;
+    }
 
     router.push(`/search?q=${encodeURIComponent(nextQuery)}`);
   }
@@ -153,7 +164,7 @@ export default function SearchPage() {
         ) : loading ? (
           <div className={styles.emptyState}>
             <h2>Laster treff</h2>
-            <p>Henter resultater for “{initialQuery}”.</p>
+            <p>Henter resultater for "{initialQuery}".</p>
           </div>
         ) : error ? (
           <div className={styles.errorBox}>{error}</div>
@@ -199,7 +210,10 @@ export default function SearchPage() {
                       title={cabin.name}
                       subtitle={cabin.location || "Ukjent lokasjon"}
                       meta={
-                        [cabin.price_per_night ? `${Number(cabin.price_per_night)} kr/natt` : null, cabin.capacity ? `${Number(cabin.capacity)} personer` : null]
+                        [
+                          cabin.price_per_night ? `${Number(cabin.price_per_night)} kr/natt` : null,
+                          cabin.capacity ? `${Number(cabin.capacity)} personer` : null,
+                        ]
                           .filter(Boolean)
                           .join(" • ") || null
                       }
@@ -226,7 +240,10 @@ export default function SearchPage() {
                       title={trip.navn}
                       subtitle={trip.type || trip.vanskelighetsgrad || "Tur"}
                       meta={
-                        [trip.lengde_km ? `${trip.lengde_km} km` : null, trip.vanskelighetsgrad ? trip.vanskelighetsgrad : null]
+                        [
+                          trip.lengde_km ? `${trip.lengde_km} km` : null,
+                          trip.vanskelighetsgrad ? trip.vanskelighetsgrad : null,
+                        ]
                           .filter(Boolean)
                           .join(" • ") || null
                       }
