@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# next dev lock file
+.next/dev/lock
+
 # production
 /build
 
