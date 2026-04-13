@@ -639,8 +639,9 @@ export default function MapComponent() {
     <div
       style={{
         display: "flex",
-        height: "100vh",
+        height: "calc(100vh - 40px)",
         width: "100%",
+        marginTop: 40,
       }}
     >
       {/* Venstre panel: 1/3 bredde med alle toggles og kontroller */}
