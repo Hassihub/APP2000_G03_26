@@ -38,25 +38,76 @@ export async function POST(req) {
     const userId = await getUserIdFromSession();
     if (!userId) return noStoreJson({ error: "Ikke innlogget" }, 401);
 
-    const { username } = await req.json();
-    const cleanUsername = String(username ?? "").trim();
+    const { name, email, phone, dob, age, bio } = await req.json();
 
-    if (!cleanUsername) {
-      return noStoreJson({ error: "Brukernavn kan ikke være tomt" }, 400);
+    // Validering
+    if (name && String(name).trim().length > 100) {
+      return noStoreJson({ error: "Navn er for langt" }, 400);
     }
-    if (cleanUsername.length > 50) {
-      return noStoreJson({ error: "Brukernavn er for langt (maks 50)" }, 400);
+    if (email && String(email).trim().length > 100) {
+      return noStoreJson({ error: "E-post er for lang" }, 400);
+    }
+    if (phone && String(phone).trim().length > 20) {
+      return noStoreJson({ error: "Telefonnummer er for langt" }, 400);
+    }
+    if (bio && String(bio).trim().length > 500) {
+      return noStoreJson({ error: "Bio er for lang (maks 500)" }, 400);
     }
 
-    const result = await pool.query(
-      `UPDATE public.users
-       SET username = $1
-       WHERE id = $2
-       RETURNING id, username, email, role, avatar, created_at`,
-      [cleanUsername, userId]
-    );
+    // Bygg UPDATE-statement dynamisk
+    const updates = [];
+    const values = [userId];
+    let paramCount = 2;
 
-    return noStoreJson({ user: result.rows[0] }, 200);
+    if (name !== undefined) {
+      updates.push(`name = $${paramCount}`);
+      values.push(String(name).trim());
+      paramCount++;
+    }
+    if (email !== undefined) {
+      updates.push(`email = $${paramCount}`);
+      values.push(String(email).trim());
+      paramCount++;
+    }
+    if (phone !== undefined) {
+      updates.push(`phone = $${paramCount}`);
+      values.push(String(phone).trim());
+      paramCount++;
+    }
+    if (dob !== undefined) {
+      updates.push(`dob = $${paramCount}`);
+      values.push(dob ? String(dob).trim() : null);
+      paramCount++;
+    }
+    if (age !== undefined) {
+      updates.push(`age = $${paramCount}`);
+      values.push(age ? parseInt(age) : null);
+      paramCount++;
+    }
+    if (bio !== undefined) {
+      updates.push(`bio = $${paramCount}`);
+      values.push(String(bio).trim());
+      paramCount++;
+    }
+
+    if (updates.length === 0) {
+      return noStoreJson({ error: "Ingen felter å oppdatere" }, 400);
+    }
+
+    const query = `
+      UPDATE public.users
+      SET ${updates.join(", ")}
+      WHERE id = $1
+      RETURNING id, name, email, phone, dob, age, bio
+    `;
+
+    const result = await pool.query(query, values);
+
+    if (result.rowCount === 0) {
+      return noStoreJson({ error: "Bruker ikke funnet" }, 404);
+    }
+
+    return noStoreJson({ user: result.rows[0], message: "Profil oppdatert" }, 200);
   } catch (err) {
     console.error("update-profile error:", err);
     return noStoreJson({ error: "Kunne ikke oppdatere profil" }, 500);

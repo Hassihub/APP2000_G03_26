@@ -13,7 +13,7 @@ const emptyProfile = {
   phone: "",
   email: "",
   bio: "",
-  profileImage: "/images/profil.jpg",
+  profileImage: "/images/fjell.jpg",
   lastTrip: {
     title: "Ingen tur registrert",
     date: "",
@@ -55,6 +55,12 @@ export default function Profile() {
   const [myPosts,      setMyPosts]      = useState([]);
   const [followStats,  setFollowStats]  = useState({ following: 0, followers: 0 });
   const [socialLoaded, setSocialLoaded] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -207,21 +213,83 @@ export default function Profile() {
     }
   }
 
-  async function handleSaveEdit() {
-    try {
-      await updateProfile({
-        name: editFields.name,
-        dob: editFields.dob,
-        age: editFields.age,
-        phone: editFields.phone,
-        email: editFields.email,
-        bio: editFields.bio,
-      });
-      setIsEditing(false);
-    } catch (err) {
-      alert(err.message || "Could not save profile.");
+async function handleSaveEdit() {
+  setPasswordError("");
+  setPasswordSuccess("");
+
+  try {
+    const nextDob = typeof editFields.dob === "string" ? editFields.dob.trim() : "";
+    const nextAge = typeof editFields.age === "string" ? editFields.age.trim() : editFields.age;
+
+    // Lagre profil-endringer først
+    await updateProfile({
+      name: editFields.name,
+      dob: nextDob === "" ? null : nextDob,
+      age: nextAge === "" ? null : nextAge,
+      phone: editFields.phone,
+      email: editFields.email,
+      bio: editFields.bio,
+    });
+
+    // Sjekk om bruker vil endre passord
+    const wantsPasswordChange =
+      currentPassword || newPassword || confirmPassword;
+
+    if (wantsPasswordChange) {
+      // Validering
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        setPasswordError("Fyll inn alle passordfeltene.");
+        return;
+      }
+
+      if (newPassword.length < 8) {
+        setPasswordError("Nytt passord må være minst 8 tegn.");
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        setPasswordError("Nytt passord og bekreft passord må være like.");
+        return;
+      }
+
+      setPasswordLoading(true);
+
+      try {
+        const res = await fetch("/api/auth/change-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            currentPassword,
+            newPassword,
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          setPasswordError(data?.error || "Kunne ikke endre passord.");
+          setPasswordLoading(false);
+          return;
+        }
+
+        setPasswordSuccess("Passord oppdatert! ✓");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } catch (err) {
+        setPasswordError("Nettverksfeil: " + (err.message || "Prøv igjen."));
+      } finally {
+        setPasswordLoading(false);
+      }
     }
+
+    // Lukk redigeringsmodus kun hvis alt gikk bra
+    setIsEditing(false);
+  } catch (err) {
+    setPasswordError(err.message || "Kunne ikke lagre endringer.");
   }
+}
 
   // ✅ FUNGERENDE LOGOUT
   async function handleLogout() {
@@ -497,9 +565,44 @@ export default function Profile() {
                     <div><label style={statLabelStyle}>{t.age}</label><input type="number" value={editFields.age} onChange={e => setEditFields({ ...editFields, age: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
                     <div><label style={statLabelStyle}>{t.phone}</label><input type="text" value={editFields.phone} onChange={e => setEditFields({ ...editFields, phone: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
                     <div style={{ gridColumn: "1 / -1" }}><label style={statLabelStyle}>{t.email}</label><input type="email" value={editFields.email} onChange={e => setEditFields({ ...editFields, email: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
-                    <div style={{ gridColumn: "1 / -1" }}><label style={statLabelStyle}>{t.bio}</label><textarea value={editFields.bio} onChange={e => setEditFields({ ...editFields, bio: e.target.value })} rows={3} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
+                    
+                    <div style={{ gridColumn: "1 / -1", marginTop: "0.5rem" }}>
+                      <strong style={{ display: "block", marginBottom: "0.75rem" }}>Endre passord</strong>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
+                        <input
+                          type="password"
+                          placeholder="Nåværende passord"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          autoComplete="current-password"
+                          style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }}
+                        />
+                        <input
+                          type="password"
+                          placeholder="Nytt passord"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          autoComplete="new-password"
+                          minLength={8}
+                          style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }}
+                        />
+                        <input
+                          type="password"
+                          placeholder="Bekreft nytt passord"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          autoComplete="new-password"
+                          minLength={8}
+                          style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }}
+                        />
+                      </div>
+
+                      {passwordError ? <p style={{ color: "#b42318", marginTop: "0.75rem" }}>{passwordError}</p> : null}
+                      {passwordSuccess ? <p style={{ color: "#067647", marginTop: "0.75rem" }}>{passwordSuccess}</p> : null}
+                    </div>
                   </div>
-                  <div style={{ marginTop: "0.5rem", display: "flex", gap: "1rem" }}>
+
+                  <div style={{ marginTop: "1rem", display: "flex", gap: "1rem" }}>
                     <button onClick={handleSaveEdit} style={actionButtonStyle}>{t.save}</button>
                     <button onClick={() => setIsEditing(false)} style={secondaryButtonStyle}>{t.cancel}</button>
                   </div>
