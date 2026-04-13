@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FiMenu, FiX } from "react-icons/fi";
+import { FiMenu, FiX, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
 export default function MapComponent() {
   const mapRef = useRef(null);
@@ -20,6 +20,7 @@ export default function MapComponent() {
   const tripsLayerRef = useRef(null);
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
+  const [panelVisible, setPanelVisible] = useState(true);
   const [currentRoute, setCurrentRoute] = useState({ points: [], geometry: null });
   const [routeToggles, setRouteToggles] = useState({
     annenrute: false,
@@ -123,6 +124,13 @@ export default function MapComponent() {
     routeTogglesRef.current = routeToggles;
   }, [routeToggles]);
 
+  // Juster kartstørrelsen når panelet vises/skjules slik at det fyller hele bredden
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.invalidateSize();
+    }
+  }, [panelVisible]);
+
   // 🔹 Vis hytter fra databasen ved hjelp av lagrede koordinater, med valgfritt datofilter
   useEffect(() => {
     if (!Leaflet || !mapRef.current) return;
@@ -171,7 +179,7 @@ export default function MapComponent() {
         const layer = L.layerGroup();
 
         const cabinIcon = L.icon({
-          iconUrl: "/images/pinEnd.png",
+          iconUrl: "/images/cabinPin.svg",
           iconSize: [32, 32],
           iconAnchor: [16, 32],
           popupAnchor: [0, -32],
@@ -547,19 +555,20 @@ export default function MapComponent() {
       }}
     >
       {/* Venstre panel: 1/3 bredde med alle toggles og kontroller */}
-      <div
-        style={{
-          flexBasis: "27.33%",
-          maxWidth: "27.33%",
-          minWidth: 260,
-          boxSizing: "border-box",
-          padding: 16,
-          background: "white",
-          boxShadow: "2px 0 8px rgba(0,0,0,0.15)",
-          overflowY: "auto",
-          zIndex: 1000,
-        }}
-      >
+      {panelVisible && (
+        <div
+          style={{
+            flexBasis: "27.33%",
+            maxWidth: "27.33%",
+            minWidth: 260,
+            boxSizing: "border-box",
+            padding: 16,
+            background: "white",
+            boxShadow: "2px 0 8px rgba(0,0,0,0.15)",
+            overflowY: "auto",
+            zIndex: 1000,
+          }}
+        >
         <button onClick={() => setPlacing(!placing)}>
           {placing ? "Avslutt plassering" : "Plasser punkt"}
         </button>
@@ -745,7 +754,8 @@ export default function MapComponent() {
             Send til verifisering
           </button>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Høyre panel: 2/3 bredde med selve kartet og toppmeny */}
       <div
@@ -754,6 +764,41 @@ export default function MapComponent() {
           position: "relative",
         }}
       >
+        {/* Flytende pil-knapp ved venstre kant av kartet */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: 0,
+            transform: "translate(-50%, -50%)",
+            zIndex: 1150,
+          }}
+        >
+          <button
+            onClick={() => setPanelVisible((v) => !v)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 28,
+              height: 44,
+              borderRadius: 8,
+              border: "1px solid #ccc",
+              backgroundColor: "#fff",
+              cursor: "pointer",
+              padding: 0,
+              boxShadow: "0 0 6px rgba(0,0,0,0.15)",
+            }}
+            aria-label={panelVisible ? "Skjul meny" : "Vis meny"}
+          >
+            {panelVisible ? (
+              <FiChevronLeft size={18} />
+            ) : (
+              <FiChevronRight size={18} />
+            )}
+          </button>
+        </div>
+
         <div id="map" style={{ height: "100%", width: "100%" }} />
 
         {/* Topp-høyre menyknapp for kart-siden */}
