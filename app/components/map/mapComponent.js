@@ -14,6 +14,8 @@ export default function MapComponent() {
   const drawCleanupRef = useRef(null);
   const geojsonCleanupRef = useRef(null);
   const gpxLayerRef = useRef(null);
+  const userLocationLayerRef = useRef(null);
+  const avatarUrlRef = useRef(null);
   const [showCabins, setShowCabins] = useState(false);
   const cabinsLayerRef = useRef(null);
   const [showTrips, setShowTrips] = useState(false);
@@ -64,6 +66,13 @@ export default function MapComponent() {
       import("leaflet/dist/leaflet.css");
       setLeaflet(L);
     });
+
+    fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.user?.avatar) avatarUrlRef.current = d.user.avatar;
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -99,6 +108,20 @@ export default function MapComponent() {
     import("./geojsonRoutesLayer").then(({ enableGeojsonRoutes }) => {
       geojsonCleanupRef.current = enableGeojsonRoutes(map, L, getRouteToggles);
     });
+
+    // Hent posisjon automatisk ved oppstart
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          placeUserMarker(L, map, latitude, longitude, accuracy);
+        },
+        (error) => {
+          console.warn("Geolokasjon ved oppstart feilet:", error.message);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
 
     return () => {
       if (drawCleanupRef.current) drawCleanupRef.current();
@@ -545,6 +568,81 @@ export default function MapComponent() {
     }
   };
 
+  // 🔵 Plasser brukerens posisjon på kartet – profilbilde hvis tilgjengelig, ellers blå sirkel
+  const placeUserMarker = (L, map, latitude, longitude, accuracy) => {
+    if (userLocationLayerRef.current) {
+      map.removeLayer(userLocationLayerRef.current);
+      userLocationLayerRef.current = null;
+    }
+
+    const group = L.layerGroup();
+
+    // Nøyaktighetsradius
+    L.circle([latitude, longitude], {
+      radius: accuracy,
+      color: "#2563eb",
+      fillColor: "#93c5fd",
+      fillOpacity: 0.2,
+      weight: 1,
+    }).addTo(group);
+
+    const popup = `Din posisjon<br/>Lat: ${latitude.toFixed(5)}<br/>Lon: ${longitude.toFixed(5)}`;
+    const avatar = avatarUrlRef.current;
+
+    if (avatar) {
+      const size = 36;
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="
+          width:${size}px;
+          height:${size}px;
+          border-radius:50%;
+          border:3px solid #1d4ed8;
+          overflow:hidden;
+          box-shadow:0 2px 6px rgba(0,0,0,0.35);
+        "><img src="${avatar}" style="width:100%;height:100%;object-fit:cover;" /></div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        popupAnchor: [0, -(size / 2)],
+      });
+      L.marker([latitude, longitude], { icon }).bindPopup(popup).addTo(group);
+    } else {
+      L.circleMarker([latitude, longitude], {
+        radius: 10,
+        color: "#1d4ed8",
+        fillColor: "#3b82f6",
+        fillOpacity: 1,
+        weight: 2,
+      }).bindPopup(popup).addTo(group);
+    }
+
+    group.addTo(map);
+    userLocationLayerRef.current = group;
+    map.setView([latitude, longitude], 14);
+  };
+
+  // 🔵 Finn brukerens posisjon og vis på kartet
+  const locateUser = () => {
+    if (!Leaflet || !mapRef.current) return;
+
+    if (!navigator.geolocation) {
+      alert("Nettleseren din støtter ikke geolokasjon");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        placeUserMarker(Leaflet, mapRef.current, latitude, longitude, accuracy);
+      },
+      (error) => {
+        console.error("Geolokasjonsfeil:", error);
+        alert("Kunne ikke hente posisjonen din: " + error.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   return (
     <div
       style={{
@@ -569,9 +667,14 @@ export default function MapComponent() {
             zIndex: 1000,
           }}
         >
-        <button onClick={() => setPlacing(!placing)}>
-          {placing ? "Avslutt plassering" : "Plasser punkt"}
-        </button>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <button onClick={locateUser} style={{ flex: 1 }}>
+              Min posisjon
+            </button>
+            <button onClick={() => setPlacing(!placing)} style={{ flex: 1 }}>
+              {placing ? "Avslutt plassering" : "Plasser punkt"}
+            </button>
+          </div>
 
         <div style={{ marginTop: 16 }}>
           <strong>Tilgjengelighet hytter</strong>
