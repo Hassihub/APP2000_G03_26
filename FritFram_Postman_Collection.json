@@ -1,0 +1,585 @@
+{
+  "info": {
+    "name": "FritFram API",
+    "description": "Komplett testplan for alle API-endepunkter i FritFram-applikasjonen.\n\nFør du kjører:\n1. Importer denne filen i Postman\n2. Opprett et Environment kalt 'FritFram Local' med variabelen baseUrl = http://localhost:3000\n3. Kjør 'Login' først – session-cookie settes automatisk i Postman cookie jar\n4. Kjør mappene i rekkefølge (Auth → Hytter → Reservasjoner osv.)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "testCabinId", "value": "", "type": "string" },
+    { "key": "testReservationId", "value": "", "type": "string" },
+    { "key": "testPostId", "value": "", "type": "string" },
+    { "key": "testUserId", "value": "", "type": "string" }
+  ],
+  "item": [
+
+    {
+      "name": "1. Auth",
+      "item": [
+
+        {
+          "name": "Signup – ny bruker",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.test('Har ok-felt', () => pm.expect(pm.response.json()).to.have.property('ok'));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/signup",
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"testbruker\",\n  \"email\": \"test@frittfram.no\",\n  \"password\": \"TestPassord123!\"\n}" }
+          }
+        },
+
+        {
+          "name": "Signup – e-post allerede registrert",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 409', () => pm.response.to.have.status(409));",
+            "pm.test('Feilmelding om duplikat', () => pm.expect(pm.response.json().error).to.include('allerede'));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/signup",
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"testbruker2\",\n  \"email\": \"test@frittfram.no\",\n  \"password\": \"TestPassord123!\"\n}" }
+          }
+        },
+
+        {
+          "name": "Signup – mangler felt",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/signup",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@frittfram.no\"\n}" }
+          }
+        },
+
+        {
+          "name": "Signup – passord for kort",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));",
+            "pm.test('Feilmelding om passordlengde', () => pm.expect(pm.response.json().error).to.include('8 tegn'));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/signup",
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"ny\",\n  \"email\": \"ny@test.no\",\n  \"password\": \"abc\"\n}" }
+          }
+        },
+
+        {
+          "name": "Login – riktige credentials",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('Har user-objekt', () => pm.expect(json).to.have.property('user'));",
+            "pm.test('User har id og email', () => {",
+            "  pm.expect(json.user).to.have.property('id');",
+            "  pm.expect(json.user).to.have.property('email');",
+            "});",
+            "if (json.user?.id) pm.collectionVariables.set('testUserId', json.user.id);"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@frittfram.no\",\n  \"password\": \"TestPassord123!\"\n}" }
+          }
+        },
+
+        {
+          "name": "Login – feil passord",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));",
+            "pm.test('Feilmelding om feil credentials', () => pm.expect(pm.response.json().error).to.include('Feil'));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@frittfram.no\",\n  \"password\": \"FeilPassord!\"\n}" }
+          }
+        },
+
+        {
+          "name": "Login – tomme felt",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"\",\n  \"password\": \"\"\n}" }
+          }
+        },
+
+        {
+          "name": "Me – innlogget bruker",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returnerer user', () => pm.expect(pm.response.json()).to.have.property('user'));",
+            "pm.test('User har forventede felt', () => {",
+            "  const u = pm.response.json().user;",
+            "  pm.expect(u).to.have.all.keys('id','username','email','role','avatar','created_at');",
+            "  pm.expect(u).to.not.have.property('password');",
+            "});"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/auth/me" }
+        },
+
+        {
+          "name": "Me – uten innlogging (401)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": {
+            "method": "GET", "url": "{{baseUrl}}/api/auth/me",
+            "header": [{ "key": "Cookie", "value": "", "disabled": true }]
+          }
+        },
+
+        {
+          "name": "Oppdater profil",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Har oppdatert user', () => pm.expect(pm.response.json()).to.have.property('user'));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/update-profile",
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"oppdatertBruker\"\n}" }
+          }
+        },
+
+        {
+          "name": "Endre passord – feil nåværende passord",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));",
+            "pm.test('Feilmelding', () => pm.expect(pm.response.json().error).to.include('feil'));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/change-password",
+            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"FeilGammelt!\",\n  \"newPassword\": \"NyttPassord123!\"\n}" }
+          }
+        },
+
+        {
+          "name": "Logout",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returnerer ok', () => pm.expect(pm.response.json().ok).to.be.true);"
+          ]}}],
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/auth/logout" }
+        }
+
+      ]
+    },
+
+    {
+      "name": "2. Hytter",
+      "item": [
+
+        {
+          "name": "Hent alle hytter",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('Returnerer cabins-array', () => pm.expect(json.cabins).to.be.an('array'));",
+            "if (json.cabins?.length) {",
+            "  pm.collectionVariables.set('testCabinId', json.cabins[0].id);",
+            "  pm.test('Hytte har forventede felt', () => {",
+            "    pm.expect(json.cabins[0]).to.include.all.keys('id','name','location','latitude','longitude');",
+            "  });",
+            "}"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/cabins" }
+        },
+
+        {
+          "name": "Hent hytter med datofilter",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returnerer cabins-array', () => pm.expect(pm.response.json().cabins).to.be.an('array'));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/cabins?start_date=2026-06-01&end_date=2026-06-07" }
+        },
+
+        {
+          "name": "Hent én hytte",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returnerer cabin-objekt', () => pm.expect(pm.response.json().cabin).to.be.an('object'));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/cabins/{{testCabinId}}" }
+        },
+
+        {
+          "name": "Hent hytte som ikke finnes",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 404', () => pm.response.to.have.status(404));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/cabins/999999999" }
+        },
+
+        {
+          "name": "Opprett hytte",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "const json = pm.response.json();",
+            "pm.test('Returnerer cabin', () => pm.expect(json.cabin).to.be.an('object'));",
+            "if (json.cabin?.id) pm.collectionVariables.set('testCabinId', json.cabin.id);"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/cabins",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Testens Hytte\",\n  \"location\": \"Testdalen\",\n  \"price_per_night\": 850,\n  \"capacity\": 4,\n  \"latitude\": 61.5,\n  \"longitude\": 8.3\n}" }
+          }
+        },
+
+        {
+          "name": "Opprett hytte – mangler name",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));",
+            "pm.test('Feilmelding om name', () => pm.expect(pm.response.json().error).to.include('name'));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/cabins",
+            "body": { "mode": "raw", "raw": "{\n  \"location\": \"Testdalen\",\n  \"latitude\": 61.5,\n  \"longitude\": 8.3\n}" }
+          }
+        },
+
+        {
+          "name": "Slett hytte",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200 eller 204', () => pm.expect(pm.response.code).to.be.oneOf([200,204]));"
+          ]}}],
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/cabins/{{testCabinId}}" }
+        }
+
+      ]
+    },
+
+    {
+      "name": "3. Reservasjoner",
+      "item": [
+
+        {
+          "name": "Hent reservasjoner",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returnerer reservations-array', () => pm.expect(pm.response.json().reservations).to.be.an('array'));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/reservations" }
+        },
+
+        {
+          "name": "Hent reservasjoner filtrert på hytte",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/reservations?cabin_id={{testCabinId}}" }
+        },
+
+        {
+          "name": "Opprett reservasjon",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "const json = pm.response.json();",
+            "pm.test('Returnerer reservation', () => pm.expect(json.reservation).to.be.an('object'));",
+            "pm.test('Har påkrevde felt', () => {",
+            "  pm.expect(json.reservation).to.include.all.keys('id','cabin_id','guest_name','start_date','end_date');",
+            "});",
+            "if (json.reservation?.id) pm.collectionVariables.set('testReservationId', json.reservation.id);"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/reservations",
+            "body": { "mode": "raw", "raw": "{\n  \"cabin_id\": \"{{testCabinId}}\",\n  \"guest_name\": \"Test Testesen\",\n  \"guest_email\": \"test@frittfram.no\",\n  \"start_date\": \"2026-08-10\",\n  \"end_date\": \"2026-08-15\",\n  \"guests_count\": 2,\n  \"notes\": \"Vi har med hund\"\n}" }
+          }
+        },
+
+        {
+          "name": "Opprett reservasjon – mangler felt",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/reservations",
+            "body": { "mode": "raw", "raw": "{\n  \"cabin_id\": \"{{testCabinId}}\"\n}" }
+          }
+        },
+
+        {
+          "name": "Opprett reservasjon – overlapp med eksisterende",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 409', () => pm.response.to.have.status(409));",
+            "pm.test('Feilmelding om overlapp', () => pm.expect(pm.response.json().error).to.include('reservert'));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/reservations",
+            "body": { "mode": "raw", "raw": "{\n  \"cabin_id\": \"{{testCabinId}}\",\n  \"guest_name\": \"Annen Gjest\",\n  \"guest_email\": \"annen@test.no\",\n  \"start_date\": \"2026-08-10\",\n  \"end_date\": \"2026-08-15\",\n  \"guests_count\": 1\n}" }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "4. Turer",
+      "item": [
+
+        {
+          "name": "Hent alle turer",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returnerer array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/trips" }
+        },
+
+        {
+          "name": "Søk i turer",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returnerer array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/trips?search=fjell&type=fottur" }
+        }
+
+      ]
+    },
+
+    {
+      "name": "5. Søk",
+      "item": [
+
+        {
+          "name": "Søk etter sted",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returnerer array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/search?q=Oslo" }
+        },
+
+        {
+          "name": "Søk uten query-parameter",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));",
+            "pm.test('Feilmelding', () => pm.expect(pm.response.json().error).to.include('query'));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/search" }
+        }
+
+      ]
+    },
+
+    {
+      "name": "6. Sosial",
+      "item": [
+
+        {
+          "name": "Hent innlegg",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('Returnerer array', () => pm.expect(json).to.be.an('array'));",
+            "if (json.length) pm.collectionVariables.set('testPostId', json[0].id);"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/sosial/posts" }
+        },
+
+        {
+          "name": "Opprett innlegg",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200 eller 201', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+            "const json = pm.response.json();",
+            "if (json.id) pm.collectionVariables.set('testPostId', json.id);"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/sosial/posts",
+            "body": { "mode": "raw", "raw": "{\n  \"userid\": \"{{testUserId}}\",\n  \"caption\": \"Testinnlegg fra Postman!\"\n}" }
+          }
+        },
+
+        {
+          "name": "Opprett innlegg – mangler userid",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/sosial/posts",
+            "body": { "mode": "raw", "raw": "{\n  \"caption\": \"Ingen userid\"\n}" }
+          }
+        },
+
+        {
+          "name": "Hent kommentarer til innlegg",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returnerer array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/sosial/comments?postid={{testPostId}}" }
+        },
+
+        {
+          "name": "Hent kommentarer – mangler postid",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/sosial/comments" }
+        },
+
+        {
+          "name": "Opprett kommentar",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200 eller 201', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/sosial/comments",
+            "body": { "mode": "raw", "raw": "{\n  \"postid\": \"{{testPostId}}\",\n  \"userid\": \"{{testUserId}}\",\n  \"content\": \"Testkommentar fra Postman\"\n}" }
+          }
+        },
+
+        {
+          "name": "Like innlegg",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/sosial/likes",
+            "body": { "mode": "raw", "raw": "{\n  \"postid\": \"{{testPostId}}\",\n  \"userid\": \"{{testUserId}}\"\n}" }
+          }
+        },
+
+        {
+          "name": "Like – mangler felt",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/sosial/likes",
+            "body": { "mode": "raw", "raw": "{\n  \"postid\": \"{{testPostId}}\"\n}" }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "7. Meldinger",
+      "item": [
+
+        {
+          "name": "Send melding",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.test('Returnerer message', () => pm.expect(pm.response.json().message).to.be.an('object'));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/messages",
+            "body": { "mode": "raw", "raw": "{\n  \"receiverId\": 2,\n  \"content\": \"Hei fra Postman!\"\n}" }
+          }
+        },
+
+        {
+          "name": "Send melding – mangler receiverId",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/messages",
+            "body": { "mode": "raw", "raw": "{\n  \"content\": \"Ingen mottaker\"\n}" }
+          }
+        },
+
+        {
+          "name": "Hent meldinger",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returnerer messages-array', () => pm.expect(pm.response.json().messages).to.be.an('array'));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/messages?with=2" }
+        }
+
+      ]
+    },
+
+    {
+      "name": "8. Preferanser",
+      "item": [
+
+        {
+          "name": "Hent preferanser",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/preferences" }
+        },
+
+        {
+          "name": "Lagre preferanser – dark mode",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/preferences",
+            "body": { "mode": "raw", "raw": "{\n  \"theme\": \"dark\"\n}" }
+          }
+        },
+
+        {
+          "name": "Lagre preferanser – light mode",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/preferences",
+            "body": { "mode": "raw", "raw": "{\n  \"theme\": \"light\"\n}" }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "9. Opprydding",
+      "item": [
+
+        {
+          "name": "Slett testkonto",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/delete-account",
+            "body": { "mode": "raw", "raw": "{\n  \"password\": \"TestPassord123!\"\n}" }
+          }
+        },
+
+        {
+          "name": "Logout etter opprydding",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ]}}],
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/auth/logout" }
+        }
+
+      ]
+    }
+
+  ]
+}
