@@ -1,0 +1,10 @@
+{
+  "validUser": {
+    "email": "test@frittfram.no",
+    "password": "TestPassord123!"
+  },
+  "invalidUser": {
+    "email": "finnesikke@frittfram.no",
+    "password": "FeilPassord999!"
+  }
+}

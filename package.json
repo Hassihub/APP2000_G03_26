@@ -10,7 +10,9 @@
     "dev": "node server.js",
     "build": "next build",
     "start": "node server.js",
-    "lint": "eslint"
+    "lint": "eslint",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run --e2e"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -37,6 +39,7 @@
     "@types/node": "25.5.0",
     "@types/react": "19.2.14",
     "autoprefixer": "^10.4.23",
+    "cypress": "^15.13.1",
     "eslint": "^9",
     "eslint-config-next": "15.5.5",
     "postcss": "^8.5.6",

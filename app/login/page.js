@@ -178,6 +178,7 @@ export default function LoginPage() {
             <label style={{ display: "grid", gap: "0.35rem" }}>
               <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.email}</span>
               <input
+                data-cy="login-email"
                 type="email"
                 value={formData.email}
                 onChange={(event) =>
@@ -192,6 +193,7 @@ export default function LoginPage() {
             <label style={{ display: "grid", gap: "0.35rem" }}>
               <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.password}</span>
               <input
+                data-cy="login-password"
                 type="password"
                 value={formData.password}
                 onChange={(event) =>
@@ -213,6 +215,7 @@ export default function LoginPage() {
             ) : null}
 
             <button
+              data-cy="login-submit"
               type="submit"
               disabled={loading}
               style={{

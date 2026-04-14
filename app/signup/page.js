@@ -87,25 +87,25 @@ export default function SignUp() {
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
           <label style={{ display: "grid", gap: "0.35rem" }}>
             <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.username}</span>
-            <input type="text" value={formData.username} onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value }))} required style={inputStyle} />
+            <input data-cy="signup-username" type="text" value={formData.username} onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value }))} required style={inputStyle} />
           </label>
 
           <label style={{ display: "grid", gap: "0.35rem" }}>
             <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.email}</span>
-            <input type="email" value={formData.email} onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))} required autoComplete="email" style={inputStyle} />
+            <input data-cy="signup-email" type="email" value={formData.email} onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))} required autoComplete="email" style={inputStyle} />
           </label>
 
           <label style={{ display: "grid", gap: "0.35rem" }}>
             <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.password}</span>
-            <input type="password" value={formData.password} onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))} required autoComplete="new-password" style={inputStyle} />
+            <input data-cy="signup-password" type="password" value={formData.password} onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))} required autoComplete="new-password" style={inputStyle} />
           </label>
 
           <label style={{ display: "grid", gap: "0.35rem" }}>
             <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.confirmPassword}</span>
-            <input type="password" value={formData.confirmPassword} onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))} required autoComplete="new-password" style={inputStyle} />
+            <input data-cy="signup-confirm-password" type="password" value={formData.confirmPassword} onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))} required autoComplete="new-password" style={inputStyle} />
           </label>
 
-          <button type="submit" disabled={loading} style={{ padding: "0.9rem 1rem", borderRadius: 4, border: "none", background: "var(--accent)", color: "#fff", fontWeight: 800, fontSize: "0.95rem", cursor: loading ? "wait" : "pointer", letterSpacing: "0.02em", marginTop: "0.25rem" }}>
+          <button data-cy="signup-submit" type="submit" disabled={loading} style={{ padding: "0.9rem 1rem", borderRadius: 4, border: "none", background: "var(--accent)", color: "#fff", fontWeight: 800, fontSize: "0.95rem", cursor: loading ? "wait" : "pointer", letterSpacing: "0.02em", marginTop: "0.25rem" }}>
             {loading ? t.submitting : t.submit}
           </button>
         </form>
