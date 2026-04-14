@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.59.1",
     "@types/node": "25.5.0",
     "@types/react": "19.2.14",
     "autoprefixer": "^10.4.23",
