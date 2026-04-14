@@ -1,0 +1,4 @@
+{"name": "min-react-app",
+"scripts": { "test": "npm test" },
+"environments": {
+"review": { "addons": [] } }
