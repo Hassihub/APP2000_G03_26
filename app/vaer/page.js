@@ -12,7 +12,8 @@ export default function VaerPage() {
   const search = async (e) => {
     e.preventDefault();
     const res = await fetch(`/api/search?q=${query}`);
-    setResults(await res.json());
+    const data = await res.json();
+    setResults(Array.isArray(data) ? data : data.locations || []);
   };
 
   const getWeather = async (loc) => {

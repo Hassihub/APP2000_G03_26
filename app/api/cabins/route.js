@@ -3,7 +3,27 @@ import db from "../../../lib/db";
 import { requireAuth, requireRole } from "../../../lib/auth";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
 
+function isMissingColumn(err, columnName) {
+  return err?.code === "42703" || err?.message?.includes(`column \"${columnName}\"`);
+}
+
 let cabinImagesTableReady = false;
+let cabinStaffedColumnReady = false;
+
+async function ensureCabinStaffedColumn() {
+  if (cabinStaffedColumnReady) return true;
+
+  try {
+    await db.query(`
+      ALTER TABLE public.cabins
+      ADD COLUMN IF NOT EXISTS is_staffed BOOLEAN NOT NULL DEFAULT false
+    `);
+    cabinStaffedColumnReady = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function ensureCabinImagesTable() {
   if (cabinImagesTableReady) return true;
@@ -80,6 +100,7 @@ async function storeCabinImages(cabinId, imageUrls) {
 
 export async function GET(req) {
   try {
+    await ensureCabinStaffedColumn();
     const { searchParams } = new URL(req.url);
     const start_date = searchParams.get("start_date");
     const end_date = searchParams.get("end_date");
@@ -115,14 +136,30 @@ export async function GET(req) {
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
-    const sql = `
+    const sqlWithStaffed = `
+      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, c.created_at, c.owner_id, COALESCE(c.is_staffed, false) AS is_staffed
+      FROM public.cabins c
+      ${whereClause}
+      ORDER BY c.created_at DESC
+    `;
+    const sqlWithoutStaffed = `
       SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, c.created_at, c.owner_id
       FROM public.cabins c
       ${whereClause}
       ORDER BY c.created_at DESC
     `;
-    const result = await db.query(sql, values);
-    const cabins = await attachCabinImages(result.rows);
+
+    let rows;
+    try {
+      const result = await db.query(sqlWithStaffed, values);
+      rows = result.rows;
+    } catch (err) {
+      if (!isMissingColumn(err, "is_staffed")) throw err;
+      const fallback = await db.query(sqlWithoutStaffed, values);
+      rows = fallback.rows.map((cabin) => ({ ...cabin, is_staffed: false }));
+    }
+
+    const cabins = await attachCabinImages(rows);
     return NextResponse.json({ cabins }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
@@ -131,6 +168,7 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    await ensureCabinStaffedColumn();
     const { user, response } = await requireAuth();
     if (response) return response;
 
@@ -145,6 +183,7 @@ export async function POST(req) {
 
     const price_per_night = Number(body.price_per_night);
     const capacity = Number(body.capacity);
+    const is_staffed = Boolean(body.is_staffed);
 
     const hasLatitude = body.latitude !== undefined && body.latitude !== null && body.latitude !== "";
     const hasLongitude = body.longitude !== undefined && body.longitude !== null && body.longitude !== "";
@@ -175,12 +214,12 @@ export async function POST(req) {
       ? body.image_urls.map((x) => String(x).trim()).filter(Boolean)
       : [];
 
-    const insertSqlWithOwner = `
-      INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities, latitude, longitude, owner_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, owner_id, created_at;
+    const insertSqlWithOwnerAndStaffed = `
+      INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities, latitude, longitude, owner_id, is_staffed)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, owner_id, created_at, is_staffed;
     `;
-    const valuesWithOwner = [
+    const valuesWithOwnerAndStaffed = [
       name,
       description,
       location,
@@ -190,20 +229,47 @@ export async function POST(req) {
       latitude,
       longitude,
       user.id,
+      is_staffed,
     ];
 
     try {
-      const result = await db.query(insertSqlWithOwner, valuesWithOwner);
+      const result = await db.query(insertSqlWithOwnerAndStaffed, valuesWithOwnerAndStaffed);
       const cabin = result.rows[0];
       await storeCabinImages(cabin.id, image_urls);
       return NextResponse.json({ cabin: { ...cabin, image_urls } }, { status: 201 });
     } catch (err) {
-      // Hvis DB ikke har owner_id-kolonne, fall tilbake til gammel insert (bakoverkompatibel)
-      if (err?.code === "42703" || err?.message?.includes("column \"owner_id\"")) {
+      // Bakoverkompatibilitet med ulike schema-varianter
+      if (isMissingColumn(err, "owner_id") || isMissingColumn(err, "is_staffed")) {
+        const insertSqlWithStaffed = `
+          INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities, latitude, longitude, is_staffed)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          RETURNING id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at, is_staffed
+        `;
+        const valuesWithStaffed = [
+          name,
+          description,
+          location,
+          price_per_night,
+          capacity,
+          amenities,
+          latitude,
+          longitude,
+          is_staffed,
+        ];
+
+        try {
+          const withStaffed = await db.query(insertSqlWithStaffed, valuesWithStaffed);
+          const cabin = withStaffed.rows[0];
+          await storeCabinImages(cabin.id, image_urls);
+          return NextResponse.json({ cabin: { ...cabin, image_urls } }, { status: 201 });
+        } catch (err2) {
+          if (!isMissingColumn(err2, "is_staffed")) throw err2;
+        }
+
         const insertSql = `
           INSERT INTO public.cabins (name, description, location, price_per_night, capacity, amenities, latitude, longitude)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          RETURNING id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at
+          RETURNING id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at, false AS is_staffed
         `;
         const values = [
           name,

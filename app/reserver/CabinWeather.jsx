@@ -9,7 +9,8 @@ export default function CabinWeather({ location }) {
     if (!location) return;
     async function fetchWeather() {
       const res = await fetch(`/api/search?q=${encodeURIComponent(location)}`);
-      const locations = await res.json();
+      const data = await res.json();
+      const locations = Array.isArray(data) ? data : data.locations || [];
       if (locations.length > 0) {
         const loc = locations[0];
         const weatherRes = await fetch(
