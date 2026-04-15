@@ -15,8 +15,8 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Mangler bruker-ID" }, { status: 400 });
   }
 
-  const body = await req.json().catch(() => ({}));
-  const role = String(body?.role ?? "").trim().toUpperCase();
+  const url = new URL(req.url);
+  const role = String(url.searchParams.get("role") ?? "").trim().toUpperCase();
 
   if (!isValidRole(role)) {
     return NextResponse.json({ error: "Ugyldig rolle" }, { status: 400 });

@@ -173,7 +173,7 @@ async function buildProfilePayload(user) {
   const profileImage = pickFirstValue(
     fullUser,
     ["profile_image", "avatar_url", "avatar", "image_url"],
-    "/images/profil.jpg"
+    "/images/fjell.jpg"
   );
   const bannerImage = pickFirstValue(
     fullUser,
@@ -183,6 +183,7 @@ async function buildProfilePayload(user) {
 
   return {
     id: fullUser.id,
+    role: fullUser.role || "",
     name: pickFirstValue(fullUser, ["username", "name", "full_name"], "Bruker"),
     dob,
     age,
@@ -616,11 +617,13 @@ appNext.prepare().then(() => {
       }
 
       if (typeof body.dob === "string" && dobColumn) {
-        addUpdate(dobColumn, body.dob.trim());
+        const trimmedDob = body.dob.trim();
+        addUpdate(dobColumn, trimmedDob === "" ? null : trimmedDob);
       }
 
       if (body.age !== undefined && ageColumn) {
-        const numericAge = Number(body.age);
+        const trimmedAge = typeof body.age === "string" ? body.age.trim() : body.age;
+        const numericAge = Number(trimmedAge);
         addUpdate(ageColumn, Number.isFinite(numericAge) ? numericAge : null);
       }
 

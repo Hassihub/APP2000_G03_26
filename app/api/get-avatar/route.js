@@ -3,7 +3,7 @@ import pool from "../../../lib/db";
 
 function pickAvatar(row) {
 	if (!row) {
-		return "/images/profil.jpg";
+		return "/images/fjell.jpg";
 	}
 
 	return (
@@ -11,7 +11,7 @@ function pickAvatar(row) {
 		row.avatar_url ||
 		row.avatar ||
 		row.image_url ||
-		"/images/profil.jpg"
+		"/images/fjell.jpg"
 	);
 }
 

@@ -1,4 +1,78 @@
-﻿/* ── BASE ───────────────────────────────────────────── */
+:root {
+  --bg: #f6f8f7;
+  --bg-panel: #ffffff;
+  --bg-input: #fafaff;
+  --border: #e6e6ef;
+  --accent: #0f766e;
+  --accent-bg: rgba(15, 118, 110, 0.08);
+  --text: #111827;
+  --text-muted: #4b5563;
+}
+
+.reservePageShell {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #e7efe8 0%, #f6f8f7 38%, #f6f8f7 100%);
+}
+
+.reserveHero {
+  position: relative;
+  min-height: 58vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.reserveHeroImage {
+  object-fit: cover;
+  z-index: -2;
+}
+
+.reserveHeroOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 50, 20, 0.38);
+  z-index: -1;
+}
+
+.reserveHeroContent {
+  width: min(900px, calc(100% - 2rem));
+  text-align: center;
+  color: #ffffff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  margin-top: 24px;
+}
+
+.reserveHeroKicker {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.reserveHeroTitle {
+  margin: 10px 0 12px;
+  font-size: clamp(2rem, 4.8vw, 4rem);
+  line-height: 1.08;
+  font-weight: 800;
+}
+
+.reserveHeroText {
+  margin: 0 auto;
+  max-width: 680px;
+  font-size: clamp(1rem, 2.1vw, 1.25rem);
+  line-height: 1.5;
+  opacity: 0.95;
+}
+
+.reserveContentSection {
+  position: relative;
+  margin-top: -44px;
+  z-index: 1;
+}
+
 .page {
   display: flex;
   justify-content: center;
@@ -12,7 +86,6 @@
   max-width: 1160px;
 }
 
-/* Status bar */
 .notice {
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -26,7 +99,189 @@
   letter-spacing: 0.01em;
 }
 
-/* ── LAYOUT ──────────────────────────────────────────── */
+.cabinBrowseLayout {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.filtersCard {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid #e6e6ef;
+  box-shadow: 0 6px 18px rgba(10, 10, 20, 0.06);
+  margin-bottom: 16px;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.filtersCard *,
+.filtersCard *::before,
+.filtersCard *::after {
+  box-sizing: border-box;
+}
+
+.filtersHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  flex-wrap: wrap;
+}
+
+.filtersTitle {
+  margin: 0;
+  font-size: 18px;
+}
+
+.filtersText {
+  margin: 4px 0 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.filtersReset {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #e6e6ef;
+  background: #f8fafc;
+  color: #111827;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filtersReset:hover {
+  background: #eef2f7;
+}
+
+.filtersGrid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.filterField {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.filterLabel {
+  font-weight: 700;
+  color: #111827;
+  font-size: 13px;
+}
+
+.filterInput {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid #e6e6ef;
+  background: #fafaff;
+  outline: none;
+  font-size: 14px;
+}
+
+.filterInput:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15);
+  background: #ffffff;
+}
+
+.amenityDropdown {
+  border: 1px solid #e6e6ef;
+  border-radius: 12px;
+  background: #fafaff;
+  overflow: hidden;
+}
+
+.amenityDropdown[open] {
+  background: #ffffff;
+}
+
+.amenityDropdownSummary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #111827;
+}
+
+.amenityDropdownSummary::-webkit-details-marker {
+  display: none;
+}
+
+.amenityDropdownCount {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.amenityDropdownPanel {
+  padding: 12px;
+  border-top: 1px solid #e6e6ef;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.amenityGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.amenityChip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e6e6ef;
+  background: #fafaff;
+  color: #111827;
+  border-radius: 999px;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: 0.15s ease;
+}
+
+.amenityChip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(10, 10, 20, 0.06);
+}
+
+.amenityChip input {
+  margin: 0;
+  accent-color: #7c3aed;
+}
+
+.amenityChipActive {
+  border-color: #7c3aed;
+  background: #f4efff;
+}
+
+.resultsColumn {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.filterSummary {
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #374151;
+}
+
 .layout {
   display: grid;
   grid-template-columns: 300px 1fr;
@@ -34,7 +289,6 @@
   align-items: start;
 }
 
-/* ── LIST PANEL ──────────────────────────────────────── */
 .listCard {
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -110,7 +364,6 @@
   font-size: 0.75rem;
 }
 
-/* ── DETAIL CARD ─────────────────────────────────────── */
 .card {
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -123,6 +376,270 @@
   padding: 0;
 }
 
+.summaryPanel {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.summaryHeader {
+  display: grid;
+  gap: 4px;
+}
+
+.summaryTitle {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #111827;
+}
+
+.summarySubtitle {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.88rem;
+}
+
+.summaryImageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.summaryImageGallery {
+  display: grid;
+  gap: 10px;
+}
+
+.summaryImageHero {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f8fafc;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.summaryImageHeroImg {
+  width: 100%;
+  height: auto;
+  display: block;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}
+
+.summaryThumbGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.summaryThumbCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.summaryThumbImage {
+  width: 100%;
+  height: auto;
+  display: block;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.summaryTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.summaryCabinName {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 900;
+  color: #111827;
+}
+
+.summaryLocation {
+  margin: 4px 0 0;
+  color: #4b5563;
+  font-size: 0.88rem;
+}
+
+.summaryCabinType {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #d1fae5;
+  background: #ecfdf5;
+  color: #065f46;
+  font-weight: 800;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.summaryWeatherRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e6e6ef;
+  border-radius: 12px;
+  background: #fafaff;
+}
+
+.summaryWeatherNow {
+  color: #374151;
+  font-size: 0.88rem;
+}
+
+.summaryWeatherPopoverWrap {
+  position: relative;
+}
+
+.summaryWeatherButton {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.summaryWeatherButton:hover {
+  background: #f9fafb;
+}
+
+.summaryWeatherPopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  min-width: min(420px, 80vw);
+}
+
+.summaryWeatherTitle {
+  font-size: 0.9rem;
+  color: #111827;
+}
+
+.summaryWeatherList {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summaryWeatherItem {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.2fr) repeat(3, auto);
+  gap: 10px;
+  align-items: center;
+  font-size: 0.82rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 5px;
+}
+
+.summaryWeatherDate {
+  color: #334155;
+  font-weight: 700;
+}
+
+.summaryDescription {
+  margin: 2px 0 0;
+  color: #374151;
+  line-height: 1.45;
+  font-size: 0.9rem;
+}
+
+.summaryStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.summaryStatCard {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.summaryStatLabel {
+  color: #64748b;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.summaryStatValue {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.summaryTotalCard {
+  grid-column: 1 / -1;
+  border-color: rgba(15, 118, 110, 0.28);
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.12), rgba(15, 118, 110, 0.05));
+}
+
+.summaryTotalValue {
+  color: #0f766e;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.summaryAmenitiesSection {
+  display: grid;
+  gap: 8px;
+}
+
+.summaryAmenitiesTitle {
+  margin: 2px 0 0;
+  color: #1f2937;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.summaryAmenitiesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.summaryAmenityChip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.summaryNoAmenities {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.86rem;
+}
+
+.button,
 .buttonSecondary {
   width: 100%;
   padding: 12px;
@@ -133,29 +650,13 @@
   font-weight: 700;
   cursor: pointer;
   text-align: center;
-  text-decoration: none; /* 👈 gjør Link lik button */
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  font-family: inherit;
 }
 
-.buttonSecondary:hover {
-  filter: brightness(0.98);
-}
-
-.button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.empty {
-  padding: 4rem 2rem;
-  color: var(--text-muted);
-  text-align: center;
-  font-size: 0.9rem;
-}
-
-/* ── BUTTONS ─────────────────────────────────────────── */
 .button {
   display: inline-block;
   padding: 0.75rem 1.25rem;
@@ -178,20 +679,174 @@
   opacity: 0.88;
 }
 
-/* ── RESPONSIVE ──────────────────────────────────────── */
-@media (max-width: 860px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-  .listCard {
-    position: static;
-  }
+.buttonSecondary:hover {
+  filter: brightness(0.98);
 }
 
-/* ── FORMS (booking / ny) ─────────────────────────────── */
+.button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.empty {
+  padding: 4rem 2rem;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.errorBox {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #b91c1c;
+  padding: 12px 14px;
+  border-radius: 2px;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.successBox {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #065f46;
+  padding: 12px 14px;
+  border-radius: 2px;
+  font-weight: 700;
+}
+
+.actionsRow {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+  color: #111827;
+}
+
+.imageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+  min-width: 0;
+}
+
+.imageCard {
+  border: 1px solid #e6e6ef;
+  background: #fafaff;
+  border-radius: 12px;
+  padding: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cabinImage {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.imageRemoveButton {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #e6e6ef;
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.imageRemoveButton:hover {
+  background: #f8fafc;
+}
+
+.cabinGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.cabinTile {
+  background: #ffffff;
+  border: 1px solid #e6e6ef;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(10, 10, 20, 0.06);
+  min-width: 0;
+}
+
+.cabinLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.tileImageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #f3f4f6;
+  overflow: hidden;
+}
+
+.tileImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tileImageFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-weight: 700;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+}
+
+.tileBody {
+  padding: 14px 14px 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.tileTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.tileMeta {
+  color: #4b5563;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.tileStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  color: #111827;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
 .form {
   display: grid;
   gap: 12px;
+}
+
+.bookingFormPanel {
+  padding: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfbfe 100%);
 }
 
 .sectionTitle {
@@ -210,6 +865,7 @@
 .field {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 
 .label {
@@ -258,59 +914,54 @@
   color: var(--text-muted);
 }
 
-.errorBox {
-  background: rgba(239,68,68,0.08);
-  border: 1px solid rgba(239,68,68,0.25);
-  color: #b91c1c;
-  padding: 12px 14px;
-  border-radius: 2px;
+.amenitySummary {
+  font-size: 13px;
   font-weight: 700;
-  font-size: 0.88rem;
+  color: #374151;
 }
 
-.successBox {
-  background: rgba(16,185,129,0.08);
-  border: 1px solid rgba(16,185,129,0.25);
-  color: #065f46;
-  padding: 12px 14px;
-  border-radius: 2px;
-  font-weight: 700;
+@media (max-width: 900px) {
+  .reserveHero {
+    min-height: 48vh;
+  }
+
+  .reserveContentSection {
+    margin-top: -26px;
+  }
+
+  .layout,
+  .cabinBrowseLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .listCard {
+    position: static;
+  }
 }
 
-.actionsRow {
-  display: grid;
-  /* Cabin tiles, image grid etc. are defined in the newer design or in components using CSS variables. */
-  .row2 {
-    grid-template-columns: 1fr;
-  }
-  .actionsRow {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 520px) {
+  .row2,
+  .actionsRow,
   .cabinGrid {
     grid-template-columns: 1fr;
   }
-}
-.buttonSecondary {
-  width: 100%;
-  padding: 11px 12px;
-  border-radius: 2px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-muted);
-  font-weight: 700;
-  cursor: pointer;
-  text-align: center;
-  font-family: inherit;
-  font-size: 0.88rem;
-  transition: border-color 0.12s, color 0.12s;
-}
 
-.buttonSecondary:hover {
-  border-color: var(--accent);
-  color: var(--text);
-}
+  .bookingFormPanel {
+    padding: 14px;
+  }
 
-.button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  .summaryStatsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryWeatherPopover {
+    right: auto;
+    left: 0;
+    min-width: min(340px, calc(100vw - 56px));
+  }
+
+  .summaryWeatherItem {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
 }

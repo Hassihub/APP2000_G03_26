@@ -2,12 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "../components/LanguageProvider";
+
+function getSafeRedirectTarget(value) {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
+    return "/";
+  }
+
+  return value;
+}
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useTranslations("loginPage");
+  const redirectTarget = getSafeRedirectTarget(searchParams.get("redirect"));
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -39,7 +49,7 @@ export default function LoginPage() {
         if (!cancelled && res.ok) {
           const data = await res.json().catch(() => ({}));
           if (data?.user) {
-            router.replace("/");
+            router.replace(redirectTarget);
             return;
           }
         }
@@ -55,7 +65,7 @@ export default function LoginPage() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [redirectTarget, router]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -79,7 +89,7 @@ export default function LoginPage() {
         throw new Error(data?.error || t.loginError);
       }
 
-      window.location.assign("/");
+      router.replace(redirectTarget);
     } catch (err) {
       setError(err.message || t.loginError);
       setLoading(false);
