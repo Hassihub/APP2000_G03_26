@@ -319,6 +319,28 @@ appNext.prepare().then(() => {
   const app = express();
 
   app.set("trust proxy", 1); // needed for secure cookies behind Heroku proxy
+  app.disable("x-powered-by"); // prevent Express from leaking X-Powered-By header
+
+  // Security headers for all Express-handled routes
+  app.use((req, res, next) => {
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader(
+      "Strict-Transport-Security",
+      "max-age=63072000; includeSubDomains"
+    );
+    res.setHeader(
+      "Content-Security-Policy",
+      [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https:",
+        "connect-src 'self' https://api.met.no https://nominatim.openstreetmap.org",
+      ].join("; ")
+    );
+    next();
+  });
 
   // Only parse JSON/urlencoded for auth routes handled by Express
   // Next.js app router routes will handle their own body parsing
