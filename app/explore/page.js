@@ -1,6 +1,10 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+import Image from "next/image";
+import { useCallback } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./explore.module.css";
