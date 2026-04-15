@@ -376,6 +376,269 @@
   padding: 0;
 }
 
+.summaryPanel {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.summaryHeader {
+  display: grid;
+  gap: 4px;
+}
+
+.summaryTitle {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #111827;
+}
+
+.summarySubtitle {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.88rem;
+}
+
+.summaryImageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.summaryImageGallery {
+  display: grid;
+  gap: 10px;
+}
+
+.summaryImageHero {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f8fafc;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.summaryImageHeroImg {
+  width: 100%;
+  height: auto;
+  display: block;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}
+
+.summaryThumbGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.summaryThumbCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.summaryThumbImage {
+  width: 100%;
+  height: auto;
+  display: block;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.summaryTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.summaryCabinName {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 900;
+  color: #111827;
+}
+
+.summaryLocation {
+  margin: 4px 0 0;
+  color: #4b5563;
+  font-size: 0.88rem;
+}
+
+.summaryCabinType {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #d1fae5;
+  background: #ecfdf5;
+  color: #065f46;
+  font-weight: 800;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.summaryWeatherRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e6e6ef;
+  border-radius: 12px;
+  background: #fafaff;
+}
+
+.summaryWeatherNow {
+  color: #374151;
+  font-size: 0.88rem;
+}
+
+.summaryWeatherPopoverWrap {
+  position: relative;
+}
+
+.summaryWeatherButton {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.summaryWeatherButton:hover {
+  background: #f9fafb;
+}
+
+.summaryWeatherPopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 100;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  min-width: min(420px, 80vw);
+}
+
+.summaryWeatherTitle {
+  font-size: 0.9rem;
+  color: #111827;
+}
+
+.summaryWeatherList {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summaryWeatherItem {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.2fr) repeat(3, auto);
+  gap: 10px;
+  align-items: center;
+  font-size: 0.82rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 5px;
+}
+
+.summaryWeatherDate {
+  color: #334155;
+  font-weight: 700;
+}
+
+.summaryDescription {
+  margin: 2px 0 0;
+  color: #374151;
+  line-height: 1.45;
+  font-size: 0.9rem;
+}
+
+.summaryStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.summaryStatCard {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.summaryStatLabel {
+  color: #64748b;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.summaryStatValue {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.summaryTotalCard {
+  grid-column: 1 / -1;
+  border-color: rgba(15, 118, 110, 0.28);
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.12), rgba(15, 118, 110, 0.05));
+}
+
+.summaryTotalValue {
+  color: #0f766e;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.summaryAmenitiesSection {
+  display: grid;
+  gap: 8px;
+}
+
+.summaryAmenitiesTitle {
+  margin: 2px 0 0;
+  color: #1f2937;
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.summaryAmenitiesList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.summaryAmenityChip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.summaryNoAmenities {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.86rem;
+}
+
 .button,
 .buttonSecondary {
   width: 100%;
@@ -581,6 +844,11 @@
   gap: 12px;
 }
 
+.bookingFormPanel {
+  padding: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfbfe 100%);
+}
+
 .sectionTitle {
   margin: 0 0 6px;
   font-size: 15px;
@@ -676,5 +944,24 @@
   .actionsRow,
   .cabinGrid {
     grid-template-columns: 1fr;
+  }
+
+  .bookingFormPanel {
+    padding: 14px;
+  }
+
+  .summaryStatsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryWeatherPopover {
+    right: auto;
+    left: 0;
+    min-width: min(340px, calc(100vw - 56px));
+  }
+
+  .summaryWeatherItem {
+    grid-template-columns: 1fr;
+    gap: 3px;
   }
 }

@@ -183,6 +183,7 @@ async function buildProfilePayload(user) {
 
   return {
     id: fullUser.id,
+    role: fullUser.role || "",
     name: pickFirstValue(fullUser, ["username", "name", "full_name"], "Bruker"),
     dob,
     age,

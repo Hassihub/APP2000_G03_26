@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "../components/LanguageProvider";
+import { ROLE_USER, ROLE_UTLEIER, ROLE_TURLEDER } from "../../lib/roles";
 
 export default function SignUp() {
   const router = useRouter();
@@ -15,6 +16,8 @@ export default function SignUp() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isLandlord, setIsLandlord] = useState(false);
+  const [isTourGuide, setIsTourGuide] = useState(false);
 
   useEffect(() => {
     const checkLoggedIn = async () => {
@@ -50,10 +53,19 @@ export default function SignUp() {
     }
 
     try {
+      let role = ROLE_USER;
+      if (isLandlord) role = ROLE_UTLEIER;
+      else if (isTourGuide) role = ROLE_TURLEDER;
+
+      const payload = {
+        ...formData,
+        role,
+      };
+
       const res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -104,6 +116,40 @@ export default function SignUp() {
             <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.confirmPassword}</span>
             <input type="password" value={formData.confirmPassword} onChange={(e) => setFormData((prev) => ({ ...prev, confirmPassword: e.target.value }))} required autoComplete="new-password" style={inputStyle} />
           </label>
+
+          <label style={{ display: "flex", alignItems: "center", gap: "0.55rem", marginTop: "0.25rem", color: "var(--text)", fontSize: "0.9rem" }}>
+            <input
+              type="checkbox"
+              checked={isLandlord}
+              onChange={(e) => {
+                setIsLandlord(e.target.checked);
+                if (e.target.checked) setIsTourGuide(false);
+              }}
+              style={{ width: "16px", height: "16px", accentColor: "var(--accent)", cursor: "pointer" }}
+            />
+            <span>{t.landlordSignupLabel || "Jeg registrerer meg som utleier"}</span>
+          </label>
+
+          <label style={{ display: "flex", alignItems: "center", gap: "0.55rem", marginTop: "0.25rem", color: "var(--text)", fontSize: "0.9rem" }}>
+            <input
+              type="checkbox"
+              checked={isTourGuide}
+              onChange={(e) => {
+                setIsTourGuide(e.target.checked);
+                if (e.target.checked) setIsLandlord(false);
+              }}
+              style={{ width: "16px", height: "16px", accentColor: "var(--accent)", cursor: "pointer" }}
+            />
+            <span>{t.tourGuideSignupLabel || "Jeg registrerer meg som turleder"}</span>
+          </label>
+
+          <p style={{ margin: "-0.35rem 0 0", color: "var(--text-muted)", fontSize: "0.82rem" }}>
+            {isLandlord
+              ? (t.landlordSignupHint || "Du blir registrert med rollen Utleier.")
+              : isTourGuide
+              ? (t.tourGuideSignupHint || "Du blir registrert med rollen Turleder.")
+              : (t.userSignupHint || "Hvis du ikke krysser av, registreres du som vanlig bruker.")}
+          </p>
 
           <button type="submit" disabled={loading} style={{ padding: "0.9rem 1rem", borderRadius: 4, border: "none", background: "var(--accent)", color: "#fff", fontWeight: 800, fontSize: "0.95rem", cursor: loading ? "wait" : "pointer", letterSpacing: "0.02em", marginTop: "0.25rem" }}>
             {loading ? t.submitting : t.submit}

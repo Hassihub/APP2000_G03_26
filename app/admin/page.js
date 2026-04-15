@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ROLE_ADMIN, ROLE_UTLEIER, ROLE_USER } from "../../lib/roles";
+import { ROLE_ADMIN, ROLE_UTLEIER, ROLE_TURLEDER, ROLE_USER } from "../../lib/roles";
 import styles from "../reserver/Reserver.module.css";
 
 export default function AdminPage() {
@@ -13,6 +13,10 @@ export default function AdminPage() {
   const [saving, setSaving] = useState({});
   const [deleting, setDeleting] = useState({});
   const [role, setRole] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [filterRole, setFilterRole] = useState("ALL");
+  
+  const USERS_PER_PAGE = 10;
 
   useEffect(() => {
     let alive = true;
@@ -127,6 +131,23 @@ export default function AdminPage() {
     }
   }
 
+  // Filtrer brukere basert på valgt rolle
+  const filteredUsers = filterRole === "ALL" 
+    ? users 
+    : users.filter((u) => u.role === filterRole);
+
+  // Kalkuler paginering
+  const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
+  const startIndex = (currentPage - 1) * USERS_PER_PAGE;
+  const endIndex = startIndex + USERS_PER_PAGE;
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // Reset til første side når filter endres
+  const handleFilterChange = (newFilter) => {
+    setFilterRole(newFilter);
+    setCurrentPage(1);
+  };
+
   if (loading) {
     return (
       <div style={{ padding: "2rem", maxWidth: "800px", margin: "0 auto" }}>
@@ -143,6 +164,33 @@ export default function AdminPage() {
 
       <p>Her kan du endre brukernes roller.</p>
 
+      <div style={{ marginBottom: "1.5rem", display: "flex", gap: "1rem", alignItems: "center" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <span style={{ fontWeight: 600 }}>Filtrer etter rolle:</span>
+          <select
+            value={filterRole}
+            onChange={(e) => handleFilterChange(e.target.value)}
+            style={{
+              padding: "0.5rem",
+              borderRadius: "4px",
+              border: "1px solid var(--border)",
+              fontSize: "0.95rem",
+              backgroundColor: "var(--bg-input)",
+              color: "var(--text)",
+            }}
+          >
+            <option value="ALL">Alle brukere ({users.length})</option>
+            <option value={ROLE_USER}>Bruker ({users.filter(u => u.role === ROLE_USER).length})</option>
+            <option value={ROLE_UTLEIER}>Utleier ({users.filter(u => u.role === ROLE_UTLEIER).length})</option>
+            <option value={ROLE_TURLEDER}>Turleder ({users.filter(u => u.role === ROLE_TURLEDER).length})</option>
+            <option value={ROLE_ADMIN}>Admin ({users.filter(u => u.role === ROLE_ADMIN).length})</option>
+          </select>
+        </label>
+        <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+          Viser {startIndex + 1}–{Math.min(endIndex, filteredUsers.length)} av {filteredUsers.length}
+        </span>
+      </div>
+
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
@@ -154,7 +202,7 @@ export default function AdminPage() {
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => (
+          {paginatedUsers.map((user) => (
             <tr key={user.id}>
               <td style={{ padding: "8px" }}>{user.username}</td>
               <td style={{ padding: "8px" }}>{user.email}</td>
@@ -172,6 +220,7 @@ export default function AdminPage() {
                 >
                   <option value={ROLE_USER}>Bruker</option>
                   <option value={ROLE_UTLEIER}>Utleier</option>
+                  <option value={ROLE_TURLEDER}>Turleder</option>
                   <option value={ROLE_ADMIN}>Admin</option>
                 </select>
                 {saving[user.id] && <span style={{ marginLeft: "8px" }}>Lagrer…</span>}
@@ -195,6 +244,46 @@ export default function AdminPage() {
           ))}
         </tbody>
       </table>
+
+      <div style={{ marginTop: "2rem", display: "flex", justifyContent: "center", gap: "1rem", alignItems: "center" }}>
+        <button
+          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+          disabled={currentPage === 1}
+          style={{
+            padding: "0.6rem 1rem",
+            borderRadius: "4px",
+            border: "1px solid var(--border)",
+            background: currentPage === 1 ? "var(--bg-muted)" : "var(--bg-panel)",
+            color: "var(--text)",
+            cursor: currentPage === 1 ? "not-allowed" : "pointer",
+            fontWeight: 600,
+            opacity: currentPage === 1 ? 0.5 : 1,
+          }}
+        >
+          ← Forrige
+        </button>
+
+        <span style={{ color: "var(--text-muted)", fontSize: "0.95rem", minWidth: "120px", textAlign: "center" }}>
+          Side {currentPage} av {totalPages || 1}
+        </span>
+
+        <button
+          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+          disabled={currentPage === totalPages || totalPages === 0}
+          style={{
+            padding: "0.6rem 1rem",
+            borderRadius: "4px",
+            border: "1px solid var(--border)",
+            background: currentPage === totalPages || totalPages === 0 ? "var(--bg-muted)" : "var(--bg-panel)",
+            color: "var(--text)",
+            cursor: currentPage === totalPages || totalPages === 0 ? "not-allowed" : "pointer",
+            fontWeight: 600,
+            opacity: currentPage === totalPages || totalPages === 0 ? 0.5 : 1,
+          }}
+        >
+          Neste →
+        </button>
+      </div>
     </div>
   );
 }
