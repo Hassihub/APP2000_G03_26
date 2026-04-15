@@ -1,18 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./explore.module.css";
 
 export default function ExplorePage() {
   const [trips, setTrips] = useState([]);
 
-  // Filters
   const [search, setSearch] = useState("");
   const [type, setType] = useState("alle");
   const [difficulty, setDifficulty] = useState("alle");
   const [onlyTiu, setOnlyTiu] = useState(false);
 
-  // Create modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createStatus, setCreateStatus] = useState({
     loading: false,
@@ -28,15 +27,23 @@ export default function ExplorePage() {
     bilde_url: "",
     isTiu: false,
     turleder_navn: "",
+    isFlexible: false,
+    dateOptions: [
+      { start_time: "", end_time: "" },
+      { start_time: "", end_time: "" },
+      { start_time: "", end_time: "" },
+    ],
   });
 
-  // Kart/route-tegning for ny tur
   const [Leaflet, setLeaflet] = useState(null);
   const mapRef = useRef(null);
   const [placing, setPlacing] = useState(false);
   const placingRef = useRef(false);
   const drawCleanupRef = useRef(null);
-  const [currentRoute, setCurrentRoute] = useState({ points: [], geometry: null });
+  const [currentRoute, setCurrentRoute] = useState({
+    points: [],
+    geometry: null,
+  });
 
   const fetchTrips = async () => {
     try {
@@ -63,7 +70,6 @@ export default function ExplorePage() {
     fetchTrips();
   }, [search, type, difficulty, onlyTiu]);
 
-  // Last inn Leaflet kun i browser
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (Leaflet) return;
@@ -74,9 +80,7 @@ export default function ExplorePage() {
     });
   }, [Leaflet]);
 
-  // Opprett lite kart inne i opprett-tur-modal
   useEffect(() => {
-    // Bare prøv å lage kart når modal er åpen og Leaflet er lastet
     if (!Leaflet || !isCreateOpen || mapRef.current) return;
 
     const container = document.getElementById("new-trip-map");
@@ -139,6 +143,29 @@ export default function ExplorePage() {
     setCreateStatus({ loading: false, error: "" });
   };
 
+  const updateDateOption = (index, field, value) => {
+    const updated = [...newTrip.dateOptions];
+    updated[index] = {
+      ...updated[index],
+      [field]: value,
+    };
+    setNewTrip({ ...newTrip, dateOptions: updated });
+  };
+
+  const addDateOption = () => {
+    if (newTrip.dateOptions.length >= 5) return;
+    setNewTrip({
+      ...newTrip,
+      dateOptions: [...newTrip.dateOptions, { start_time: "", end_time: "" }],
+    });
+  };
+
+  const removeDateOption = (index) => {
+    if (newTrip.dateOptions.length <= 3) return;
+    const updated = newTrip.dateOptions.filter((_, i) => i !== index);
+    setNewTrip({ ...newTrip, dateOptions: updated });
+  };
+
   const submitCreate = async (e) => {
     e.preventDefault();
     setCreateStatus({ loading: true, error: "" });
@@ -154,10 +181,16 @@ export default function ExplorePage() {
         geometry: currentRoute.geometry || null,
         isTiu: newTrip.isTiu,
         turleder_navn: newTrip.isTiu ? newTrip.turleder_navn : null,
+        isFlexible: newTrip.isFlexible,
+        dateOptions: newTrip.isFlexible ? newTrip.dateOptions : [],
       };
 
       if (!payload.geometry) {
         throw new Error("Du må tegne en rute på kartet for turen.");
+      }
+
+      if (newTrip.isFlexible && !newTrip.isTiu) {
+        throw new Error("Fleksibel fellestur må være en TiU-tur.");
       }
 
       const res = await fetch("/api/trips", {
@@ -183,7 +216,14 @@ export default function ExplorePage() {
         bilde_url: "",
         isTiu: false,
         turleder_navn: "",
+        isFlexible: false,
+        dateOptions: [
+          { start_time: "", end_time: "" },
+          { start_time: "", end_time: "" },
+          { start_time: "", end_time: "" },
+        ],
       });
+
       setCurrentRoute({ points: [], geometry: null });
 
       closeCreate();
@@ -256,7 +296,9 @@ export default function ExplorePage() {
         <h2>Turer</h2>
         <div className={styles.grid}>
           {trips.length > 0 ? (
-            trips.map((trip) => <TripCard key={trip.id} trip={trip} />)
+            trips.map((trip) => (
+              <TripCard key={trip.id} trip={trip} onUpdated={fetchTrips} />
+            ))
           ) : (
             <p>Ingen turer funnet</p>
           )}
@@ -420,6 +462,78 @@ export default function ExplorePage() {
                 </label>
               )}
 
+              {newTrip.isTiu && (
+                <label className={styles.checkbox}>
+                  <input
+                    type="checkbox"
+                    checked={newTrip.isFlexible}
+                    onChange={(e) =>
+                      setNewTrip({ ...newTrip, isFlexible: e.target.checked })
+                    }
+                  />
+                  Fleksibel fellestur
+                </label>
+              )}
+
+              {newTrip.isFlexible && (
+                <div className={styles.field}>
+                  <span>Datoalternativer (3-5)</span>
+
+                  {newTrip.dateOptions.map((option, index) => (
+                    <div
+                      key={index}
+                      className={styles.row}
+                      style={{ alignItems: "end", marginBottom: 8 }}
+                    >
+                      <label className={styles.field}>
+                        <span>Start</span>
+                        <input
+                          type="datetime-local"
+                          value={option.start_time}
+                          onChange={(e) =>
+                            updateDateOption(index, "start_time", e.target.value)
+                          }
+                          required
+                        />
+                      </label>
+
+                      <label className={styles.field}>
+                        <span>Slutt</span>
+                        <input
+                          type="datetime-local"
+                          value={option.end_time}
+                          onChange={(e) =>
+                            updateDateOption(index, "end_time", e.target.value)
+                          }
+                          required
+                        />
+                      </label>
+
+                      {newTrip.dateOptions.length > 3 && (
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          onClick={() => removeDateOption(index)}
+                        >
+                          Fjern
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={addDateOption}
+                      disabled={newTrip.dateOptions.length >= 5}
+                    >
+                      Legg til datoalternativ
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {createStatus.error && (
                 <p className={styles.error}>{createStatus.error}</p>
               )}
@@ -448,7 +562,101 @@ export default function ExplorePage() {
   );
 }
 
-function TripCard({ trip }) {
+function TripCard({ trip, onUpdated }) {
+  const router = useRouter();
+
+  const [actionState, setActionState] = useState({
+    loading: false,
+    message: "",
+    error: "",
+  });
+
+  const canRegisterBinding = Boolean(trip.departure_id);
+  const canExpressInterest =
+    Boolean(trip.tiu_trip_id) &&
+    trip.is_flexible === true &&
+    trip.planning_status === "interest_open";
+
+  const handleRegister = async () => {
+    if (!trip.departure_id) return;
+
+    setActionState({
+      loading: true,
+      message: "",
+      error: "",
+    });
+
+    try {
+      const res = await fetch(`/api/departures/${trip.departure_id}/register`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Kunne ikke registrere bindende påmelding");
+      }
+
+      setActionState({
+        loading: false,
+        message: data?.message || "Bindende påmelding registrert",
+        error: "",
+      });
+
+      if (onUpdated) {
+        await onUpdated();
+      }
+    } catch (err) {
+      setActionState({
+        loading: false,
+        message: "",
+        error: err.message || "Noe gikk galt",
+      });
+    }
+  };
+
+  const handleInterest = async () => {
+    setActionState({
+      loading: true,
+      message: "",
+      error: "",
+    });
+
+    try {
+      const res = await fetch(`/api/trips/${trip.id}/interest`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Kunne ikke registrere interesse");
+      }
+
+      setActionState({
+        loading: false,
+        message: data?.message || "Ikke-bindende interesse registrert",
+        error: "",
+      });
+
+      if (onUpdated) {
+        await onUpdated();
+      }
+    } catch (err) {
+      setActionState({
+        loading: false,
+        message: "",
+        error: err.message || "Noe gikk galt",
+      });
+    }
+  };
+
+  const goToDetails = () => {
+    router.push(`/explore/${trip.id}`);
+  };
+
   return (
     <article className={styles.card}>
       {trip.bilde_url ? (
@@ -477,7 +685,74 @@ function TripCard({ trip }) {
           </span>
         )}
 
-        <button className={styles.button}>Se detaljer</button>
+        {trip.is_flexible && (
+          <p className={styles.departureInfo}>
+            Fleksibel fellestur • {trip.date_options_count || 0} datoalternativer
+          </p>
+        )}
+
+        {trip.planning_status && (
+          <p className={styles.departureInfo}>
+            Planstatus: {trip.planning_status}
+          </p>
+        )}
+
+        {trip.departure_start_time && (
+          <p className={styles.departureInfo}>
+            Neste avgang:{" "}
+            {new Date(trip.departure_start_time).toLocaleString("no-NO")}
+          </p>
+        )}
+
+        {trip.departure_status && (
+          <p className={styles.departureInfo}>
+            Status på avgang: {trip.departure_status}
+          </p>
+        )}
+
+        {actionState.message && (
+          <p className={styles.successMessage}>{actionState.message}</p>
+        )}
+
+        {actionState.error && (
+          <p className={styles.errorMessage}>{actionState.error}</p>
+        )}
+
+        <div className={styles.cardActions}>
+          <button
+            className={styles.button}
+            onClick={goToDetails}
+            type="button"
+          >
+            Se detaljer
+          </button>
+
+          {canExpressInterest && (
+            <button
+              className={styles.registerButton}
+              onClick={handleInterest}
+              disabled={actionState.loading}
+              type="button"
+            >
+              {actionState.loading
+                ? "Registrerer..."
+                : "Meld ikke-bindende interesse"}
+            </button>
+          )}
+
+          {canRegisterBinding && (
+            <button
+              className={styles.registerButton}
+              onClick={handleRegister}
+              disabled={actionState.loading}
+              type="button"
+            >
+              {actionState.loading
+                ? "Registrerer..."
+                : "Meld meg bindende på"}
+            </button>
+          )}
+        </div>
       </div>
     </article>
   );
