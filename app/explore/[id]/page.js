@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "./tripDetails.module.css";
+import CabinWeather from "../../reserver/CabinWeather";
+import TripMap from "./TripMap";
 
 export default function TripDetailsPage() {
   const params = useParams();
@@ -183,9 +185,26 @@ export default function TripDetailsPage() {
             )}
           </div>
 
+          {trip.geometry && (
+            <section className={styles.section}>
+              <h2>Rute</h2>
+              <TripMap geometry={trip.geometry} />
+            </section>
+          )}
+
           <section className={styles.section}>
             <h2>Om turen</h2>
             <p>{trip.beskrivelse || "Ingen beskrivelse lagt til."}</p>
+            <div style={{ marginTop: "1rem" }}>
+              <strong style={{ fontSize: "0.85rem" }}>Vær ved turen:</strong>
+              <div style={{ marginTop: "0.4rem" }}>
+                <CabinWeather
+                  location={trip.navn}
+                  lat={trip.geometry?.coordinates?.[0]?.[1]}
+                  lon={trip.geometry?.coordinates?.[0]?.[0]}
+                />
+              </div>
+            </div>
           </section>
 
           <section className={styles.section}>

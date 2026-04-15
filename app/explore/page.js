@@ -134,7 +134,12 @@ function ExplorePage() {
       drawCleanupRef.current = enableRouteDrawing(
         map,
         L,
-        (route) => setCurrentRoute(route),
+        (route) => {
+          setCurrentRoute(route);
+          if (route.distanceKm) {
+            setNewTrip((prev) => ({ ...prev, lengde_km: String(route.distanceKm) }));
+          }
+        },
         getPlacing
       );
     });
