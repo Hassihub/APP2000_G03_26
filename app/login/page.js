@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "../components/LanguageProvider";
 
@@ -13,7 +13,7 @@ function getSafeRedirectTarget(value) {
   return value;
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations("loginPage");
@@ -340,6 +340,44 @@ export default function LoginPage() {
         </p>
       </section>
     </main>
+  );
+}
+
+function LoginFallback() {
+  const t = useTranslations("loginPage");
+
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        padding: "2rem",
+        background: "var(--bg)",
+        fontFamily: "'Inter','Poppins',sans-serif",
+      }}
+    >
+      <section
+        style={{
+          width: "100%",
+          maxWidth: "420px",
+          padding: "2.5rem 2rem",
+          borderRadius: 4,
+          background: "var(--bg-panel)",
+          border: "1px solid var(--border)",
+        }}
+      >
+        <p style={{ margin: 0, color: "var(--text-muted)" }}>{t.checking}</p>
+      </section>
+    </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginContent />
+    </Suspense>
   );
 }
 
