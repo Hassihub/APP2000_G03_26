@@ -18,6 +18,7 @@ export default function MapComponent() {
   const avatarUrlRef = useRef(null);
   const [showCabins, setShowCabins] = useState(false);
   const cabinsLayerRef = useRef(null);
+  const [selectedCabin, setSelectedCabin] = useState(null);
   const [showTrips, setShowTrips] = useState(false);
   const tripsLayerRef = useRef(null);
   const [hytterOpen, setHytterOpen] = useState(false);
@@ -173,6 +174,7 @@ export default function MapComponent() {
           map.removeLayer(cabinsLayerRef.current);
         }
         cabinsLayerRef.current = null;
+        setSelectedCabin(null);
         return;
       }
 
@@ -231,6 +233,9 @@ export default function MapComponent() {
           }
 
           marker.bindPopup(popupLines.join("<br/>"));
+          marker.on("click", () => {
+            setSelectedCabin(cabin);
+          });
           layer.addLayer(marker);
         }
 
@@ -683,149 +688,365 @@ export default function MapComponent() {
             zIndex: 1000,
           }}
         >
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <button onClick={locateUser} style={{ flex: 1 }}>
-              Min posisjon
-            </button>
-            <button onClick={() => setPlacing(!placing)} style={{ flex: 1 }}>
-              {placing ? "Avslutt plassering" : "Plasser punkt"}
-            </button>
-          </div>
-        <div style={{ marginTop: 16 }}>
-          <strong>GeoJSON-lag (zoom inn for å se)</strong>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-            <input
-              type="checkbox"
-              checked={routeToggles.annenrute}
-              onChange={(e) =>
-                setRouteToggles((prev) => ({
-                  ...prev,
-                  annenrute: e.target.checked,
-                }))
-              }
-            />
-            <span>Annen rute</span>
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-            <input
-              type="checkbox"
-              checked={routeToggles.skiløype}
-              onChange={(e) =>
-                setRouteToggles((prev) => ({
-                  ...prev,
-                  skiløype: e.target.checked,
-                }))
-              }
-            />
-            <span>Skiløype</span>
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-            <input
-              type="checkbox"
-              checked={routeToggles.sykkelrute}
-              onChange={(e) =>
-                setRouteToggles((prev) => ({
-                  ...prev,
-                  sykkelrute: e.target.checked,
-                }))
-              }
-            />
-            <span>Sykkelrute</span>
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-            <input
-              type="checkbox"
-              checked={routeToggles.ruteinfopunkt}
-              onChange={(e) =>
-                setRouteToggles((prev) => ({
-                  ...prev,
-                  ruteinfopunkt: e.target.checked,
-                }))
-              }
-            />
-            <span>Rute infopunkt</span>
-          </label>
-        </div>
+          {selectedCabin ? (
+            <div>
+              <button
+                type="button"
+                onClick={() => setSelectedCabin(null)}
+                style={{
+                  marginBottom: 12,
+                  padding: "0.35rem 0.7rem",
+                  borderRadius: 9999,
+                  border: "1px solid #d1d5db",
+                  backgroundColor: "#f9fafb",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                ← Tilbake til kartverktøy
+              </button>
 
-        <div style={{ marginTop: 16 }}>
-          <strong>Importer GPX-rute</strong>
-          <input
-            type="file"
-            accept=".gpx,application/gpx+xml"
-            onChange={handleGpxUpload}
-            style={{ width: "100%", marginTop: 5, marginBottom: 10 }}
-          />
+              {Array.isArray(selectedCabin.image_urls) &&
+                selectedCabin.image_urls.length > 0 && (
+                  <div
+                    style={{
+                      margin: "0 -16px 12px -16px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <img
+                      src={selectedCabin.image_urls[0]}
+                      alt={selectedCabin.name || "Hyttebilde"}
+                      style={{ width: "100%", height: 180, objectFit: "cover" }}
+                    />
+                  </div>
+                )}
 
-          {elevationStats && (
-            <div style={{ fontSize: 12, marginBottom: 10 }}>
-              <div><strong>Høydeprofil</strong></div>
-              <div>Laveste punkt: {elevationStats.min} moh</div>
-              <div>Høyeste punkt: {elevationStats.max} moh</div>
-              <div>Total stigning: {elevationStats.ascent} m</div>
+              <div
+                style={{
+                  marginBottom: 6,
+                  fontSize: 12,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  color: "#6b7280",
+                }}
+              >
+                Valgt hytte
+              </div>
+
+              <h2 style={{ margin: 0, fontSize: 20 }}>
+                {selectedCabin.name || "Hytte"}
+              </h2>
+              {selectedCabin.location && (
+                <div style={{ marginTop: 4, color: "#4b5563", fontSize: 14 }}>
+                  📍 {selectedCabin.location}
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginTop: 12,
+                  fontSize: 13,
+                  flexWrap: "wrap",
+                }}
+              >
+                {Number.isFinite(Number(selectedCabin.capacity)) && (
+                  <div
+                    style={{
+                      padding: "0.2rem 0.45rem",
+                      borderRadius: 9999,
+                      backgroundColor: "#eff6ff",
+                      border: "1px solid #bfdbfe",
+                    }}
+                  >
+                    👥 {Number(selectedCabin.capacity)} pers
+                  </div>
+                )}
+                {Number.isFinite(Number(selectedCabin.price_per_night)) && (
+                  <div
+                    style={{
+                      padding: "0.2rem 0.45rem",
+                      borderRadius: 9999,
+                      backgroundColor: "#fef9c3",
+                      border: "1px solid #fde68a",
+                    }}
+                  >
+                    💰
+                    {" "}
+                    {Number(selectedCabin.price_per_night).toLocaleString(
+                      "nb-NO",
+                    )}{" "}
+                    kr / natt
+                  </div>
+                )}
+                {selectedCabin.is_staffed && (
+                  <div
+                    style={{
+                      padding: "0.2rem 0.45rem",
+                      borderRadius: 9999,
+                      backgroundColor: "#ecfdf5",
+                      border: "1px solid #6ee7b7",
+                    }}
+                  >
+                    👨‍💼 Betjent hytte
+                  </div>
+                )}
+              </div>
+
+              {selectedCabin.description && (
+                <p
+                  style={{
+                    marginTop: 14,
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    color: "#374151",
+                  }}
+                >
+                  {selectedCabin.description}
+                </p>
+              )}
+
+              {Array.isArray(selectedCabin.amenities) &&
+                selectedCabin.amenities.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        marginBottom: 4,
+                        color: "#4b5563",
+                      }}
+                    >
+                      Fasiliteter
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 6,
+                        fontSize: 12,
+                      }}
+                    >
+                      {selectedCabin.amenities.map((a) => (
+                        <span
+                          key={a}
+                          style={{
+                            padding: "0.15rem 0.5rem",
+                            borderRadius: 9999,
+                            backgroundColor: "#f3f4f6",
+                            border: "1px solid #e5e7eb",
+                          }}
+                        >
+                          {a}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              <div style={{ marginTop: 18, display: "flex", gap: 8 }}>
+                <Link
+                  href={`/reserver/booking?cabinId=${encodeURIComponent(
+                    selectedCabin.id,
+                  )}`}
+                  style={{
+                    flex: 1,
+                    textAlign: "center",
+                    padding: "0.6rem 0.8rem",
+                    borderRadius: 9999,
+                    border: "none",
+                    backgroundColor: "#2563eb",
+                    color: "white",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    textDecoration: "none",
+                  }}
+                >
+                  Reserver denne hytta
+                </Link>
+              </div>
             </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <button onClick={locateUser} style={{ flex: 1 }}>
+                  Min posisjon
+                </button>
+                <button
+                  onClick={() => setPlacing(!placing)}
+                  style={{ flex: 1 }}
+                >
+                  {placing ? "Avslutt plassering" : "Plasser punkt"}
+                </button>
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <strong>GeoJSON-lag (zoom inn for å se)</strong>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 4,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={routeToggles.annenrute}
+                    onChange={(e) =>
+                      setRouteToggles((prev) => ({
+                        ...prev,
+                        annenrute: e.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Annen rute</span>
+                </label>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 4,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={routeToggles.skiløype}
+                    onChange={(e) =>
+                      setRouteToggles((prev) => ({
+                        ...prev,
+                        skiløype: e.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Skiløype</span>
+                </label>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 4,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={routeToggles.sykkelrute}
+                    onChange={(e) =>
+                      setRouteToggles((prev) => ({
+                        ...prev,
+                        sykkelrute: e.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Sykkelrute</span>
+                </label>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 4,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={routeToggles.ruteinfopunkt}
+                    onChange={(e) =>
+                      setRouteToggles((prev) => ({
+                        ...prev,
+                        ruteinfopunkt: e.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Rute infopunkt</span>
+                </label>
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <strong>Importer GPX-rute</strong>
+                <input
+                  type="file"
+                  accept=".gpx,application/gpx+xml"
+                  onChange={handleGpxUpload}
+                  style={{ width: "100%", marginTop: 5, marginBottom: 10 }}
+                />
+
+                {elevationStats && (
+                  <div style={{ fontSize: 12, marginBottom: 10 }}>
+                    <div>
+                      <strong>Høydeprofil</strong>
+                    </div>
+                    <div>Laveste punkt: {elevationStats.min} moh</div>
+                    <div>Høyeste punkt: {elevationStats.max} moh</div>
+                    <div>Total stigning: {elevationStats.ascent} m</div>
+                  </div>
+                )}
+
+                <input
+                  placeholder="Rutenavn"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((f) => ({ ...f, name: e.target.value }))
+                  }
+                  style={{ width: "100%", marginBottom: 5 }}
+                />
+                <textarea
+                  placeholder="Beskrivelse"
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData((f) => ({ ...f, description: e.target.value }))
+                  }
+                  style={{ width: "100%", marginBottom: 5 }}
+                />
+                <select
+                  value={formData.activity}
+                  onChange={(e) =>
+                    setFormData((f) => ({ ...f, activity: e.target.value }))
+                  }
+                  style={{ width: "100%", marginBottom: 5 }}
+                >
+                  <option value="foot">Fottur</option>
+                  <option value="bike">Sykkeltur</option>
+                  <option value="ski">Skitur</option>
+                </select>
+                <input
+                  type="number"
+                  placeholder="Vanskelighetsgrad (1–5)"
+                  value={formData.difficulty}
+                  min={1}
+                  max={5}
+                  onChange={(e) =>
+                    setFormData((f) => ({
+                      ...f,
+                      difficulty: parseInt(e.target.value, 10),
+                    }))
+                  }
+                  style={{ width: "100%", marginBottom: 5 }}
+                />
+                <input
+                  type="number"
+                  placeholder="Varighet i minutter"
+                  value={formData.duration_minutes}
+                  onChange={(e) =>
+                    setFormData((f) => ({
+                      ...f,
+                      duration_minutes: parseInt(e.target.value, 10),
+                    }))
+                  }
+                  style={{ width: "100%", marginBottom: 5 }}
+                />
+
+                <button
+                  onClick={submitRoute}
+                  style={{ width: "100%", marginTop: 5 }}
+                >
+                  Send til verifisering
+                </button>
+              </div>
+            </>
           )}
-
-          <input
-            placeholder="Rutenavn"
-            value={formData.name}
-            onChange={(e) =>
-              setFormData((f) => ({ ...f, name: e.target.value }))
-            }
-            style={{ width: "100%", marginBottom: 5 }}
-          />
-          <textarea
-            placeholder="Beskrivelse"
-            value={formData.description}
-            onChange={(e) =>
-              setFormData((f) => ({ ...f, description: e.target.value }))
-            }
-            style={{ width: "100%", marginBottom: 5 }}
-          />
-          <select
-            value={formData.activity}
-            onChange={(e) =>
-              setFormData((f) => ({ ...f, activity: e.target.value }))
-            }
-            style={{ width: "100%", marginBottom: 5 }}
-          >
-            <option value="foot">Fottur</option>
-            <option value="bike">Sykkeltur</option>
-            <option value="ski">Skitur</option>
-          </select>
-          <input
-            type="number"
-            placeholder="Vanskelighetsgrad (1–5)"
-            value={formData.difficulty}
-            min={1}
-            max={5}
-            onChange={(e) =>
-              setFormData((f) => ({
-                ...f,
-                difficulty: parseInt(e.target.value, 10),
-              }))
-            }
-            style={{ width: "100%", marginBottom: 5 }}
-          />
-          <input
-            type="number"
-            placeholder="Varighet i minutter"
-            value={formData.duration_minutes}
-            onChange={(e) =>
-              setFormData((f) => ({
-                ...f,
-                duration_minutes: parseInt(e.target.value, 10),
-              }))
-            }
-            style={{ width: "100%", marginBottom: 5 }}
-          />
-
-          <button
-            onClick={submitRoute}
-            style={{ width: "100%", marginTop: 5 }}
-          >
-            Send til verifisering
-          </button>
-        </div>
         </div>
       )}
 
