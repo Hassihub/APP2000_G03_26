@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import styles from "../Reserver.module.css";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
@@ -8,6 +9,39 @@ import { formatTranslation, useTranslations } from "../../components/LanguagePro
 
 const STANDARD_IMAGE_WIDTH = 1200;
 const STANDARD_IMAGE_HEIGHT = 900;
+
+const COMMON_AMENITIES = [
+  "WiFi",
+  "Parkering",
+  "Kjøkken",
+  "Oppvaskmaskin",
+  "Kjøleskap",
+  "Fryser",
+  "Stekeovn",
+  "Mikrobølgeovn",
+  "Kaffemaskin",
+  "Vannkoker",
+  "Peis",
+  "Badstue",
+  "Badehus",
+  "Boblebad",
+  "TV",
+  "Kabel-TV",
+  "Vaskemaskin",
+  "Tørketrommel",
+  "Ski-in/ski-out",
+  "Skotørker",
+  "Sengetøy",
+  "Håndklær",
+  "Grill",
+  "Balkong",
+  "Terrasse",
+  "Uteplass",
+  "Barnevennlig",
+  "Kjæledyr tillatt",
+  "Røyking forbudt",
+  "Tilgjengelig for rullestol",
+];
 
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
@@ -77,8 +111,10 @@ export default function NewCabinPage() {
     location: "",
     price_per_night: "",
     capacity: "",
-    amenities: "",
+    is_staffed: false,
+    customAmenities: "",
   });
+  const [selectedAmenities, setSelectedAmenities] = useState([]);
 
   const [coords, setCoords] = useState(null); // { lat, lon }
   const [Leaflet, setLeaflet] = useState(null);
@@ -130,16 +166,20 @@ export default function NewCabinPage() {
   }, []);
 
   function handleChange(e) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+  }
+
+  function toggleAmenity(amenity) {
+    setSelectedAmenities((prev) =>
+      prev.includes(amenity)
+        ? prev.filter((item) => item !== amenity)
+        : [...prev, amenity]
+    );
   }
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    // Vent til vi vet om brukeren har tilgang og selve kart-elementet er i DOM
-    if (authLoading) return;
-    if (!(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN)) return;
 
     if (!Leaflet) {
       import("leaflet").then((L) => {
@@ -151,11 +191,8 @@ export default function NewCabinPage() {
 
     if (mapRef.current) return;
 
-    const container = document.getElementById("new-cabin-map");
-    if (!container) return;
-
     const L = Leaflet;
-    const map = L.map(container, {
+    const map = L.map("new-cabin-map", {
       center: [63.2, 15],
       zoom: 5,
       minZoom: 4,
@@ -205,7 +242,7 @@ export default function NewCabinPage() {
       mapRef.current = null;
       markerRef.current = null;
     };
-  }, [Leaflet, authLoading, userRole]);
+  }, [Leaflet]);
 
   async function handleImageChange(e) {
     const files = Array.from(e.target.files || []).slice(0, 8);
@@ -273,12 +310,14 @@ export default function NewCabinPage() {
         location: form.location.trim(),
         price_per_night: Number(form.price_per_night),
         capacity: Number(form.capacity),
-        amenities: form.amenities
-          ? form.amenities
-              .split(",")
-              .map((a) => a.trim())
-              .filter(Boolean)
-          : [],
+        is_staffed: Boolean(form.is_staffed),
+        amenities: [
+          ...selectedAmenities,
+          ...form.customAmenities
+            .split(",")
+            .map((amenity) => amenity.trim())
+            .filter(Boolean),
+        ],
         latitude: coords?.lat ?? null,
         longitude: coords?.lon ?? null,
         image_urls: uploadedImageUrls,
@@ -313,8 +352,10 @@ export default function NewCabinPage() {
         location: "",
         price_per_night: "",
         capacity: "",
-        amenities: "",
+        is_staffed: false,
+        customAmenities: "",
       });
+      setSelectedAmenities([]);
       setCoords(null);
       setImageFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -332,43 +373,67 @@ export default function NewCabinPage() {
 
   if (authLoading) {
     return (
-      <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
-        <p>Laster tilgang...</p>
-      </div>
+      <main className={styles.reservePageShell}>
+        <section className={styles.reserveContentSection} style={{ marginTop: 0 }}>
+          <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
+            <p>Laster tilgang...</p>
+          </div>
+        </section>
+      </main>
     );
   }
 
   if (!(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN)) {
     return (
-      <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
-        <h1>Ingen tilgang</h1>
-        <p>Du må være utleier for å opprette hytter.</p>
-        <Link href="/reserver" className={styles.button}>
-          Tilbake til oversikt
-        </Link>
-      </div>
+      <main className={styles.reservePageShell}>
+        <section className={styles.reserveContentSection} style={{ marginTop: 0 }}>
+          <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
+            <h1>Ingen tilgang</h1>
+            <p>Du må være utleier for å opprette hytter.</p>
+            <Link href="/reserver" className={styles.button}>
+              Tilbake til oversikt
+            </Link>
+          </div>
+        </section>
+      </main>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
-      {/* Samme main-oppsett som Home */}
-      <main style={{ padding: 0 }}>
+    <main className={styles.reservePageShell}>
+      <section className={styles.reserveHero}>
+        <Image
+          src="/images/hytte.jpg"
+          alt="Ny hytte"
+          fill
+          priority
+          className={styles.reserveHeroImage}
+        />
+        <div className={styles.reserveHeroOverlay} />
+
+        <div className={styles.reserveHeroContent}>
+          <p className={styles.reserveHeroKicker}>Fritt Fram</p>
+          <h1 className={styles.reserveHeroTitle}>Legg til ny hytte</h1>
+          <p className={styles.reserveHeroText}>Opprett en ny hytte i samme visuelle uttrykk som resten av applikasjonen.</p>
+        </div>
+      </section>
+
+      <section className={styles.reserveContentSection}>
         <div className={styles.page}>
           <div className={styles.container}>
             <div className={styles.notice}>
-              {t.notice} ({t.noticeDetail})
+              {t.notice || "➕ Legg til ny hytte"}
+              {t.noticeDetail ? ` (${t.noticeDetail})` : ""}
             </div>
 
             <div className={styles.layout}>
               {/* Venstre: info/kort */}
               <div className={styles.listCard}>
-                <h3 className={styles.listTitle}>Tips</h3>
-                <h3 className={styles.listTitle}>{t.tips}</h3>
+                <h3 className={styles.listTitle}>{t.tips || "Tips"}</h3>
                 <div className={styles.meta} style={{ marginTop: 10 }}>
-                  <div>• {t.facilityTip}</div>
-                  <div>• {t.priceTip}</div>
-                  <div>• {t.locationTip}</div>
+                  <div>• {t.facilityTip || <><b>Fasiliteter</b>: kryss av vanlige valg og legg eventuelt til egne under</>}</div>
+                  <div>• {t.priceTip || <><b>Pris</b> og <b>kapasitet</b> må være tall</>}</div>
+                  <div>• {t.locationTip || <><b>Lokasjon</b> er f.eks: “Hemsedal, Norge”</>}</div>
                 </div>
 
                 <div style={{ marginTop: 12 }}>
@@ -445,10 +510,54 @@ export default function NewCabinPage() {
                         min="1"
                       />
 
+                      <label className={styles.filterField}>
+                        <span className={styles.filterLabel}>Type hytte</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input
+                            name="is_staffed"
+                            type="checkbox"
+                            checked={Boolean(form.is_staffed)}
+                            onChange={handleChange}
+                          />
+                          <span>{form.is_staffed ? "Betjent" : "Ubetjent"}</span>
+                        </div>
+                      </label>
+
+                      <div className={styles.field}>
+                        <label className={styles.label}>Fasiliteter</label>
+                        <div className={styles.amenitySummary}>
+                          {selectedAmenities.length
+                            ? `${selectedAmenities.length} valgt`
+                            : "Ingen valgt ennå"}
+                        </div>
+                        <div className={styles.amenityGrid}>
+                          {COMMON_AMENITIES.map((amenity) => {
+                            const checked = selectedAmenities.includes(amenity);
+
+                            return (
+                              <label
+                                key={amenity}
+                                className={`${styles.amenityChip} ${checked ? styles.amenityChipActive : ""}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleAmenity(amenity)}
+                                />
+                                <span>{amenity}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <div className={styles.helper}>
+                          Velg det som passer best. Du kan også legge til egne fasiliteter i feltet under.
+                        </div>
+                      </div>
+
                       <input
-                        name="amenities"
-                        placeholder={t.amenitiesPlaceholder}
-                        value={form.amenities}
+                        name="customAmenities"
+                        placeholder={t.customAmenitiesPlaceholder || "Andre fasiliteter, kommaseparert"}
+                        value={form.customAmenities}
                         onChange={handleChange}
                       />
 
@@ -524,7 +633,7 @@ export default function NewCabinPage() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }

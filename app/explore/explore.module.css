@@ -1,5 +1,3 @@
-﻿/* ── Explore Module — uses CSS custom properties from globals.css ── */
-
 .container {
   padding: 32px;
   max-width: 1400px;
@@ -8,10 +6,6 @@
   color: var(--text);
   background: var(--bg);
   min-height: 100vh;
-}
-
-.header {
-  margin-bottom: 24px;
 }
 
 .heading {
@@ -54,22 +48,6 @@
   cursor: pointer;
 }
 
-.mapSection {
-  margin-bottom: 32px;
-}
-
-.map {
-  height: 350px;
-  background: var(--bg-panel);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
 .results h2 {
   margin-bottom: 16px;
   font-size: 1.8rem;
@@ -88,6 +66,7 @@
   border-radius: 4px;
   border: 1px solid var(--border);
   overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -95,8 +74,8 @@
 }
 
 .card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 4px 16px var(--accent-bg);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 .imagePlaceholder {
@@ -145,18 +124,12 @@
   color: #fff;
   border-radius: 4px;
   cursor: pointer;
-  font-weight: 700;
-  transition: opacity 0.2s ease;
-  margin-top: auto;
+  font-weight: 500;
+  transition: background 0.2s ease;
 }
 
 .button:hover {
   opacity: 0.88;
-}
-
-.cabinBeds {
-  font-size: 0.9rem;
-  color: var(--text-muted);
 }
 
 .checkbox {
@@ -170,8 +143,8 @@
 
 .headerRow {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -179,22 +152,24 @@
 .createButton {
   padding: 10px 14px;
   border: none;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 4px;
+  background: #111827;
+  color: white;
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: 700;
-  transition: opacity 0.15s ease;
+  font-weight: 600;
+  transition: transform 0.15s ease, opacity 0.15s ease;
   white-space: nowrap;
 }
+
 .createButton:hover {
-  opacity: 0.88;
+  transform: translateY(-1px);
+  opacity: 0.95;
 }
 
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(17, 24, 39, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -204,12 +179,13 @@
 
 .modal {
   width: 100%;
-  max-width: 560px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: 0 18px 50px rgba(0,0,0,0.25);
-  overflow: hidden;
+  max-width: 600px;
+  max-height: 90vh;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .modalHeader {
@@ -217,7 +193,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 16px 10px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .iconButton {
@@ -227,11 +203,11 @@
   font-size: 18px;
   line-height: 1;
   padding: 6px 8px;
-  border-radius: 4px;
-  color: var(--text-muted);
+  border-radius: 8px;
 }
+
 .iconButton:hover {
-  background: var(--border);
+  background: #f3f4f6;
 }
 
 .form {
@@ -247,7 +223,7 @@
 }
 
 .field span {
-  color: var(--text-muted);
+  color: #374151;
   font-weight: 600;
 }
 
@@ -255,12 +231,9 @@
 .field textarea,
 .field select {
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
   font-size: 1rem;
-  background: var(--bg-input);
-  color: var(--text);
-  outline: none;
 }
 
 .row {
@@ -278,10 +251,9 @@
 
 .secondaryButton {
   padding: 10px 12px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text-muted);
-  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
 }
@@ -289,22 +261,89 @@
 .primaryButton {
   padding: 10px 12px;
   border: none;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 4px;
+  background: #065f46;
+  color: white;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 700;
 }
 
 .primaryButton:disabled {
-  opacity: 0.5;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
 .error {
   color: #b91c1c;
-  background: rgba(185,28,28,0.08);
-  border: 1px solid rgba(185,28,28,0.3);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 10px;
+}
+
+.tiuBadge {
+  color: #047857;
+  font-weight: 600;
+  margin-bottom: 10px;
+  display: inline-block;
+}
+
+.tripImage {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+}
+
+.cardActions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+  flex-wrap: wrap;
+}
+
+.registerButton {
+  padding: 10px;
+  border: none;
+  background: #111827;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.registerButton:hover {
+  background: #1f2937;
+}
+
+.registerButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.successMessage {
+  color: #065f46;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin: 8px 0;
+  font-size: 0.9rem;
+}
+
+.errorMessage {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin: 8px 0;
+  font-size: 0.9rem;
+}
+
+.departureInfo {
+  font-size: 0.9rem;
+  color: #374151;
+  margin: 6px 0 10px 0;
 }

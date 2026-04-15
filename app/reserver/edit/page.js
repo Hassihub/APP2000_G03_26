@@ -81,6 +81,7 @@ function EditCabinContent() {
     location: "",
     price_per_night: "",
     capacity: "",
+    is_staffed: false,
     amenities: "",
   });
 
@@ -151,6 +152,7 @@ function EditCabinContent() {
         location: c?.location ?? "",
         price_per_night: String(c?.price_per_night ?? ""),
         capacity: String(c?.capacity ?? ""),
+        is_staffed: Boolean(c?.is_staffed),
         amenities: Array.isArray(c?.amenities) ? c.amenities.join(", ") : "",
       });
       setExistingImageUrls(Array.isArray(c?.image_urls) ? c.image_urls : []);
@@ -165,8 +167,8 @@ function EditCabinContent() {
   }, [cabinId]);
 
   function handleChange(e) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   }
 
   async function handleImageChange(e) {
@@ -244,6 +246,7 @@ function EditCabinContent() {
         location: form.location.trim(),
         price_per_night: Number(form.price_per_night),
         capacity: Number(form.capacity),
+        is_staffed: Boolean(form.is_staffed),
         amenities: form.amenities
           ? form.amenities
               .split(",")
@@ -278,27 +281,52 @@ function EditCabinContent() {
 
   if (authLoading) {
     return (
-      <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
-        <p>Laster tilgang...</p>
-      </div>
+      <main className={styles.reservePageShell}>
+        <section className={styles.reserveContentSection} style={{ marginTop: 0 }}>
+          <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
+            <p>Laster tilgang...</p>
+          </div>
+        </section>
+      </main>
     );
   }
 
   if (!(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN)) {
     return (
-      <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
-        <h1>Ingen tilgang</h1>
-        <p>Du må være utleier for å redigere hytter.</p>
-        <Link href="/reserver" className={styles.button}>
-          Tilbake til oversikt
-        </Link>
-      </div>
+      <main className={styles.reservePageShell}>
+        <section className={styles.reserveContentSection} style={{ marginTop: 0 }}>
+          <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
+            <h1>Ingen tilgang</h1>
+            <p>Du må være utleier for å redigere hytter.</p>
+            <Link href="/reserver" className={styles.button}>
+              Tilbake til oversikt
+            </Link>
+          </div>
+        </section>
+      </main>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
-      <main>
+    <main className={styles.reservePageShell}>
+      <section className={styles.reserveHero}>
+        <Image
+          src="/images/hytte.jpg"
+          alt="Rediger hytte"
+          fill
+          priority
+          className={styles.reserveHeroImage}
+        />
+        <div className={styles.reserveHeroOverlay} />
+
+        <div className={styles.reserveHeroContent}>
+          <p className={styles.reserveHeroKicker}>Fritt Fram</p>
+          <h1 className={styles.reserveHeroTitle}>Rediger hytte</h1>
+          <p className={styles.reserveHeroText}>Oppdater detaljer og bilder med samme layout som resten av reserver-opplevelsen.</p>
+        </div>
+      </section>
+
+      <section className={styles.reserveContentSection}>
         <div className={styles.page}>
           <div className={styles.container}>
             <div className={styles.notice}>✏️ Rediger hytte</div>
@@ -387,6 +415,19 @@ function EditCabinContent() {
                       </div>
 
                       <div className={styles.field}>
+                        <label className={styles.label}>Type hytte</label>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input
+                            name="is_staffed"
+                            type="checkbox"
+                            checked={Boolean(form.is_staffed)}
+                            onChange={handleChange}
+                          />
+                          <span>{form.is_staffed ? "Betjent" : "Ubetjent"}</span>
+                        </div>
+                      </div>
+
+                      <div className={styles.field}>
                         <label className={styles.label}>Fasiliteter</label>
                         <input
                           className={styles.input}
@@ -468,8 +509,8 @@ function EditCabinContent() {
             )}
           </div>
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
 

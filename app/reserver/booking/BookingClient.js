@@ -11,9 +11,14 @@ export default function BookingClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const cabinId = searchParams.get("cabinId");
+  const loginHref = cabinId
+    ? `/login?redirect=${encodeURIComponent(`/reserver/booking?cabinId=${cabinId}`)}`
+    : "/login?redirect=%2Freserver";
 
   const [cabin, setCabin] = useState(null);
   const [loadingCabin, setLoadingCabin] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const [start_date, setStart] = useState("");
   const [end_date, setEnd] = useState("");
@@ -44,17 +49,29 @@ export default function BookingClient() {
         if (!alive) return;
 
         if (!res.ok) {
+          setIsAuthenticated(false);
+          setAuthChecked(true);
           return;
         }
 
         const data = await res.json().catch(() => ({}));
 
         if (data?.user) {
+          setIsAuthenticated(true);
           setName(data.user.username || "");
           setEmail(data.user.email || "");
+        } else {
+          setIsAuthenticated(false);
+          setAuthChecked(true);
+          return;
         }
+        setAuthChecked(true);
       } catch {
-        // Ikke blokkér reservasjonsskjema hvis auth-endepunkt feiler.
+        // Hvis auth-kallet feiler, lar vi siden vises og holder bare innsendingen låst.
+        if (alive) {
+          setIsAuthenticated(false);
+          setAuthChecked(true);
+        }
       }
     }
 
@@ -99,14 +116,15 @@ export default function BookingClient() {
     return () => {
       alive = false;
     };
-  }, [cabinId]);
+  }, [cabinId, loginHref, router]);
   useEffect(() => {
     if (!cabin?.location) return;
     async function fetchWeather() {
       const res = await fetch(
         `/api/search?q=${encodeURIComponent(cabin.location)}`,
       );
-      const locations = await res.json();
+      const data = await res.json();
+      const locations = Array.isArray(data) ? data : data.locations || [];
       if (locations.length > 0) {
         const loc = locations[0];
         const weatherRes = await fetch(
@@ -133,6 +151,16 @@ export default function BookingClient() {
     return p * nights;
   }, [cabin, nights]);
 
+  const nightlyPrice = useMemo(() => {
+    const p = Number(cabin?.price_per_night);
+    return Number.isFinite(p) && p > 0 ? p : null;
+  }, [cabin]);
+
+  function formatNok(value) {
+    if (!Number.isFinite(value)) return "—";
+    return `${value.toLocaleString("nb-NO")} kr`;
+  }
+
   const dateError = useMemo(() => {
     if (!start_date || !end_date) return "";
     return nights <= 0 ? "Til-dato må være etter fra-dato." : "";
@@ -150,6 +178,7 @@ export default function BookingClient() {
 
   const canSubmit = useMemo(() => {
     if (!cabinId) return false;
+    if (!authChecked) return false;
     if (!start_date || !end_date) return false;
     if (dateError) return false;
     if (guestsError) return false;
@@ -165,10 +194,18 @@ export default function BookingClient() {
     guest_name,
     guest_email,
     submitting,
+    authChecked,
+    isAuthenticated,
   ]);
 
   async function submit(e) {
     e.preventDefault();
+
+    if (!isAuthenticated) {
+      router.push(loginHref);
+      return;
+    }
+
     setSubmitting(true);
     setError("");
     setOk("");
@@ -205,6 +242,12 @@ export default function BookingClient() {
     <div style={{ minHeight: "100vh", background: "#b8b2b2ff" }}>
       <main className={styles.page} style={{ paddingBottom: 120 }}>
         <div className={styles.container}>
+          {!authChecked ? null : !isAuthenticated ? (
+            <div className={styles.notice} style={{ marginBottom: 16 }}>
+              Du kan se hytta og fylle ut reservasjonen her, men må logge inn for å bekrefte bestillingen.
+            </div>
+          ) : null}
+
           <div className={styles.notice}>
             <div
               style={{
@@ -241,7 +284,10 @@ export default function BookingClient() {
             <div className={styles.layout}>
               <div className={styles.card}>
                 <div className={styles.cardContent}>
-                  <form className={styles.form} onSubmit={submit}>
+                  <form
+                    className={`${styles.form} ${styles.bookingFormPanel}`}
+                    onSubmit={submit}
+                  >
                     <h2 className={styles.sectionTitle}>
                       Bestillingsinformasjon
                     </h2>
@@ -342,15 +388,21 @@ export default function BookingClient() {
                     {ok ? <div className={styles.successBox}>{ok}</div> : null}
 
                     <div className={styles.actionsRow}>
-                      <button
-                        className={styles.button}
-                        type="submit"
-                        disabled={!canSubmit}
-                      >
-                        {submitting
-                          ? "⏳ Oppretter..."
-                          : "✅ Bekreft reservasjon"}
-                      </button>
+                      {isAuthenticated ? (
+                        <button
+                          className={styles.button}
+                          type="submit"
+                          disabled={!canSubmit}
+                        >
+                          {submitting
+                            ? "⏳ Oppretter..."
+                            : "✅ Bekreft reservasjon"}
+                        </button>
+                      ) : (
+                        <Link className={styles.button} href={loginHref}>
+                          Logg inn for å reservere
+                        </Link>
+                      )}
                       <Link className={styles.buttonSecondary} href="/reserver">
                         Avbryt
                       </Link>
@@ -366,8 +418,13 @@ export default function BookingClient() {
 
               <div className={styles.card}>
                 <div className={styles.cardContent}>
-                  <div className={styles.info}>
-                    <h2>Oppsummering</h2>
+                  <div className={styles.summaryPanel}>
+                    <div className={styles.summaryHeader}>
+                      <h2 className={styles.summaryTitle}>Oppsummering</h2>
+                      <p className={styles.summarySubtitle}>
+                        Her får du en rask oversikt før du bekrefter.
+                      </p>
+                    </div>
 
                     {loadingCabin ? (
                       <p>⏳ Laster hytteinfo...</p>
@@ -379,18 +436,32 @@ export default function BookingClient() {
                       <>
                         {Array.isArray(cabin.image_urls) &&
                         cabin.image_urls.length > 0 ? (
-                          <div className={styles.imageGrid}>
-                            {cabin.image_urls.map((url) => (
-                              <div className={styles.imageCard} key={url}>
-                                <Image
-                                  src={url}
-                                  alt={`Bilde av ${cabin.name}`}
-                                  className={styles.cabinImage}
-                                  width={640}
-                                  height={480}
-                                />
+                          <div className={styles.summaryImageGallery}>
+                            <div className={styles.summaryImageHero}>
+                              <Image
+                                src={cabin.image_urls[0]}
+                                alt={`Hovedbilde av ${cabin.name}`}
+                                className={styles.summaryImageHeroImg}
+                                width={1280}
+                                height={820}
+                              />
+                            </div>
+
+                            {cabin.image_urls.length > 1 ? (
+                              <div className={styles.summaryThumbGrid}>
+                                {cabin.image_urls.slice(1).map((url) => (
+                                  <div className={styles.summaryThumbCard} key={url}>
+                                    <Image
+                                      src={url}
+                                      alt={`Bilde av ${cabin.name}`}
+                                      className={styles.summaryThumbImage}
+                                      width={420}
+                                      height={300}
+                                    />
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            ) : null}
                           </div>
                         ) : (
                           <div
@@ -401,68 +472,39 @@ export default function BookingClient() {
                           </div>
                         )}
 
-                        <div className={styles.meta}>
-                          <b>{cabin.name}</b>
-                          <br />
-                          <div
-                            style={{
-                              position: "relative",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
-                          >
-                            📍 {cabin.location} •{" "}
+                        <div className={styles.summaryTopRow}>
+                          <div>
+                            <h3 className={styles.summaryCabinName}>{cabin.name}</h3>
+                            <p className={styles.summaryLocation}>📍 {cabin.location}</p>
+                          </div>
+                          <span className={styles.summaryCabinType}>
+                            {cabin.is_staffed ? "Betjent" : "Ubetjent"}
+                          </span>
+                        </div>
+
+                        <div className={styles.summaryWeatherRow}>
+                          <span className={styles.summaryWeatherNow}>
                             <CabinWeather location={cabin.location} />
+                          </span>
+                          <div
+                            className={styles.summaryWeatherPopoverWrap}
+                          >
                             <button
-                              className={styles.button}
+                              className={styles.summaryWeatherButton}
                               onClick={() => setShowWeather((prev) => !prev)}
-                              style={{
-                                width: "auto",
-                                padding: "2px 12px",
-                                fontSize: "0.8rem",
-                              }}
+                              type="button"
                             >
                               🌤️ {showWeather ? "Skjul" : "Vis værmelding"}
                             </button>
                             {showWeather && weather?.daily && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  top: "100%",
-                                  left: 0,
-                                  zIndex: 100,
-                                  background: "#fff",
-                                  border: "1px solid #ccc",
-                                  borderRadius: "10px",
-                                  padding: "12px",
-                                  boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-                                  minWidth: "360px",
-                                }}
-                              >
-                                <strong style={{ fontSize: "0.9rem" }}>
+                              <div className={styles.summaryWeatherPopover}>
+                                <strong className={styles.summaryWeatherTitle}>
                                   📅 7-dagers prognose
                                 </strong>
-                                <div
-                                  style={{
-                                    marginTop: "8px",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: "6px",
-                                  }}
-                                >
+                                <div className={styles.summaryWeatherList}>
                                   {weather.daily.map((day) => (
-                                    <div
-                                      key={day.date}
-                                      style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        fontSize: "0.85rem",
-                                        borderBottom: "1px solid #eee",
-                                        paddingBottom: "4px",
-                                      }}
-                                    >
-                                      <span style={{ minWidth: "120px" }}>
+                                    <div key={day.date} className={styles.summaryWeatherItem}>
+                                      <span className={styles.summaryWeatherDate}>
                                         {new Date(day.date).toLocaleDateString(
                                           "nb-NO",
                                           {
@@ -483,36 +525,50 @@ export default function BookingClient() {
                               </div>
                             )}
                           </div>
-                          👥 {cabin.capacity} pers
-                          <br />
-                          💰 {cabin.price_per_night} kr/natt
                         </div>
 
                         {cabin.description ? (
-                          <p style={{ marginTop: 10 }}>{cabin.description}</p>
+                          <p className={styles.summaryDescription}>{cabin.description}</p>
                         ) : null}
 
-                        <div className={styles.meta} style={{ marginTop: 10 }}>
-                          🗓️ Netter: <b>{nights}</b>
-                          <br />
-                          👥 Personer: <b>{Number(guests_count) || 0}</b>
-                          <br />
-                          💰 Estimert pris:{" "}
-                          <b>
-                            {estimatedPrice != null
-                              ? `${estimatedPrice} kr`
-                              : "—"}
-                          </b>
+                        <div className={styles.summaryAmenitiesSection}>
+                          <h4 className={styles.summaryAmenitiesTitle}>Fasiliteter</h4>
+                          {Array.isArray(cabin.amenities) && cabin.amenities.length > 0 ? (
+                            <div className={styles.summaryAmenitiesList}>
+                              {cabin.amenities.map((amenity) => (
+                                <span key={amenity} className={styles.summaryAmenityChip}>
+                                  {amenity}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className={styles.summaryNoAmenities}>
+                              Ingen registrerte fasiliteter.
+                            </p>
+                          )}
                         </div>
 
-                        <div
-                          className={styles.meta}
-                          style={{ marginTop: 10, fontSize: 13 }}
-                        >
-                          🏡{" "}
-                          {cabin.amenities?.length
-                            ? cabin.amenities.join(", ")
-                            : "Ingen registrerte fasiliteter"}
+                        <div className={styles.summaryStatsGrid}>
+                          <div className={styles.summaryStatCard}>
+                            <span className={styles.summaryStatLabel}>Netter</span>
+                            <span className={styles.summaryStatValue}>{nights}</span>
+                          </div>
+                          <div className={styles.summaryStatCard}>
+                            <span className={styles.summaryStatLabel}>Personer</span>
+                            <span className={styles.summaryStatValue}>{Number(guests_count) || 0}</span>
+                          </div>
+                          <div className={styles.summaryStatCard}>
+                            <span className={styles.summaryStatLabel}>Kapasitet</span>
+                            <span className={styles.summaryStatValue}>{cabin.capacity} pers</span>
+                          </div>
+                          <div className={styles.summaryStatCard}>
+                            <span className={styles.summaryStatLabel}>Pris per natt</span>
+                            <span className={styles.summaryStatValue}>{formatNok(nightlyPrice)}</span>
+                          </div>
+                          <div className={`${styles.summaryStatCard} ${styles.summaryTotalCard}`}>
+                            <span className={styles.summaryStatLabel}>Estimert total</span>
+                            <span className={styles.summaryTotalValue}>{formatNok(estimatedPrice)}</span>
+                          </div>
                         </div>
                       </>
                     )}
