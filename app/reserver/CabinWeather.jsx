@@ -112,24 +112,6 @@ export default function CabinWeather({ location, lat, lon }) {
             🌧 {current.precipitation} mm
           </span>
         )}
-        <button
-          type="button"
-          onClick={() => setShowForecast((v) => !v)}
-          style={{
-            marginLeft: "0.25rem",
-            padding: "0.25rem 0.65rem",
-            fontSize: "0.75rem",
-            fontWeight: 700,
-            background: "var(--bg)",
-            border: "1px solid var(--border)",
-            borderRadius: 4,
-            color: "var(--text-muted)",
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          {showForecast ? "Skjul varsel" : "7-dagers varsel"}
-        </button>
       </div>
 
       {/* 7-day forecast */}

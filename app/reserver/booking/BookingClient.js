@@ -484,7 +484,11 @@ export default function BookingClient() {
 
                         <div className={styles.summaryWeatherRow}>
                           <span className={styles.summaryWeatherNow}>
-                            <CabinWeather location={cabin.location} />
+                            <CabinWeather
+                              location={cabin.location}
+                              lat={cabin.latitude}
+                              lon={cabin.longitude}
+                            />
                           </span>
                           <div
                             className={styles.summaryWeatherPopoverWrap}

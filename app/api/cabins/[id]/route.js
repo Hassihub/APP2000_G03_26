@@ -99,13 +99,13 @@ export async function GET(_req, { params }) {
     if (!id) return badRequest("Mangler id");
 
     const sqlWithStaffed = `
-      SELECT id, name, description, location, price_per_night, capacity, amenities, created_at, COALESCE(is_staffed, false) AS is_staffed
+      SELECT id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at, COALESCE(is_staffed, false) AS is_staffed
       FROM public.cabins
       WHERE id = $1
       LIMIT 1
     `;
     const sqlWithoutStaffed = `
-      SELECT id, name, description, location, price_per_night, capacity, amenities, created_at
+      SELECT id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at
       FROM public.cabins
       WHERE id = $1
       LIMIT 1
