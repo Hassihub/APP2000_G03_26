@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import styles from "../Reserver.module.css";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
+import { formatTranslation, useTranslations } from "../../components/LanguageProvider";
 
 const STANDARD_IMAGE_WIDTH = 1200;
 const STANDARD_IMAGE_HEIGHT = 900;
@@ -69,6 +70,7 @@ async function normalizeImageFile(file, index) {
 }
 
 export default function NewCabinPage() {
+  const t = useTranslations("newCabinPage");
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -135,6 +137,10 @@ export default function NewCabinPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Vent til vi vet om brukeren har tilgang og selve kart-elementet er i DOM
+    if (authLoading) return;
+    if (!(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN)) return;
+
     if (!Leaflet) {
       import("leaflet").then((L) => {
         import("leaflet/dist/leaflet.css");
@@ -145,8 +151,11 @@ export default function NewCabinPage() {
 
     if (mapRef.current) return;
 
+    const container = document.getElementById("new-cabin-map");
+    if (!container) return;
+
     const L = Leaflet;
-    const map = L.map("new-cabin-map", {
+    const map = L.map(container, {
       center: [63.2, 15],
       zoom: 5,
       minZoom: 4,
@@ -196,7 +205,7 @@ export default function NewCabinPage() {
       mapRef.current = null;
       markerRef.current = null;
     };
-  }, [Leaflet]);
+  }, [Leaflet, authLoading, userRole]);
 
   async function handleImageChange(e) {
     const files = Array.from(e.target.files || []).slice(0, 8);
@@ -249,22 +258,11 @@ export default function NewCabinPage() {
     e.preventDefault();
 
     if (!coords) {
-      setStatus({
-        type: "error",
-        message: "Du må plassere en pin på kartet for hyttens posisjon.",
-      });
+      setStatus({ type: "error", message: t.pinRequired });
       return;
     }
 
-    if (isProcessingImages) {
-      setStatus({
-        type: "error",
-        message: "Venter pa at bildene blir ferdig tilpasset (1200x900).",
-      });
-      return;
-    }
-
-    setStatus({ type: "loading", message: "Lagrer..." });
+    setStatus({ type: "loading", message: t.saving });
 
     try {
       const uploadedImageUrls = await uploadImages(imageFiles);
@@ -298,14 +296,14 @@ export default function NewCabinPage() {
       if (!res.ok) {
         setStatus({
           type: "error",
-          message: json?.error || "Kunne ikke lagre hytta.",
+          message: json?.error || t.saveError,
         });
         return;
       }
 
       setStatus({
         type: "success",
-        message: `Hytta ble lagret: ${json?.cabin?.name || payload.name}`,
+        message: formatTranslation(t.savedCabin, { name: json?.cabin?.name || payload.name }),
       });
 
       // Reset skjema (valgfritt)
@@ -327,7 +325,7 @@ export default function NewCabinPage() {
     } catch (err) {
       setStatus({
         type: "error",
-        message: err?.message || "Nettverksfeil / serverfeil.",
+        message: err?.message || t.networkError,
       });
     }
   }
@@ -359,22 +357,23 @@ export default function NewCabinPage() {
         <div className={styles.page}>
           <div className={styles.container}>
             <div className={styles.notice}>
-              ➕ Legg til ny hytte (lagres i databasen)
+              {t.notice} ({t.noticeDetail})
             </div>
 
             <div className={styles.layout}>
               {/* Venstre: info/kort */}
               <div className={styles.listCard}>
                 <h3 className={styles.listTitle}>Tips</h3>
+                <h3 className={styles.listTitle}>{t.tips}</h3>
                 <div className={styles.meta} style={{ marginTop: 10 }}>
-                  <div>• <b>Fasiliteter</b>: skriv kommaseparert (f.eks: WiFi, Badstue)</div>
-                  <div>• <b>Pris</b> og <b>kapasitet</b> må være tall</div>
-                  <div>• <b>Lokasjon</b> er f.eks: “Hemsedal, Norge”</div>
+                  <div>• {t.facilityTip}</div>
+                  <div>• {t.priceTip}</div>
+                  <div>• {t.locationTip}</div>
                 </div>
 
                 <div style={{ marginTop: 12 }}>
                   <Link className={styles.button} href="/reserver">
-                    ← Tilbake til oversikt
+                    ← {t.backOverview}
                   </Link>
                 </div>
               </div>
@@ -383,7 +382,7 @@ export default function NewCabinPage() {
               <div className={styles.card}>
                 <div className={styles.cardContent}>
                   <div className={styles.info}>
-                    <h2 style={{ marginTop: 0 }}>Ny hytte</h2>
+                    <h2 style={{ marginTop: 0 }}>{t.newCabin}</h2>
 
                     {status.type !== "idle" && status.message ? (
                       <div
@@ -393,10 +392,10 @@ export default function NewCabinPage() {
                         }}
                       >
                         {status.type === "loading"
-                          ? "⏳ "
+                          ? ""
                           : status.type === "success"
-                          ? "✅ "
-                          : "❌ "}
+                          ? ""
+                          : ""}
                         {status.message}
                       </div>
                     ) : null}
@@ -404,7 +403,7 @@ export default function NewCabinPage() {
                     <form onSubmit={handleSubmit} className={styles.list}>
                       <input
                         name="name"
-                        placeholder="Navn (påkrevd)"
+                        placeholder={t.namePlaceholder}
                         value={form.name}
                         onChange={handleChange}
                         required
@@ -412,7 +411,7 @@ export default function NewCabinPage() {
 
                       <textarea
                         name="description"
-                        placeholder="Beskrivelse (valgfri)"
+                        placeholder={t.descriptionPlaceholder}
                         value={form.description}
                         onChange={handleChange}
                         rows={3}
@@ -420,7 +419,7 @@ export default function NewCabinPage() {
 
                       <input
                         name="location"
-                        placeholder="Lokasjon (påkrevd)"
+                        placeholder={t.locationPlaceholder}
                         value={form.location}
                         onChange={handleChange}
                         required
@@ -429,7 +428,7 @@ export default function NewCabinPage() {
                       <input
                         name="price_per_night"
                         type="number"
-                        placeholder="Pris per natt (kr)"
+                        placeholder={t.pricePlaceholder}
                         value={form.price_per_night}
                         onChange={handleChange}
                         required
@@ -439,7 +438,7 @@ export default function NewCabinPage() {
                       <input
                         name="capacity"
                         type="number"
-                        placeholder="Kapasitet (antall personer)"
+                        placeholder={t.capacityPlaceholder}
                         value={form.capacity}
                         onChange={handleChange}
                         required
@@ -448,14 +447,14 @@ export default function NewCabinPage() {
 
                       <input
                         name="amenities"
-                        placeholder="Fasiliteter (kommaseparert)"
+                        placeholder={t.amenitiesPlaceholder}
                         value={form.amenities}
                         onChange={handleChange}
                       />
 
                       <div>
                         <div style={{ marginBottom: 4, fontWeight: 600 }}>
-                          Velg plassering på kartet
+                          {t.mapLabel}
                         </div>
                         <div
                           id="new-cabin-map"
@@ -468,11 +467,11 @@ export default function NewCabinPage() {
                           }}
                         />
                         <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
-                          Klikk på kartet for å plassere en pin. Koordinatene lagres sammen med hytta.
+                          {t.mapHelp}
                         </div>
                         {coords ? (
                           <div style={{ marginTop: 4, fontSize: 12 }}>
-                            Valgt posisjon: {coords.lat.toFixed(5)}, {coords.lon.toFixed(5)}
+                            {formatTranslation(t.selectedPosition, { lat: coords.lat.toFixed(5), lon: coords.lon.toFixed(5) })}
                           </div>
                         ) : null}
                       </div>
@@ -509,13 +508,13 @@ export default function NewCabinPage() {
                         type="submit"
                         disabled={status.type === "loading" || isProcessingImages}
                       >
-                        {status.type === "loading" ? "Lagrer..." : "Lagre hytte"}
+                        {status.type === "loading" ? t.saving : t.saveCabin}
                       </button>
                     </form>
 
                     <div style={{ marginTop: 12 }}>
                       <Link href="/reserver" className="topbar-item">
-                        Til oversikt
+                        {t.overview}
                       </Link>
                     </div>
                   </div>

@@ -1,10 +1,22 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./explore.module.css";
+import { useTranslations } from "../components/LanguageProvider";
 
-export default function ExplorePage() {
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Laster...</div>}>
+      <ExplorePage />
+    </Suspense>
+  );
+}
+
+function ExplorePage() {
+  const searchParams = useSearchParams();
+  const t = useTranslations("explorePage");
   const [trips, setTrips] = useState([]);
 
   const [search, setSearch] = useState("");
@@ -34,7 +46,6 @@ export default function ExplorePage() {
       { start_time: "", end_time: "" },
     ],
   });
-
   const [Leaflet, setLeaflet] = useState(null);
   const mapRef = useRef(null);
   const [placing, setPlacing] = useState(false);
@@ -45,7 +56,7 @@ export default function ExplorePage() {
     geometry: null,
   });
 
-  const fetchTrips = async () => {
+  const fetchTrips = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         search,
@@ -56,7 +67,7 @@ export default function ExplorePage() {
 
       const res = await fetch(`/api/trips?${params.toString()}`);
 
-      if (!res.ok) throw new Error("Kunne ikke hente turer");
+      if (!res.ok) throw new Error(t.fetchError);
 
       const data = await res.json();
       setTrips(data);
@@ -64,11 +75,18 @@ export default function ExplorePage() {
       console.error(err);
       setTrips([]);
     }
-  };
+  }, [difficulty, onlyTiu, search, t.fetchError, type]);
 
   useEffect(() => {
     fetchTrips();
-  }, [search, type, difficulty, onlyTiu]);
+  }, [fetchTrips]);
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setType(searchParams.get("type") || "alle");
+    setDifficulty(searchParams.get("difficulty") || "alle");
+    setOnlyTiu(searchParams.get("onlyTiu") === "true");
+  }, [searchParams]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -204,7 +222,7 @@ export default function ExplorePage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || "Kunne ikke opprette tur");
+        throw new Error(data?.error || t.submitError);
       }
 
       setNewTrip({
@@ -231,7 +249,7 @@ export default function ExplorePage() {
     } catch (err) {
       setCreateStatus({
         loading: false,
-        error: err.message || "Noe gikk galt",
+        error: err.message || t.genericError,
       });
       return;
     }
@@ -243,19 +261,19 @@ export default function ExplorePage() {
     <main className={styles.container}>
       <section className={styles.headerRow}>
         <div>
-          <h1 className={styles.heading}>Utforsk Norge</h1>
-          <p className={styles.subheading}>Finn turer over hele landet</p>
+          <h1 className={styles.heading}>{t.title}</h1>
+          <p className={styles.subheading}>{t.subtitle}</p>
         </div>
 
         <button className={styles.createButton} onClick={openCreate}>
-          + Opprett tur
+          + {t.createTrip}
         </button>
       </section>
 
       <section className={styles.filters}>
         <input
           className={styles.search}
-          placeholder="Søk etter tur"
+          placeholder={t.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -265,10 +283,10 @@ export default function ExplorePage() {
           value={type}
           onChange={(e) => setType(e.target.value)}
         >
-          <option value="alle">Alle typer</option>
-          <option value="fottur">Fottur</option>
-          <option value="skitur">Skitur</option>
-          <option value="sykkel">Sykkel</option>
+          <option value="alle">{t.allTypes}</option>
+          <option value="fottur">{t.hike}</option>
+          <option value="skitur">{t.ski}</option>
+          <option value="sykkel">{t.bike}</option>
         </select>
 
         <select
@@ -276,10 +294,10 @@ export default function ExplorePage() {
           value={difficulty}
           onChange={(e) => setDifficulty(e.target.value)}
         >
-          <option value="alle">Vanskelighet</option>
-          <option value="lett">Lett</option>
-          <option value="middels">Middels</option>
-          <option value="krevende">Krevende</option>
+          <option value="alle">{t.difficulty}</option>
+          <option value="lett">{t.easy}</option>
+          <option value="middels">{t.medium}</option>
+          <option value="krevende">{t.hard}</option>
         </select>
 
         <label className={styles.checkbox}>
@@ -288,19 +306,19 @@ export default function ExplorePage() {
             checked={onlyTiu}
             onChange={(e) => setOnlyTiu(e.target.checked)}
           />
-          Kun TiU-fellesturer
+          {t.tiuOnly}
         </label>
       </section>
 
       <section className={styles.results}>
-        <h2>Turer</h2>
+        <h2>{t.trips}</h2>
         <div className={styles.grid}>
           {trips.length > 0 ? (
             trips.map((trip) => (
               <TripCard key={trip.id} trip={trip} onUpdated={fetchTrips} />
             ))
           ) : (
-            <p>Ingen turer funnet</p>
+            <p>{t.noTrips}</p>
           )}
         </div>
       </section>
@@ -309,11 +327,11 @@ export default function ExplorePage() {
         <div className={styles.modalOverlay} onMouseDown={closeCreate}>
           <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3>Opprett ny tur</h3>
+              <h3>{t.createTitle}</h3>
               <button
                 className={styles.iconButton}
                 onClick={closeCreate}
-                aria-label="Lukk"
+                aria-label={t.close}
                 type="button"
               >
                 ✕
@@ -660,10 +678,13 @@ function TripCard({ trip, onUpdated }) {
   return (
     <article className={styles.card}>
       {trip.bilde_url ? (
-        <img
+        <Image
           src={trip.bilde_url}
           alt={trip.navn}
           className={styles.tripImage}
+          width={480}
+          height={320}
+          unoptimized
         />
       ) : (
         <div className={styles.imagePlaceholder} />
@@ -680,7 +701,7 @@ function TripCard({ trip, onUpdated }) {
 
         {trip.tiu_trip_id && (
           <span className={styles.tiuBadge}>
-            Organisert av TiU
+            TiU
             {trip.turleder_navn ? ` • ${trip.turleder_navn}` : ""}
           </span>
         )}

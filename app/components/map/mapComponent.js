@@ -1,19 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { FiMenu, FiX, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
 export default function MapComponent() {
   const mapRef = useRef(null);
   const [Leaflet, setLeaflet] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [placing, setPlacing] = useState(false);
   const placingRef = useRef(false);
   const drawCleanupRef = useRef(null);
   const geojsonCleanupRef = useRef(null);
   const gpxLayerRef = useRef(null);
+  const userLocationLayerRef = useRef(null);
+  const avatarUrlRef = useRef(null);
   const [showCabins, setShowCabins] = useState(false);
   const cabinsLayerRef = useRef(null);
   const [showTrips, setShowTrips] = useState(false);
   const tripsLayerRef = useRef(null);
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+  const [panelVisible, setPanelVisible] = useState(true);
   const [currentRoute, setCurrentRoute] = useState({ points: [], geometry: null });
   const [routeToggles, setRouteToggles] = useState({
     annenrute: false,
@@ -38,6 +47,18 @@ export default function MapComponent() {
 
   const [elevationStats, setElevationStats] = useState(null);
 
+  const router = useRouter();
+
+  const pages = [
+    { label: "Hjem", href: "/" },
+    { label: "Utforsk", href: "/explore" },
+    { label: "Reserver", href: "/reserver" },
+    { label: "Kart", href: "/map" },
+    { label: "Vær", href: "/vaer" },
+    { label: "Sosial", href: "/sosial" },
+    { label: "Logg inn", href: "/login" },
+  ];
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -45,6 +66,13 @@ export default function MapComponent() {
       import("leaflet/dist/leaflet.css");
       setLeaflet(L);
     });
+
+    fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.user?.avatar) avatarUrlRef.current = d.user.avatar;
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -81,6 +109,20 @@ export default function MapComponent() {
       geojsonCleanupRef.current = enableGeojsonRoutes(map, L, getRouteToggles);
     });
 
+    // Hent posisjon automatisk ved oppstart
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          placeUserMarker(L, map, latitude, longitude, accuracy);
+        },
+        (error) => {
+          console.warn("Geolokasjon ved oppstart feilet:", error.message);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+
     return () => {
       if (drawCleanupRef.current) drawCleanupRef.current();
       if (geojsonCleanupRef.current) geojsonCleanupRef.current();
@@ -105,23 +147,48 @@ export default function MapComponent() {
     routeTogglesRef.current = routeToggles;
   }, [routeToggles]);
 
-  // 🔹 Vis hytter fra databasen ved hjelp av lagrede koordinater
+  // Juster kartstørrelsen når panelet vises/skjules slik at det fyller hele bredden
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.invalidateSize();
+    }
+  }, [panelVisible]);
+
+  // 🔹 Vis hytter fra databasen ved hjelp av lagrede koordinater, med valgfritt datofilter
   useEffect(() => {
     if (!Leaflet || !mapRef.current) return;
 
     const L = Leaflet;
     const map = mapRef.current;
 
-    async function ensureCabinsLayer() {
-      if (cabinsLayerRef.current) {
-        if (!map.hasLayer(cabinsLayerRef.current)) {
-          cabinsLayerRef.current.addTo(map);
+    const fetchAndRenderCabins = async () => {
+      // Skjul lag hvis brukeren har skrudd av visning av hytter
+      if (!showCabins) {
+        if (cabinsLayerRef.current && map.hasLayer(cabinsLayerRef.current)) {
+          map.removeLayer(cabinsLayerRef.current);
         }
+        cabinsLayerRef.current = null;
         return;
       }
 
+      // Fjern eksisterende lag før vi laster nye data (f.eks. ved endring av dato)
+      if (cabinsLayerRef.current && map.hasLayer(cabinsLayerRef.current)) {
+        map.removeLayer(cabinsLayerRef.current);
+        cabinsLayerRef.current = null;
+      }
+
       try {
-        const res = await fetch("/api/cabins");
+        const params = new URLSearchParams();
+        if (filterStartDate && filterEndDate) {
+          params.set("start_date", filterStartDate);
+          params.set("end_date", filterEndDate);
+        }
+
+        const url = params.toString()
+          ? `/api/cabins?${params.toString()}`
+          : "/api/cabins";
+
+        const res = await fetch(url);
         const json = await res.json().catch(() => ({}));
 
         if (!res.ok) {
@@ -135,7 +202,7 @@ export default function MapComponent() {
         const layer = L.layerGroup();
 
         const cabinIcon = L.icon({
-          iconUrl: "/images/pinEnd.png",
+          iconUrl: "/images/cabinPin.svg",
           iconSize: [32, 32],
           iconAnchor: [16, 32],
           popupAnchor: [0, -32],
@@ -169,14 +236,10 @@ export default function MapComponent() {
       } catch (e) {
         console.error("Feil ved lasting av hytter:", e);
       }
-    }
+    };
 
-    if (showCabins) {
-      ensureCabinsLayer();
-    } else if (cabinsLayerRef.current && map.hasLayer(cabinsLayerRef.current)) {
-      map.removeLayer(cabinsLayerRef.current);
-    }
-  }, [showCabins, Leaflet]);
+    fetchAndRenderCabins();
+  }, [showCabins, Leaflet, filterStartDate, filterEndDate]);
 
   // 🔹 Vis lagrede trips (fra /api/trips) på kartet
   useEffect(() => {
@@ -505,26 +568,145 @@ export default function MapComponent() {
     }
   };
 
+  // 🔵 Plasser brukerens posisjon på kartet – profilbilde hvis tilgjengelig, ellers blå sirkel
+  const placeUserMarker = (L, map, latitude, longitude, accuracy) => {
+    if (userLocationLayerRef.current) {
+      map.removeLayer(userLocationLayerRef.current);
+      userLocationLayerRef.current = null;
+    }
+
+    const group = L.layerGroup();
+
+    // Nøyaktighetsradius
+    L.circle([latitude, longitude], {
+      radius: accuracy,
+      color: "#2563eb",
+      fillColor: "#93c5fd",
+      fillOpacity: 0.2,
+      weight: 1,
+    }).addTo(group);
+
+    const popup = `Din posisjon<br/>Lat: ${latitude.toFixed(5)}<br/>Lon: ${longitude.toFixed(5)}`;
+    const avatar = avatarUrlRef.current;
+
+    if (avatar) {
+      const size = 36;
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="
+          width:${size}px;
+          height:${size}px;
+          border-radius:50%;
+          border:3px solid #1d4ed8;
+          overflow:hidden;
+          box-shadow:0 2px 6px rgba(0,0,0,0.35);
+        "><img src="${avatar}" style="width:100%;height:100%;object-fit:cover;" /></div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        popupAnchor: [0, -(size / 2)],
+      });
+      L.marker([latitude, longitude], { icon }).bindPopup(popup).addTo(group);
+    } else {
+      L.circleMarker([latitude, longitude], {
+        radius: 10,
+        color: "#1d4ed8",
+        fillColor: "#3b82f6",
+        fillOpacity: 1,
+        weight: 2,
+      }).bindPopup(popup).addTo(group);
+    }
+
+    group.addTo(map);
+    userLocationLayerRef.current = group;
+    map.setView([latitude, longitude], 14);
+  };
+
+  // 🔵 Finn brukerens posisjon og vis på kartet
+  const locateUser = () => {
+    if (!Leaflet || !mapRef.current) return;
+
+    if (!navigator.geolocation) {
+      alert("Nettleseren din støtter ikke geolokasjon");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        placeUserMarker(Leaflet, mapRef.current, latitude, longitude, accuracy);
+      },
+      (error) => {
+        console.error("Geolokasjonsfeil:", error);
+        alert("Kunne ikke hente posisjonen din: " + error.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   return (
-    <>
-      <div id="map" style={{ height: "80vh", width: "100%" }} />
+    <div
+      style={{
+        display: "flex",
+        height: "calc(100vh - 40px)",
+        width: "100%",
+        marginTop: 40,
+      }}
+    >
+      {/* Venstre panel: 1/3 bredde med alle toggles og kontroller */}
+      {panelVisible && (
+        <div
+          style={{
+            flexBasis: "27.33%",
+            maxWidth: "27.33%",
+            minWidth: 260,
+            boxSizing: "border-box",
+            padding: 16,
+            background: "white",
+            boxShadow: "2px 0 8px rgba(0,0,0,0.15)",
+            overflowY: "auto",
+            zIndex: 1000,
+          }}
+        >
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <button onClick={locateUser} style={{ flex: 1 }}>
+              Min posisjon
+            </button>
+            <button onClick={() => setPlacing(!placing)} style={{ flex: 1 }}>
+              {placing ? "Avslutt plassering" : "Plasser punkt"}
+            </button>
+          </div>
 
-      <div
-        style={{
-          position: "absolute",
-          top: 300,
-          left: 10,
-          zIndex: 1000,
-          background: "white",
-          padding: 10,
-          width: 250,
-        }}
-      >
-        <button onClick={() => setPlacing(!placing)}>
-          {placing ? "Avslutt plassering" : "Plasser punkt"}
-        </button>
+        <div style={{ marginTop: 16 }}>
+          <strong>Tilgjengelighet hytter</strong>
+          <div style={{ marginTop: 4 }}>
+            <div style={{ fontSize: 12, marginBottom: 4 }}>
+              Velg fra-/til-dato for å vise ledige hytter.
+            </div>
+            <label style={{ display: "block", marginBottom: 4 }}>
+              <span style={{ display: "block", fontSize: 12 }}>Fra dato</span>
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </label>
+            <label style={{ display: "block", marginBottom: 4 }}>
+              <span style={{ display: "block", fontSize: 12 }}>Til dato</span>
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                style={{ width: "100%" }}
+              />
+            </label>
+            <div style={{ fontSize: 11, color: "#555" }}>
+              Hvis datoer er tomme vises alle hytter.
+            </div>
+          </div>
+        </div>
 
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 16 }}>
           <strong>GeoJSON-lag (zoom inn for å se)</strong>
           <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
             <input
@@ -596,7 +778,7 @@ export default function MapComponent() {
           </label>
         </div>
 
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 16 }}>
           <strong>Importer GPX-rute</strong>
           <input
             type="file"
@@ -675,7 +857,129 @@ export default function MapComponent() {
             Send til verifisering
           </button>
         </div>
+        </div>
+      )}
+
+      {/* Høyre panel: 2/3 bredde med selve kartet og toppmeny */}
+      <div
+        style={{
+          flex: 1,
+          position: "relative",
+        }}
+      >
+        {/* Flytende pil-knapp ved venstre kant av kartet */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: 0,
+            transform: "translate(-50%, -50%)",
+            zIndex: 1150,
+          }}
+        >
+          <button
+            onClick={() => setPanelVisible((v) => !v)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 28,
+              height: 44,
+              borderRadius: 8,
+              border: "1px solid #ccc",
+              backgroundColor: "#fff",
+              cursor: "pointer",
+              padding: 0,
+              boxShadow: "0 0 6px rgba(0,0,0,0.15)",
+            }}
+            aria-label={panelVisible ? "Skjul meny" : "Vis meny"}
+          >
+            {panelVisible ? (
+              <FiChevronLeft size={18} />
+            ) : (
+              <FiChevronRight size={18} />
+            )}
+          </button>
+        </div>
+
+        <div id="map" style={{ height: "100%", width: "100%" }} />
+
+        {/* Topp-høyre menyknapp for kart-siden */}
+        <div
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 10,
+            zIndex: 1200,
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              display: "inline-block",
+            }}
+          >
+            <button
+              onClick={() => setMenuOpen((open) => !open)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: "0.5rem 0.8rem",
+                borderRadius: 6,
+                border: "1px solid #ccc",
+                backgroundColor: "#fff",
+                cursor: "pointer",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                minWidth: 90,
+                boxSizing: "border-box",
+              }}
+            >
+              {menuOpen ? <FiX size={18} /> : <FiMenu size={18} />}
+              <span>{menuOpen ? "Close" : "Menu"}</span>
+            </button>
+
+            {menuOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "110%",
+                  right: 0,
+                  backgroundColor: "#fff",
+                  borderRadius: 8,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+                  minWidth: 180,
+                  padding: "0.5rem 0",
+                  zIndex: 1300,
+                }}
+              >
+                {pages.map((p) => (
+                  <Link
+                    key={p.href}
+                    href={p.href}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      router.push(p.href);
+                    }}
+                    style={{
+                      display: "block",
+                      padding: "0.6rem 1rem",
+                      textDecoration: "none",
+                      color: "#333",
+                      fontWeight: 500,
+                      fontSize: "0.95rem",
+                      borderTop: "1px solid #f2f2f2",
+                    }}
+                  >
+                    {p.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </>
+    </div>
   );
 }

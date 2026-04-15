@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# next dev lock file
+.next/dev/lock
+
 # production
 /build
 
@@ -39,3 +42,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.next/dev/lock
+/.next/dev
+/.next
