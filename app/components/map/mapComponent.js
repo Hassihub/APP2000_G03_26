@@ -21,6 +21,7 @@ export default function MapComponent() {
   const [selectedCabin, setSelectedCabin] = useState(null);
   const [showTrips, setShowTrips] = useState(false);
   const tripsLayerRef = useRef(null);
+  const [selectedTrip, setSelectedTrip] = useState(null);
   const [hytterOpen, setHytterOpen] = useState(false);
   const [turforslagOpen, setTurforslagOpen] = useState(false);
   const [filterStartDate, setFilterStartDate] = useState("");
@@ -215,12 +216,22 @@ export default function MapComponent() {
           popupAnchor: [0, -32],
         });
 
+        const cabinHoverIcon = L.icon({
+          iconUrl: "/images/cabinPin.svg",
+          iconSize: [40, 40],
+          iconAnchor: [20, 40],
+          popupAnchor: [0, -40],
+        });
+
         for (const cabin of cabins) {
           const lat = Number(cabin.latitude);
           const lon = Number(cabin.longitude);
           if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
 
-          const marker = L.marker([lat, lon], { icon: cabinIcon });
+          const marker = L.marker([lat, lon], {
+            icon: cabinIcon,
+            riseOnHover: true,
+          });
 
           const popupLines = [];
           popupLines.push(`<strong>${cabin.name ?? "Hytte"}</strong>`);
@@ -233,8 +244,17 @@ export default function MapComponent() {
           }
 
           marker.bindPopup(popupLines.join("<br/>"));
+          marker.on("mouseover", () => {
+            marker.setIcon(cabinHoverIcon);
+            marker.setZIndexOffset(1000);
+          });
+          marker.on("mouseout", () => {
+            marker.setIcon(cabinIcon);
+            marker.setZIndexOffset(0);
+          });
           marker.on("click", () => {
             setSelectedCabin(cabin);
+            setSelectedTrip(null);
           });
           layer.addLayer(marker);
         }
@@ -264,6 +284,7 @@ export default function MapComponent() {
           map.removeLayer(tripsLayerRef.current);
         }
         tripsLayerRef.current = null;
+        setSelectedTrip(null);
         return;
       }
 
@@ -304,9 +325,11 @@ export default function MapComponent() {
             properties: {
               id: trip.id,
               navn: trip.navn,
+              beskrivelse: trip.beskrivelse,
               type: trip.type,
               vanskelighetsgrad: trip.vanskelighetsgrad,
               lengde_km: trip.lengde_km,
+              bilde_url: trip.bilde_url,
               tiu_trip_id: trip.tiu_trip_id,
               turleder_navn: trip.turleder_navn,
             },
@@ -314,17 +337,25 @@ export default function MapComponent() {
 
         if (!features.length) return;
 
+        const getTripStyle = (type) => {
+          if (type === "skitur") return { color: "#1f77b4", weight: 4 };
+          if (type === "sykkel") return { color: "#2ca02c", weight: 4 };
+          return { color: "#ff4d4d", weight: 4 };
+        };
+
         const layer = L.geoJSON(
           { type: "FeatureCollection", features },
           {
             style: (feature) => {
               const type = feature?.properties?.type;
-              if (type === "skitur") return { color: "#1f77b4", weight: 4 };
-              if (type === "sykkel") return { color: "#2ca02c", weight: 4 };
-              return { color: "#ff4d4d", weight: 4 };
+              return {
+                ...getTripStyle(type),
+                opacity: 0.95,
+              };
             },
             onEachFeature: (feature, layer) => {
               const p = feature.properties || {};
+              const baseStyle = getTripStyle(p.type);
               const lines = [];
               if (p.navn) lines.push(`<strong>${p.navn}</strong>`);
               if (p.lengde_km)
@@ -337,6 +368,30 @@ export default function MapComponent() {
               if (lines.length) {
                 layer.bindPopup(lines.join("<br/>"));
               }
+
+              layer.on("mouseover", () => {
+                layer.setStyle({
+                  ...baseStyle,
+                  weight: 7,
+                  opacity: 1,
+                });
+
+                if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                  layer.bringToFront();
+                }
+              });
+
+              layer.on("mouseout", () => {
+                layer.setStyle({
+                  ...baseStyle,
+                  opacity: 0.95,
+                });
+              });
+
+              layer.on("click", () => {
+                setSelectedTrip(p);
+                setSelectedCabin(null);
+              });
             },
           }
         );
@@ -867,6 +922,163 @@ export default function MapComponent() {
                 </Link>
               </div>
             </div>
+          ) : selectedTrip ? (
+            <div>
+              <button
+                type="button"
+                onClick={() => setSelectedTrip(null)}
+                style={{
+                  marginBottom: 12,
+                  padding: "0.35rem 0.7rem",
+                  borderRadius: 9999,
+                  border: "1px solid #d1d5db",
+                  backgroundColor: "#f9fafb",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                ← Tilbake til kartverktøy
+              </button>
+
+              {selectedTrip.bilde_url && (
+                <div
+                  style={{
+                    margin: "0 -16px 12px -16px",
+                    overflow: "hidden",
+                  }}
+                >
+                  <img
+                    src={selectedTrip.bilde_url}
+                    alt={selectedTrip.navn || "Turbilde"}
+                    style={{ width: "100%", height: 180, objectFit: "cover" }}
+                  />
+                </div>
+              )}
+
+              <div
+                style={{
+                  marginBottom: 6,
+                  fontSize: 12,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  color: "#6b7280",
+                }}
+              >
+                Valgt tur
+              </div>
+
+              <h2 style={{ margin: 0, fontSize: 20 }}>
+                {selectedTrip.navn || "Tur"}
+              </h2>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginTop: 12,
+                  fontSize: 13,
+                  flexWrap: "wrap",
+                }}
+              >
+                {selectedTrip.type && (
+                  <div
+                    style={{
+                      padding: "0.2rem 0.45rem",
+                      borderRadius: 9999,
+                      backgroundColor: "#ecfeff",
+                      border: "1px solid #a5f3fc",
+                    }}
+                  >
+                    🥾 {selectedTrip.type}
+                  </div>
+                )}
+
+                {Number.isFinite(Number(selectedTrip.lengde_km)) && (
+                  <div
+                    style={{
+                      padding: "0.2rem 0.45rem",
+                      borderRadius: 9999,
+                      backgroundColor: "#fef9c3",
+                      border: "1px solid #fde68a",
+                    }}
+                  >
+                    📏 {Number(selectedTrip.lengde_km).toFixed(1)} km
+                  </div>
+                )}
+
+                {selectedTrip.vanskelighetsgrad && (
+                  <div
+                    style={{
+                      padding: "0.2rem 0.45rem",
+                      borderRadius: 9999,
+                      backgroundColor: "#f3e8ff",
+                      border: "1px solid #d8b4fe",
+                    }}
+                  >
+                    ⛰️ {selectedTrip.vanskelighetsgrad}
+                  </div>
+                )}
+
+                {selectedTrip.tiu_trip_id && (
+                  <div
+                    style={{
+                      padding: "0.2rem 0.45rem",
+                      borderRadius: 9999,
+                      backgroundColor: "#dcfce7",
+                      border: "1px solid #86efac",
+                    }}
+                  >
+                    👥 TiU-fellestur
+                  </div>
+                )}
+              </div>
+
+              {selectedTrip.turleder_navn && (
+                <p
+                  style={{
+                    marginTop: 10,
+                    marginBottom: 0,
+                    fontSize: 14,
+                    color: "#374151",
+                  }}
+                >
+                  Turleder: {selectedTrip.turleder_navn}
+                </p>
+              )}
+
+              {selectedTrip.beskrivelse && (
+                <p
+                  style={{
+                    marginTop: 12,
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    color: "#374151",
+                  }}
+                >
+                  {selectedTrip.beskrivelse}
+                </p>
+              )}
+
+              <div style={{ marginTop: 18, display: "flex", gap: 8 }}>
+                <Link
+                  href={`/explore/${encodeURIComponent(selectedTrip.id)}`}
+                  style={{
+                    flex: 1,
+                    textAlign: "center",
+                    padding: "0.6rem 0.8rem",
+                    borderRadius: 9999,
+                    border: "none",
+                    backgroundColor: "#16a34a",
+                    color: "white",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    textDecoration: "none",
+                  }}
+                >
+                  Se turdetaljer
+                </Link>
+              </div>
+            </div>
           ) : (
             <>
               <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -1140,6 +1352,7 @@ export default function MapComponent() {
                 const next = !turforslagOpen;
                 setTurforslagOpen(next);
                 setShowTrips(next);
+                if (!next) setSelectedTrip(null);
               }}
               style={{
                 padding: "0.3rem 0.6rem",
