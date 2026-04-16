@@ -9,7 +9,11 @@ export default function TripMap({ geometry }) {
   useEffect(() => {
     if (!geometry?.coordinates?.length || !containerRef.current || mapRef.current) return;
 
+    let cancelled = false;
+
     import("leaflet").then(async (L) => {
+      if (cancelled || !containerRef.current || containerRef.current._leaflet_id) return;
+
       const Leaflet = L.default ?? L;
 
       if (!document.getElementById("leaflet-css")) {
@@ -71,6 +75,7 @@ export default function TripMap({ geometry }) {
     });
 
     return () => {
+      cancelled = true;
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
