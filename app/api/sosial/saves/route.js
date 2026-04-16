@@ -3,11 +3,17 @@ import pool from "../../../../lib/db";
 async function ensureTable() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS post_saves (
-      userid   INT NOT NULL,
+      userid   TEXT NOT NULL,
       postid   INT NOT NULL,
       saved_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (userid, postid)
     )
+  `);
+
+  // Backward compatibility: convert legacy INT userid to TEXT.
+  await pool.query(`
+    ALTER TABLE post_saves
+      ALTER COLUMN userid TYPE TEXT USING userid::TEXT
   `);
 }
 
