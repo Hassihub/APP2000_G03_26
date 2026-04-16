@@ -15,7 +15,11 @@ export default function MapComponent() {
   const geojsonCleanupRef = useRef(null);
   const gpxLayerRef = useRef(null);
   const userLocationLayerRef = useRef(null);
+  const geolocationWatchIdRef = useRef(null);
   const avatarUrlRef = useRef(null);
+  const [isTrackingUserLocation, setIsTrackingUserLocation] = useState(false);
+  const [autoFollowUserLocation, setAutoFollowUserLocation] = useState(true);
+  const autoFollowUserLocationRef = useRef(true);
   const [showCabins, setShowCabins] = useState(false);
   const cabinsLayerRef = useRef(null);
   const [selectedCabin, setSelectedCabin] = useState(null);
@@ -131,6 +135,10 @@ export default function MapComponent() {
     }
 
     return () => {
+      if (geolocationWatchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(geolocationWatchIdRef.current);
+        geolocationWatchIdRef.current = null;
+      }
       if (drawCleanupRef.current) drawCleanupRef.current();
       if (geojsonCleanupRef.current) geojsonCleanupRef.current();
       if (cabinsLayerRef.current) {
@@ -153,6 +161,10 @@ export default function MapComponent() {
   useEffect(() => {
     routeTogglesRef.current = routeToggles;
   }, [routeToggles]);
+
+  useEffect(() => {
+    autoFollowUserLocationRef.current = autoFollowUserLocation;
+  }, [autoFollowUserLocation]);
 
   // Juster kartstørrelsen når panelet vises/skjules slik at det fyller hele bredden
   useEffect(() => {
@@ -645,7 +657,7 @@ export default function MapComponent() {
   };
 
   // 🔵 Plasser brukerens posisjon på kartet – profilbilde hvis tilgjengelig, ellers blå sirkel
-  const placeUserMarker = (L, map, latitude, longitude, accuracy) => {
+  const placeUserMarker = (L, map, latitude, longitude, accuracy, shouldCenterMap = true) => {
     if (userLocationLayerRef.current) {
       map.removeLayer(userLocationLayerRef.current);
       userLocationLayerRef.current = null;
@@ -694,7 +706,9 @@ export default function MapComponent() {
 
     group.addTo(map);
     userLocationLayerRef.current = group;
-    map.setView([latitude, longitude], 14);
+    if (shouldCenterMap) {
+      map.setView([latitude, longitude], 14);
+    }
   };
 
   // 🔵 Finn brukerens posisjon og vis på kartet
@@ -709,7 +723,7 @@ export default function MapComponent() {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
-        placeUserMarker(Leaflet, mapRef.current, latitude, longitude, accuracy);
+        placeUserMarker(Leaflet, mapRef.current, latitude, longitude, accuracy, true);
       },
       (error) => {
         console.error("Geolokasjonsfeil:", error);
@@ -717,6 +731,53 @@ export default function MapComponent() {
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  };
+
+  const toggleLiveUserTracking = () => {
+    if (!Leaflet || !mapRef.current) return;
+
+    if (!navigator.geolocation) {
+      alert("Nettleseren din støtter ikke geolokasjon");
+      return;
+    }
+
+    if (geolocationWatchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(geolocationWatchIdRef.current);
+      geolocationWatchIdRef.current = null;
+      setIsTrackingUserLocation(false);
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        placeUserMarker(
+          Leaflet,
+          mapRef.current,
+          latitude,
+          longitude,
+          accuracy,
+          autoFollowUserLocationRef.current
+        );
+      },
+      (error) => {
+        console.error("Geolokasjonsfeil (live):", error);
+        alert("Live-sporing stoppet: " + error.message);
+        if (geolocationWatchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(geolocationWatchIdRef.current);
+          geolocationWatchIdRef.current = null;
+        }
+        setIsTrackingUserLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
+
+    geolocationWatchIdRef.current = watchId;
+    setIsTrackingUserLocation(true);
   };
 
   return (
@@ -1085,6 +1146,9 @@ export default function MapComponent() {
                 <button onClick={locateUser} style={{ flex: 1 }}>
                   Min posisjon
                 </button>
+                <button onClick={toggleLiveUserTracking} style={{ flex: 1 }}>
+                  {isTrackingUserLocation ? "Stopp live-sporing" : "Start live-sporing"}
+                </button>
                 <button
                   onClick={() => setPlacing(!placing)}
                   style={{ flex: 1 }}
@@ -1092,6 +1156,23 @@ export default function MapComponent() {
                   {placing ? "Avslutt plassering" : "Plasser punkt"}
                 </button>
               </div>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 12,
+                  fontSize: 13,
+                  color: "#374151",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={autoFollowUserLocation}
+                  onChange={(e) => setAutoFollowUserLocation(e.target.checked)}
+                />
+                Følg meg automatisk når live-sporing er aktiv
+              </label>
               <div style={{ marginTop: 16 }}>
                 <strong>GeoJSON-lag (zoom inn for å se)</strong>
                 <label
