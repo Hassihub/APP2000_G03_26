@@ -183,7 +183,7 @@ export default function TopBar() {
         top: 40,
         left: 0,
         right: 0,
-        zIndex: 1000,
+        zIndex: 1200,
         boxSizing: "border-box",
         transition: "background-color 0.25s ease",
       }}

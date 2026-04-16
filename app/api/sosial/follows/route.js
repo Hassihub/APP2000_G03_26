@@ -3,11 +3,18 @@ import pool from "../../../../lib/db";
 async function ensureTable() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS user_follows (
-      follower_id  INT NOT NULL,
-      following_id INT NOT NULL,
+      follower_id  TEXT NOT NULL,
+      following_id TEXT NOT NULL,
       created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY (follower_id, following_id)
     )
+  `);
+
+  // Backward compatibility: convert legacy INT columns to TEXT.
+  await pool.query(`
+    ALTER TABLE user_follows
+      ALTER COLUMN follower_id TYPE TEXT USING follower_id::TEXT,
+      ALTER COLUMN following_id TYPE TEXT USING following_id::TEXT
   `);
 }
 
@@ -35,8 +42,8 @@ export async function GET(request) {
     ]);
 
     return Response.json({
-      following: followingRes.rows.map((r) => r.id),
-      followers: followersRes.rows.map((r) => r.id),
+      following: followingRes.rows.map((r) => String(r.id)),
+      followers: followersRes.rows.map((r) => String(r.id)),
     });
   } catch (err) {
     console.error("Follows GET error:", err);
