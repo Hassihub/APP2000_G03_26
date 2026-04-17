@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -17,7 +18,10 @@ function UserAvatar({ src, username, size = 40 }) {
   };
   if (imgOk && src) {
     return (
-      <img src={src} alt={username}
+      <Image src={src} alt={username}
+        width={size}
+        height={size}
+        unoptimized
         style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
         onError={() => setImgOk(false)} />
     );

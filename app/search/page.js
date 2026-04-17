@@ -164,7 +164,7 @@ function SearchPageContent() {
         ) : loading ? (
           <div className={styles.emptyState}>
             <h2>Laster treff</h2>
-            <p>Henter resultater for "{initialQuery}".</p>
+            <p>Henter resultater for &quot;{initialQuery}&quot;.</p>
           </div>
         ) : error ? (
           <div className={styles.errorBox}>{error}</div>

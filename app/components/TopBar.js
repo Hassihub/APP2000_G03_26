@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   FiSettings,
   FiSearch,
+  FiBell,
   FiMenu,
   FiChevronLeft,
   FiUser,
@@ -19,9 +20,14 @@ const flags = { no: "\u{1F1F3}\u{1F1F4}", en: "\u{1F1EC}\u{1F1E7}", fr: "\u{1F1E
 
 export default function TopBar() {
   const [open, setOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
   const scrollPositionRef = useRef(0);
+  const notificationPanelRef = useRef(null);
   const { language, setLanguage, languages } = useLanguage();
   const translations = useTranslations("topBar");
 
@@ -40,6 +46,36 @@ export default function TopBar() {
     ],
     []
   );
+
+  const refreshNotifications = useCallback(async (cancelledRef) => {
+    if (!currentUser) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      setNotificationsLoading(true);
+      const res = await fetch("/api/notifications?limit=8", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!cancelledRef?.current && res.ok) {
+        setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+        setUnreadCount(Number(data.unread_count) || 0);
+      }
+    } catch {
+      if (!cancelledRef?.current) {
+        setNotifications([]);
+        setUnreadCount(0);
+      }
+    } finally {
+      if (!cancelledRef?.current) {
+        setNotificationsLoading(false);
+      }
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +105,24 @@ export default function TopBar() {
     };
   }, [pathname]);
 
+  useEffect(() => {
+    const cancelledRef = { current: false };
+
+    refreshNotifications(cancelledRef);
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, [currentUser, pathname, refreshNotifications]);
+
+  useEffect(() => {
+    const handleRefreshNotifications = () => {
+      refreshNotifications({ current: false });
+    };
+
+    window.addEventListener("ff-notifications-updated", handleRefreshNotifications);
+    return () => window.removeEventListener("ff-notifications-updated", handleRefreshNotifications);
+  }, [refreshNotifications]);
+
   // Load profile image when user is known
   useEffect(() => {
     if (!currentUser) { setProfileImage(null); return; }
@@ -90,6 +144,17 @@ export default function TopBar() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open]);
+
+  useEffect(() => {
+    function onPointerDown(event) {
+      if (!notificationsOpen) return;
+      if (notificationPanelRef.current?.contains(event.target)) return;
+      setNotificationsOpen(false);
+    }
+
+    window.addEventListener("mousedown", onPointerDown);
+    return () => window.removeEventListener("mousedown", onPointerDown);
+  }, [notificationsOpen]);
 
   useEffect(() => {
     const { body, documentElement } = document;
@@ -167,12 +232,57 @@ export default function TopBar() {
     return items;
   }, [currentUser, router, translations]);
 
+  async function markNotificationAsRead(notificationId) {
+    if (!notificationId) return;
+
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ notificationId }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      setNotifications((prev) =>
+        prev.map((item) =>
+          item.id === notificationId ? { ...item, is_read: true } : item
+        )
+      );
+
+      if (res.ok) {
+        setUnreadCount(Number(data.unread_count) || 0);
+      }
+    } catch {
+      // Ignore network errors; UI still updates locally.
+    }
+  }
+
+  async function markAllNotificationsRead() {
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ markAllRead: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+      if (res.ok) {
+        setUnreadCount(Number(data.unread_count) || 0);
+      }
+    } catch {
+      // Ignore network errors; UI still updates locally.
+    }
+  }
+
   return (
     <header
       style={{
         width: "100%",
         maxWidth: "100vw",
-        overflowX: "hidden",
+        overflow: "visible",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
@@ -183,7 +293,7 @@ export default function TopBar() {
         top: 40,
         left: 0,
         right: 0,
-        zIndex: 1000,
+        zIndex: 3000,
         boxSizing: "border-box",
         transition: "background-color 0.25s ease",
       }}
@@ -215,6 +325,133 @@ export default function TopBar() {
         <Link href="/search" style={{ display: "flex", alignItems: "center", textDecoration: "none", color: "var(--nav-icon)" }}>
           <FiSearch size={22} />
         </Link>
+
+        {/* Notifications */}
+        {currentUser ? (
+          <div ref={notificationPanelRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setNotificationsOpen((prev) => !prev)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 34,
+                height: 34,
+                borderRadius: "999px",
+                border: "1px solid var(--border)",
+                background: "var(--bg-input)",
+                color: "var(--nav-icon)",
+                cursor: "pointer",
+                position: "relative",
+              }}
+              aria-label="Varslinger"
+            >
+              <FiBell size={17} />
+              {unreadCount > 0 ? (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -4,
+                    right: -2,
+                    minWidth: 17,
+                    height: 17,
+                    borderRadius: "999px",
+                    background: "#dc2626",
+                    color: "#fff",
+                    fontSize: "0.63rem",
+                    fontWeight: 800,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0 5px",
+                  }}
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              ) : null}
+            </button>
+
+            {notificationsOpen ? (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 8px)",
+                  right: 0,
+                  width: "min(390px, calc(100vw - 2rem))",
+                  maxHeight: "420px",
+                  overflowY: "auto",
+                  background: "var(--bg-panel)",
+                  border: "1px solid var(--border)",
+                  boxShadow: "0 14px 30px rgba(16,24,40,0.18)",
+                  borderRadius: "12px",
+                  padding: "0.6rem",
+                  zIndex: 2200,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.35rem 0.45rem 0.55rem" }}>
+                  <strong style={{ fontSize: "0.9rem", color: "var(--text)" }}>Varslinger</strong>
+                  {unreadCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={markAllNotificationsRead}
+                      style={{
+                        border: "none",
+                        background: "transparent",
+                        color: "var(--accent)",
+                        cursor: "pointer",
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Marker alle lest
+                    </button>
+                  ) : null}
+                </div>
+
+                {notificationsLoading ? (
+                  <div style={{ padding: "0.8rem", color: "var(--text-muted)", fontSize: "0.84rem" }}>Laster varslinger...</div>
+                ) : notifications.length === 0 ? (
+                  <div style={{ padding: "0.8rem", color: "var(--text-muted)", fontSize: "0.84rem" }}>Ingen varslinger akkurat nå.</div>
+                ) : (
+                  notifications.map((notification) => {
+                    const isRead = Boolean(notification.is_read);
+                    return (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        onClick={async () => {
+                          await markNotificationAsRead(notification.id);
+                          setNotificationsOpen(false);
+                          if (notification.action_url) {
+                            router.push(notification.action_url);
+                          }
+                        }}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          border: "1px solid var(--border)",
+                          borderRadius: "10px",
+                          background: isRead ? "var(--bg-panel)" : "rgba(15,118,110,0.08)",
+                          cursor: "pointer",
+                          padding: "0.65rem 0.7rem",
+                          marginBottom: "0.5rem",
+                        }}
+                      >
+                        <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text)", marginBottom: "0.2rem" }}>
+                          {notification.title}
+                        </div>
+                        <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                          {notification.message}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Profile avatar / icon */}
         <Link href={currentUser ? "/profile" : "/login"} style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>

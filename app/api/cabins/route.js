@@ -9,6 +9,7 @@ function isMissingColumn(err, columnName) {
 
 let cabinImagesTableReady = false;
 let cabinStaffedColumnReady = false;
+let cabinReviewsTableReady = false;
 
 async function ensureCabinStaffedColumn() {
   if (cabinStaffedColumnReady) return true;
@@ -50,6 +51,40 @@ async function ensureCabinImagesTable() {
   }
 }
 
+async function ensureCabinReviewsTable() {
+  if (cabinReviewsTableReady) return true;
+
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS public.cabin_reviews (
+        id BIGSERIAL PRIMARY KEY,
+        cabin_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        username TEXT NOT NULL,
+        rating SMALLINT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+        comment TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await db.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_cabin_reviews_cabin_user
+      ON public.cabin_reviews (cabin_id, user_id)
+    `);
+
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_cabin_reviews_cabin_id
+      ON public.cabin_reviews (cabin_id)
+    `);
+
+    cabinReviewsTableReady = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function attachCabinImages(cabins = []) {
   if (!cabins.length) return cabins;
 
@@ -79,6 +114,51 @@ async function attachCabinImages(cabins = []) {
     ...c,
     image_urls: byCabin.get(String(c.id)) ?? [],
   }));
+}
+
+async function attachCabinRatings(cabins = []) {
+  if (!cabins.length) return cabins;
+
+  const hasTable = await ensureCabinReviewsTable();
+  if (!hasTable) {
+    return cabins.map((c) => ({
+      ...c,
+      average_rating: null,
+      review_count: 0,
+    }));
+  }
+
+  const ids = cabins.map((c) => String(c.id));
+  const ratingRes = await db.query(
+    `
+      SELECT
+        cabin_id,
+        ROUND(AVG(rating)::numeric, 1) AS average_rating,
+        COUNT(*)::int AS review_count
+      FROM public.cabin_reviews
+      WHERE cabin_id = ANY($1::text[])
+      GROUP BY cabin_id
+    `,
+    [ids]
+  );
+
+  const ratingsByCabin = new Map();
+  for (const row of ratingRes.rows) {
+    ratingsByCabin.set(String(row.cabin_id), {
+      average_rating:
+        row.average_rating === null ? null : Number.parseFloat(String(row.average_rating)),
+      review_count: Number(row.review_count) || 0,
+    });
+  }
+
+  return cabins.map((c) => {
+    const rating = ratingsByCabin.get(String(c.id));
+    return {
+      ...c,
+      average_rating: rating?.average_rating ?? null,
+      review_count: rating?.review_count ?? 0,
+    };
+  });
 }
 
 async function storeCabinImages(cabinId, imageUrls) {
@@ -137,14 +217,16 @@ export async function GET(req) {
     const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const sqlWithStaffed = `
-      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, c.created_at, c.owner_id, COALESCE(c.is_staffed, false) AS is_staffed
+      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, c.created_at, c.owner_id, u.username AS owner_name, COALESCE(c.is_staffed, false) AS is_staffed
       FROM public.cabins c
+      LEFT JOIN public.users u ON u.id::text = c.owner_id::text
       ${whereClause}
       ORDER BY c.created_at DESC
     `;
     const sqlWithoutStaffed = `
-      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, c.created_at, c.owner_id
+      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, c.created_at, c.owner_id, u.username AS owner_name
       FROM public.cabins c
+      LEFT JOIN public.users u ON u.id::text = c.owner_id::text
       ${whereClause}
       ORDER BY c.created_at DESC
     `;
@@ -159,7 +241,8 @@ export async function GET(req) {
       rows = fallback.rows.map((cabin) => ({ ...cabin, is_staffed: false }));
     }
 
-    const cabins = await attachCabinImages(rows);
+    const cabinsWithImages = await attachCabinImages(rows);
+    const cabins = await attachCabinRatings(cabinsWithImages);
     return NextResponse.json({ cabins }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });

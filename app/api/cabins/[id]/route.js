@@ -13,6 +13,7 @@ function badRequest(message) {
 
 let cabinImagesTableReady = false;
 let cabinStaffedColumnReady = false;
+let cabinReviewsTableReady = false;
 
 async function ensureCabinStaffedColumn() {
   if (cabinStaffedColumnReady) return true;
@@ -53,6 +54,70 @@ async function ensureCabinImagesTable() {
   } catch {
     return false;
   }
+}
+
+async function ensureCabinReviewsTable() {
+  if (cabinReviewsTableReady) return true;
+
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS public.cabin_reviews (
+        id BIGSERIAL PRIMARY KEY,
+        cabin_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        username TEXT NOT NULL,
+        rating SMALLINT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+        comment TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await db.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_cabin_reviews_cabin_user
+      ON public.cabin_reviews (cabin_id, user_id)
+    `);
+
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_cabin_reviews_cabin_id
+      ON public.cabin_reviews (cabin_id)
+    `);
+
+    cabinReviewsTableReady = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function getCabinReviewStats(cabinId) {
+  const hasTable = await ensureCabinReviewsTable();
+  if (!hasTable) {
+    return {
+      average_rating: null,
+      review_count: 0,
+    };
+  }
+
+  const result = await db.query(
+    `
+      SELECT
+        ROUND(AVG(rating)::numeric, 1) AS average_rating,
+        COUNT(*)::int AS review_count
+      FROM public.cabin_reviews
+      WHERE cabin_id = $1
+    `,
+    [String(cabinId)]
+  );
+
+  const row = result.rows[0] ?? {};
+  return {
+    average_rating:
+      row.average_rating === null || row.average_rating === undefined
+        ? null
+        : Number.parseFloat(String(row.average_rating)),
+    review_count: Number(row.review_count) || 0,
+  };
 }
 
 async function getCabinImages(cabinId) {
@@ -99,15 +164,17 @@ export async function GET(_req, { params }) {
     if (!id) return badRequest("Mangler id");
 
     const sqlWithStaffed = `
-      SELECT id, name, description, location, price_per_night, capacity, amenities, created_at, COALESCE(is_staffed, false) AS is_staffed
-      FROM public.cabins
-      WHERE id = $1
+      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.created_at, c.owner_id, u.username AS owner_name, COALESCE(c.is_staffed, false) AS is_staffed
+      FROM public.cabins c
+      LEFT JOIN public.users u ON u.id::text = c.owner_id::text
+      WHERE c.id = $1
       LIMIT 1
     `;
     const sqlWithoutStaffed = `
-      SELECT id, name, description, location, price_per_night, capacity, amenities, created_at
-      FROM public.cabins
-      WHERE id = $1
+      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.created_at, c.owner_id, u.username AS owner_name
+      FROM public.cabins c
+      LEFT JOIN public.users u ON u.id::text = c.owner_id::text
+      WHERE c.id = $1
       LIMIT 1
     `;
 
@@ -129,7 +196,11 @@ export async function GET(_req, { params }) {
 
     const cabin = result.rows[0];
     const image_urls = await getCabinImages(cabin.id);
-    return NextResponse.json({ cabin: { ...cabin, image_urls } }, { status: 200 });
+    const reviewStats = await getCabinReviewStats(cabin.id);
+    return NextResponse.json(
+      { cabin: { ...cabin, image_urls, ...reviewStats } },
+      { status: 200 }
+    );
   } catch (e) {
     return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
   }
