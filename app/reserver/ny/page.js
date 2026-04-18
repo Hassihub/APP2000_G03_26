@@ -180,6 +180,8 @@ export default function NewCabinPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (authLoading) return;
+    if (!(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN)) return;
 
     if (!Leaflet) {
       import("leaflet").then((L) => {
@@ -191,8 +193,11 @@ export default function NewCabinPage() {
 
     if (mapRef.current) return;
 
+    const mapContainer = document.getElementById("new-cabin-map");
+    if (!mapContainer) return;
+
     const L = Leaflet;
-    const map = L.map("new-cabin-map", {
+    const map = L.map(mapContainer, {
       center: [63.2, 15],
       zoom: 5,
       minZoom: 4,
@@ -242,7 +247,7 @@ export default function NewCabinPage() {
       mapRef.current = null;
       markerRef.current = null;
     };
-  }, [Leaflet]);
+  }, [Leaflet, authLoading, userRole]);
 
   async function handleImageChange(e) {
     const files = Array.from(e.target.files || []).slice(0, 8);

@@ -3,17 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FiMenu, FiX, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiMenu, FiX, FiChevronLeft, FiChevronRight, FiNavigation } from "react-icons/fi";
 
 export default function MapComponent() {
   const mapRef = useRef(null);
   const [Leaflet, setLeaflet] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [placing, setPlacing] = useState(false);
-  const placingRef = useRef(false);
-  const drawCleanupRef = useRef(null);
   const geojsonCleanupRef = useRef(null);
-  const gpxLayerRef = useRef(null);
   const userLocationLayerRef = useRef(null);
   const geolocationWatchIdRef = useRef(null);
   const avatarUrlRef = useRef(null);
@@ -34,7 +30,6 @@ export default function MapComponent() {
   const [tripDifficultyFilter, setTripDifficultyFilter] = useState("alle"); // lett/middels/krevende/alle
   const [tripOnlyTiu, setTripOnlyTiu] = useState(false);
   const [panelVisible, setPanelVisible] = useState(true);
-  const [currentRoute, setCurrentRoute] = useState({ points: [], geometry: null });
   const [routeToggles, setRouteToggles] = useState({
     annenrute: false,
     skiløype: false,
@@ -47,16 +42,6 @@ export default function MapComponent() {
     sykkelrute: false,
     ruteinfopunkt: false,
   });
-
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    activity: "foot",
-    difficulty: 1,
-    duration_minutes: 30,
-  });
-
-  const [elevationStats, setElevationStats] = useState(null);
 
   const router = useRouter();
 
@@ -94,26 +79,18 @@ export default function MapComponent() {
       center: [63.2, 15],
       zoom: 5,
       minZoom: 4,
+      zoomControl: false,
       preferCanvas: true, // bedre ytelse for mange vektorobjekter
     });
     mapRef.current = map;
+
+    L.control.zoom({ position: "bottomright" }).addTo(map);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "© OpenStreetMap",
     }).addTo(map);
 
     import("./maskLayer").then(({ addMaskLayer }) => addMaskLayer(map, L));
-
-    const getPlacing = () => placingRef.current;
-
-    import("./drawRoutes").then(({ enableRouteDrawing }) => {
-      drawCleanupRef.current = enableRouteDrawing(
-        map,
-        L,
-        (route) => setCurrentRoute(route),
-        getPlacing
-      );
-    });
 
     const getRouteToggles = () => routeTogglesRef.current;
     import("./geojsonRoutesLayer").then(({ enableGeojsonRoutes }) => {
@@ -139,7 +116,6 @@ export default function MapComponent() {
         navigator.geolocation.clearWatch(geolocationWatchIdRef.current);
         geolocationWatchIdRef.current = null;
       }
-      if (drawCleanupRef.current) drawCleanupRef.current();
       if (geojsonCleanupRef.current) geojsonCleanupRef.current();
       if (cabinsLayerRef.current) {
         map.removeLayer(cabinsLayerRef.current);
@@ -153,10 +129,6 @@ export default function MapComponent() {
       mapRef.current = null;
     };
   }, [Leaflet]);
-
-  useEffect(() => {
-    placingRef.current = placing;
-  }, [placing]);
 
   useEffect(() => {
     routeTogglesRef.current = routeToggles;
@@ -418,243 +390,6 @@ export default function MapComponent() {
     fetchAndRenderTrips();
   }, [showTrips, Leaflet, tripTypeFilter, tripDifficultyFilter, tripOnlyTiu]);
 
-  // 🔹 Hent høydedata for manuelt tegnede ruter (ikke GPX)
-  useEffect(() => {
-    if (!currentRoute || !currentRoute.points || currentRoute.points.length < 2) {
-      setElevationStats(null);
-      return;
-    }
-
-    const firstPoint = currentRoute.points[0];
-    const hasElevationField =
-      typeof firstPoint === "object" && firstPoint !== null && "elevation" in firstPoint;
-
-    // GPX-ruter har allerede elevation og beregner stats i handleGpxUpload
-    if (hasElevationField) return;
-
-    if (!currentRoute.geometry || !Array.isArray(currentRoute.geometry.coordinates)) {
-      setElevationStats(null);
-      return;
-    }
-
-    const coords = currentRoute.geometry.coordinates;
-    if (coords.length < 2) {
-      setElevationStats(null);
-      return;
-    }
-
-    const fetchElevation = async () => {
-      try {
-        const res = await fetch("/api/elevation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ coordinates: coords }),
-        });
-
-        if (!res.ok) {
-          // Ekstern tjeneste er nede / gir feil – bare hopp over høydeprofil
-          console.warn("Elevation API response status:", res.status);
-          setElevationStats(null);
-          return;
-        }
-
-        const data = await res.json();
-        if (!data.results || !data.results.length) {
-          setElevationStats(null);
-          return;
-        }
-
-        const elevations = data.results.map((r) => r.elevation);
-        const validElevations = elevations.filter(
-          (e) => typeof e === "number" && !Number.isNaN(e)
-        );
-
-        if (!validElevations.length) {
-          setElevationStats(null);
-          return;
-        }
-
-        let totalAscent = 0;
-        for (let i = 1; i < validElevations.length; i++) {
-          const diff = validElevations[i] - validElevations[i - 1];
-          if (diff > 0) totalAscent += diff;
-        }
-
-        const minEle = Math.min(...validElevations);
-        const maxEle = Math.max(...validElevations);
-
-        setElevationStats({
-          min: Math.round(minEle),
-          max: Math.round(maxEle),
-          ascent: Math.round(totalAscent),
-        });
-      } catch (error) {
-        console.error("Feil ved henting av høydedata:", error);
-        setElevationStats(null);
-      }
-    };
-
-    fetchElevation();
-  }, [currentRoute]);
-
-  // 🔹 Les inn en lokal GPX-fil og tegn den som rute på kartet
-  const handleGpxUpload = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!Leaflet || !mapRef.current) {
-      alert("Kartet er ikke klart enda");
-      return;
-    }
-
-    if (!file.name.toLowerCase().endsWith(".gpx")) {
-      alert("Vennligst velg en GPX-fil");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const text = reader.result;
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(text, "application/xml");
-
-        const trkpts = xml.getElementsByTagName("trkpt");
-        const rtepts = xml.getElementsByTagName("rtept");
-
-        const points = [];
-
-        const elevations = [];
-
-        const collectPoints = (nodes) => {
-          Array.from(nodes).forEach((node) => {
-            const lat = parseFloat(node.getAttribute("lat"));
-            const lon = parseFloat(node.getAttribute("lon"));
-            if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
-              const eleNode = node.getElementsByTagName("ele")[0];
-              const ele = eleNode ? parseFloat(eleNode.textContent) : null;
-
-              points.push([lat, lon]);
-              elevations.push(ele);
-            }
-          });
-        };
-
-        if (trkpts.length > 0) {
-          collectPoints(trkpts);
-        } else if (rtepts.length > 0) {
-          collectPoints(rtepts);
-        }
-
-        if (points.length < 2) {
-          alert("Fant ikke en gyldig rute i GPX-filen");
-          return;
-        }
-
-        const L = Leaflet;
-        const map = mapRef.current;
-
-        // Fjern tidligere GPX-lag
-        if (gpxLayerRef.current) {
-          map.removeLayer(gpxLayerRef.current);
-          gpxLayerRef.current = null;
-        }
-
-        // Tegn linjen på kartet
-        const polyline = L.polyline(points, { color: "blue" }).addTo(map);
-        gpxLayerRef.current = polyline;
-        map.fitBounds(polyline.getBounds(), { padding: [20, 20] });
-
-        // Oppdater currentRoute slik at ruten kan brukes videre (f.eks. sendes til verifisering)
-        const geometry = {
-          type: "LineString",
-          coordinates: points.map(([lat, lon]) => [lon, lat]),
-        };
-
-        setCurrentRoute({
-          points: points.map(([lat, lon], idx) => ({
-            lat,
-            lon,
-            elevation: elevations[idx] ?? null,
-          })),
-          geometry,
-        });
-
-        // Beregn enkel høydestatistikk (meter over havet)
-        const validElevations = elevations.filter((e) => typeof e === "number" && !Number.isNaN(e));
-        if (validElevations.length > 0) {
-          let totalAscent = 0;
-          for (let i = 1; i < validElevations.length; i++) {
-            const diff = validElevations[i] - validElevations[i - 1];
-            if (diff > 0) totalAscent += diff;
-          }
-
-          const minEle = Math.min(...validElevations);
-          const maxEle = Math.max(...validElevations);
-
-          setElevationStats({
-            min: Math.round(minEle),
-            max: Math.round(maxEle),
-            ascent: Math.round(totalAscent),
-          });
-        } else {
-          setElevationStats(null);
-        }
-      } catch (error) {
-        console.error("Feil ved lesing av GPX:", error);
-        alert("Kunne ikke lese GPX-filen");
-      }
-    };
-
-    reader.onerror = () => {
-      console.error("Filopplastingsfeil", reader.error);
-      alert("Kunne ikke lese filen");
-    };
-
-    reader.readAsText(file);
-  };
-
-  // 🔹 Funksjon som sender ruten til verifisering
-  const submitRoute = async () => {
-    if (!currentRoute.geometry || currentRoute.points.length < 2) {
-      alert("Tegn minst to punkter før du sender!");
-      return;
-    }
-
-    const payload = {
-      ...formData,
-      geometry: currentRoute.geometry,
-      points: currentRoute.points,
-      created_by: "", // fra auth hvis du har
-    };
-
-    try {
-      const res = await fetch("/api/routes-to-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (data.ok) {
-        alert("Ruten ble sendt til verifisering!");
-        // nullstill formen og ruten
-        setCurrentRoute({ points: [], geometry: null });
-        setFormData({
-          name: "",
-          description: "",
-          activity: "foot",
-          difficulty: 1,
-          duration_minutes: 30,
-        });
-      } else {
-        alert("Noe gikk galt: " + JSON.stringify(data.error));
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Feil ved sending av ruten");
-    }
-  };
 
   // 🔵 Plasser brukerens posisjon på kartet – profilbilde hvis tilgjengelig, ellers blå sirkel
   const placeUserMarker = (L, map, latitude, longitude, accuracy, shouldCenterMap = true) => {
@@ -1149,12 +884,6 @@ export default function MapComponent() {
                 <button onClick={toggleLiveUserTracking} style={{ flex: 1 }}>
                   {isTrackingUserLocation ? "Stopp live-sporing" : "Start live-sporing"}
                 </button>
-                <button
-                  onClick={() => setPlacing(!placing)}
-                  style={{ flex: 1 }}
-                >
-                  {placing ? "Avslutt plassering" : "Plasser punkt"}
-                </button>
               </div>
               <label
                 style={{
@@ -1257,87 +986,27 @@ export default function MapComponent() {
                 </label>
               </div>
 
-              <div style={{ marginTop: 16 }}>
-                <strong>Importer GPX-rute</strong>
-                <input
-                  type="file"
-                  accept=".gpx,application/gpx+xml"
-                  onChange={handleGpxUpload}
-                  style={{ width: "100%", marginTop: 5, marginBottom: 10 }}
-                />
+              <Link
+                href="/turrute/ny"
+                style={{
+                  display: "block",
+                  width: "100%",
+                  maxWidth: "100%",
+                  boxSizing: "border-box",
+                  textAlign: "center",
+                  textDecoration: "none",
+                  marginTop: 14,
+                  padding: "0.6rem 0.75rem",
+                  borderRadius: 8,
+                  border: "1px solid #166534",
+                  backgroundColor: "#f0fdf4",
+                  color: "#166534",
+                  fontWeight: 700,
+                }}
+              >
+                Lag ny rute
+              </Link>
 
-                {elevationStats && (
-                  <div style={{ fontSize: 12, marginBottom: 10 }}>
-                    <div>
-                      <strong>Høydeprofil</strong>
-                    </div>
-                    <div>Laveste punkt: {elevationStats.min} moh</div>
-                    <div>Høyeste punkt: {elevationStats.max} moh</div>
-                    <div>Total stigning: {elevationStats.ascent} m</div>
-                  </div>
-                )}
-
-                <input
-                  placeholder="Rutenavn"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData((f) => ({ ...f, name: e.target.value }))
-                  }
-                  style={{ width: "100%", marginBottom: 5 }}
-                />
-                <textarea
-                  placeholder="Beskrivelse"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData((f) => ({ ...f, description: e.target.value }))
-                  }
-                  style={{ width: "100%", marginBottom: 5 }}
-                />
-                <select
-                  value={formData.activity}
-                  onChange={(e) =>
-                    setFormData((f) => ({ ...f, activity: e.target.value }))
-                  }
-                  style={{ width: "100%", marginBottom: 5 }}
-                >
-                  <option value="foot">Fottur</option>
-                  <option value="bike">Sykkeltur</option>
-                  <option value="ski">Skitur</option>
-                </select>
-                <input
-                  type="number"
-                  placeholder="Vanskelighetsgrad (1–5)"
-                  value={formData.difficulty}
-                  min={1}
-                  max={5}
-                  onChange={(e) =>
-                    setFormData((f) => ({
-                      ...f,
-                      difficulty: parseInt(e.target.value, 10),
-                    }))
-                  }
-                  style={{ width: "100%", marginBottom: 5 }}
-                />
-                <input
-                  type="number"
-                  placeholder="Varighet i minutter"
-                  value={formData.duration_minutes}
-                  onChange={(e) =>
-                    setFormData((f) => ({
-                      ...f,
-                      duration_minutes: parseInt(e.target.value, 10),
-                    }))
-                  }
-                  style={{ width: "100%", marginBottom: 5 }}
-                />
-
-                <button
-                  onClick={submitRoute}
-                  style={{ width: "100%", marginTop: 5 }}
-                >
-                  Send til verifisering
-                </button>
-              </div>
             </>
           )}
         </div>
@@ -1369,11 +1038,11 @@ export default function MapComponent() {
                 setShowCabins(next);
               }}
               style={{
-                padding: "0.3rem 0.6rem",
+                padding: "0.45rem 0.85rem",
                 borderRadius: 9999,
                 border: hytterOpen ? "2px solid #2563eb" : "1px solid #d4d4d4",
                 backgroundColor: hytterOpen ? "#dbeafe" : "#ffffff",
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 600,
                 boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
                 cursor: "pointer",
@@ -1436,11 +1105,11 @@ export default function MapComponent() {
                 if (!next) setSelectedTrip(null);
               }}
               style={{
-                padding: "0.3rem 0.6rem",
+                padding: "0.45rem 0.85rem",
                 borderRadius: 9999,
                 border: turforslagOpen ? "2px solid #16a34a" : "1px solid #d4d4d4",
                 backgroundColor: turforslagOpen ? "#dcfce7" : "#ffffff",
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 600,
                 boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
                 cursor: "pointer",
@@ -1573,6 +1242,39 @@ export default function MapComponent() {
         </div>
 
         <div id="map" style={{ height: "100%", width: "100%" }} />
+
+        <button
+          type="button"
+          onClick={toggleLiveUserTracking}
+          title={isTrackingUserLocation ? "Stopp live-sporing" : "Start live-sporing"}
+          style={{
+            position: "absolute",
+            right: 10,
+            bottom: 20,
+            zIndex: 1200,
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            backgroundColor: isTrackingUserLocation ? "#dcfce7" : "#ffffff",
+            color: isTrackingUserLocation ? "#166534" : "#111827",
+            fontWeight: 600,
+            boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          aria-label={isTrackingUserLocation ? "Stopp live-sporing" : "Start live-sporing"}
+        >
+          <FiNavigation size={16} />
+        </button>
+
+        <style jsx global>{`
+          #map .leaflet-bottom.leaflet-right .leaflet-control-zoom {
+            margin-bottom: 56px;
+          }
+        `}</style>
 
         {/* Topp-høyre menyknapp for kart-siden */}
         <div
