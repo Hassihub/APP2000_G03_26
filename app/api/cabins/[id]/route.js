@@ -3,11 +3,31 @@ import db from "../../../../lib/db";
 import { requireAuth, requireRole } from "../../../../lib/auth";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../../lib/roles";
 
+function isMissingColumn(err, columnName) {
+  return err?.code === "42703" || err?.message?.includes(`column \"${columnName}\"`);
+}
+
 function badRequest(message) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
 let cabinImagesTableReady = false;
+let cabinStaffedColumnReady = false;
+
+async function ensureCabinStaffedColumn() {
+  if (cabinStaffedColumnReady) return true;
+
+  try {
+    await db.query(`
+      ALTER TABLE public.cabins
+      ADD COLUMN IF NOT EXISTS is_staffed BOOLEAN NOT NULL DEFAULT false
+    `);
+    cabinStaffedColumnReady = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function ensureCabinImagesTable() {
   if (cabinImagesTableReady) return true;
@@ -73,17 +93,35 @@ async function replaceCabinImages(cabinId, imageUrls) {
 
 export async function GET(_req, { params }) {
   try {
+    await ensureCabinStaffedColumn();
     // ✅ Next.js 15+: params er en Promise
     const { id } = await params;
     if (!id) return badRequest("Mangler id");
 
-    const sql = `
-      SELECT id, name, description, location, price_per_night, capacity, amenities, created_at
+    const sqlWithStaffed = `
+      SELECT id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at, COALESCE(is_staffed, false) AS is_staffed
       FROM public.cabins
       WHERE id = $1
       LIMIT 1
     `;
-    const result = await db.query(sql, [id]);
+    const sqlWithoutStaffed = `
+      SELECT id, name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at
+      FROM public.cabins
+      WHERE id = $1
+      LIMIT 1
+    `;
+
+    let result;
+    try {
+      result = await db.query(sqlWithStaffed, [id]);
+    } catch (err) {
+      if (!isMissingColumn(err, "is_staffed")) throw err;
+      const fallback = await db.query(sqlWithoutStaffed, [id]);
+      result = {
+        ...fallback,
+        rows: fallback.rows.map((cabin) => ({ ...cabin, is_staffed: false })),
+      };
+    }
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "Fant ikke hytta" }, { status: 404 });
@@ -99,6 +137,7 @@ export async function GET(_req, { params }) {
 
 export async function PUT(req, { params }) {
   try {
+    await ensureCabinStaffedColumn();
     const { id } = await params;
     if (!id) return badRequest("Mangler id");
 
@@ -144,6 +183,7 @@ export async function PUT(req, { params }) {
 
     const price_per_night = Number(body.price_per_night);
     const capacity = Number(body.capacity);
+    const is_staffed = Boolean(body.is_staffed);
 
     if (!name) return badRequest("name er påkrevd");
     if (!location) return badRequest("location er påkrevd");
@@ -157,20 +197,42 @@ export async function PUT(req, { params }) {
       ? body.image_urls.map((x) => String(x).trim()).filter(Boolean)
       : [];
 
-    const sql = `
+    const sqlWithStaffed = `
       UPDATE public.cabins
       SET name = $1,
           description = $2,
           location = $3,
           price_per_night = $4,
           capacity = $5,
-          amenities = $6
-      WHERE id = $7
-      RETURNING id, name, description, location, price_per_night, capacity, amenities, created_at
+          amenities = $6,
+          is_staffed = $7
+      WHERE id = $8
+      RETURNING id, name, description, location, price_per_night, capacity, amenities, created_at, is_staffed
     `;
 
-    const values = [name, description, location, price_per_night, capacity, amenities, id];
-    const result = await db.query(sql, values);
+    const valuesWithStaffed = [name, description, location, price_per_night, capacity, amenities, is_staffed, id];
+
+    let result;
+    try {
+      result = await db.query(sqlWithStaffed, valuesWithStaffed);
+    } catch (err) {
+      if (!isMissingColumn(err, "is_staffed")) throw err;
+
+      const sqlWithoutStaffed = `
+        UPDATE public.cabins
+        SET name = $1,
+            description = $2,
+            location = $3,
+            price_per_night = $4,
+            capacity = $5,
+            amenities = $6
+        WHERE id = $7
+        RETURNING id, name, description, location, price_per_night, capacity, amenities, created_at, false AS is_staffed
+      `;
+
+      const valuesWithoutStaffed = [name, description, location, price_per_night, capacity, amenities, id];
+      result = await db.query(sqlWithoutStaffed, valuesWithoutStaffed);
+    }
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "Fant ikke hytta" }, { status: 404 });

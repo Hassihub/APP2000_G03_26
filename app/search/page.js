@@ -1,103 +1,269 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { FiMap, FiSun, FiDroplet, FiHome } from "react-icons/fi";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FiArrowRight, FiCompass, FiHome, FiMapPin, FiSearch } from "react-icons/fi";
+import styles from "./page.module.css";
 
-export default function Search() {
-  const [query, setQuery] = useState("");
-
-  const items = [
-    { name: "Fjelltur til Galdhøpiggen", href: "/turer/galdhopiggen", type: "Fjelltur" },
-    { name: "Skitur i Hemsedal", href: "/turer/hemsedal", type: "Skitur" },
-    { name: "Padletur på Sjoa", href: "/turer/sjoa", type: "Padletur" },
-    { name: "Hytteweekend", href: "/reserver", type: "Hytte" },
-    { name: "Foss i Jotunheimen", href: "/turer/foss", type: "Fjelltur" },
-    { name: "Skitur i Trysil", href: "/turer/trysil", type: "Skitur" },
-  ];
-
-  const icons = {
-    Fjelltur: <FiMap size={28} />,
-    Skitur: <FiSun size={28} />,
-    Padletur: <FiDroplet size={28} />,
-    Hytte: <FiHome size={28} />,
-  };
-
-  const filteredItems = items.filter(
-    (item) => item.name.toLowerCase().includes(query.toLowerCase())
+function ResultCard({ title, subtitle, meta, href, icon }) {
+  const content = (
+    <article className={styles.card}>
+      <div className={styles.cardIcon}>{icon}</div>
+      <div className={styles.cardBody}>
+        <h3 className={styles.cardTitle}>{title}</h3>
+        {subtitle ? <p className={styles.cardSubtitle}>{subtitle}</p> : null}
+        {meta ? <p className={styles.cardMeta}>{meta}</p> : null}
+      </div>
+      <FiArrowRight className={styles.cardArrow} />
+    </article>
   );
 
+  if (!href) return content;
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        padding: "2rem",
-        fontFamily: "'Inter', sans-serif",
-        backgroundColor: "#f9f9f9",
-      }}
-    >
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "1.5rem", fontWeight: 700, color: "#111" }}>
-        Søk etter tur eller aktivitet
-      </h1>
+    <Link href={href} className={styles.cardLink}>
+      {content}
+    </Link>
+  );
+}
 
-      <input
-        type="text"
-        placeholder="Skriv for å søke..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        style={{
-          width: "100%",
-          maxWidth: "600px",
-          padding: "1rem 1.5rem",
-          fontSize: "1.1rem",
-          borderRadius: "4px",
-          border: "2px solid #ccc",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-          marginBottom: "2rem",
-          outline: "none",
-          backgroundColor: "#fff",
-        }}
-      />
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<main className={styles.page}><section className={styles.content}><div className={styles.emptyState}><h2>Laster</h2><p>Henter søkesiden...</p></div></section></main>}>
+      <SearchPageContent />
+    </Suspense>
+  );
+}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-        {filteredItems.length === 0 && query && (
-          <p style={{ color: "#555", fontStyle: "italic" }}>Ingen treff for &quot;{query}&quot;</p>
-        )}
+function SearchPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") ?? "";
 
-        {filteredItems.map((item) => (
-          <Link
-            key={item.name}
-            href={item.href}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "1rem",
-              padding: "1rem 1.5rem",
-              borderRadius: "4px",
-              background: "#fff",
-              color: "#111",
-              textDecoration: "none",
-              fontWeight: 600,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-              border: "1px solid #e0e0e0",
-              transition: "all 0.2s ease-in-out",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.12)";
-              e.currentTarget.style.borderColor = "#b0b0b0";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
-              e.currentTarget.style.borderColor = "#e0e0e0";
-            }}
-          >
-            <span style={{ display: "flex", alignItems: "center" }}>{icons[item.type]}</span>
-            <span>{item.name}</span>
+  const [query, setQuery] = useState(initialQuery);
+  const [results, setResults] = useState({ locations: [], cabins: [], trips: [] });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
+
+  useEffect(() => {
+    const trimmedQuery = initialQuery.trim();
+
+    if (!trimmedQuery) {
+      setResults({ locations: [], cabins: [], trips: [] });
+      setError("");
+      setLoading(false);
+      return;
+    }
+
+    let alive = true;
+
+    async function loadSearchResults() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmedQuery)}`);
+        const data = await res.json().catch(() => ({}));
+
+        if (!alive) return;
+
+        if (!res.ok) {
+          throw new Error(data?.error || "Kunne ikke hente søkeresultater.");
+        }
+
+        setResults({
+          locations: Array.isArray(data?.locations) ? data.locations : [],
+          cabins: Array.isArray(data?.cabins) ? data.cabins : [],
+          trips: Array.isArray(data?.trips) ? data.trips : [],
+        });
+      } catch (err) {
+        if (alive) {
+          setError(err?.message || "Kunne ikke hente søkeresultater.");
+          setResults({ locations: [], cabins: [], trips: [] });
+        }
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    loadSearchResults();
+
+    return () => {
+      alive = false;
+    };
+  }, [initialQuery]);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const nextQuery = query.trim();
+
+    if (!nextQuery) {
+      router.push("/search");
+      return;
+    }
+
+    router.push(`/search?q=${encodeURIComponent(nextQuery)}`);
+  }
+
+  const hasResults =
+    results.locations.length > 0 || results.cabins.length > 0 || results.trips.length > 0;
+
+  return (
+    <main className={styles.page}>
+      <section className={styles.hero}>
+        <div className={styles.heroGlow} />
+        <div className={styles.heroContent}>
+          <p className={styles.kicker}>Søk</p>
+          <h1 className={styles.title}>Finn steder, hytter og turer</h1>
+          <p className={styles.description}>
+            Søk i hele appen med samme søkefelt som toppmenyen bruker.
+          </p>
+
+          <form className={styles.searchForm} onSubmit={handleSubmit}>
+            <FiSearch className={styles.searchIcon} />
+            <input
+              className={styles.searchInput}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Søk etter sted, hytte eller tur"
+            />
+            <button className={styles.searchButton} type="submit">
+              Søk
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section className={styles.content}>
+        <div className={styles.toolbar}>
+          <Link href="/" className={styles.toolbarLink}>
+            <FiHome />
+            Hjem
           </Link>
-        ))}
-      </div>
-    </div>
+          <Link href="/explore" className={styles.toolbarLink}>
+            <FiCompass />
+            Utforsk turer
+          </Link>
+          <Link href="/reserver" className={styles.toolbarLink}>
+            <FiMapPin />
+            Hytter
+          </Link>
+        </div>
+
+        {!initialQuery.trim() ? (
+          <div className={styles.emptyState}>
+            <h2>Skriv noe for å begynne</h2>
+            <p>Bruk søkefeltet over for å finne steder, hytter og turer.</p>
+          </div>
+        ) : loading ? (
+          <div className={styles.emptyState}>
+            <h2>Laster treff</h2>
+            <p>Henter resultater for "{initialQuery}".</p>
+          </div>
+        ) : error ? (
+          <div className={styles.errorBox}>{error}</div>
+        ) : hasResults ? (
+          <div className={styles.grid}>
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>Steder</h2>
+                <span>{results.locations.length}</span>
+              </div>
+              <div className={styles.list}>
+                {results.locations.length > 0 ? (
+                  results.locations.map((location, index) => (
+                    <ResultCard
+                      key={`${location.name}-${index}`}
+                      title={location.name}
+                      subtitle={location.type ? `Type: ${location.type}` : "Geografisk treff"}
+                      meta={
+                        Number.isFinite(location.lat) && Number.isFinite(location.lon)
+                          ? `Koordinater: ${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}`
+                          : null
+                      }
+                      href={null}
+                      icon={<FiMapPin />}
+                    />
+                  ))
+                ) : (
+                  <p className={styles.sectionEmpty}>Ingen stedstreff.</p>
+                )}
+              </div>
+            </section>
+
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>Hytter</h2>
+                <span>{results.cabins.length}</span>
+              </div>
+              <div className={styles.list}>
+                {results.cabins.length > 0 ? (
+                  results.cabins.map((cabin) => (
+                    <ResultCard
+                      key={cabin.id}
+                      title={cabin.name}
+                      subtitle={cabin.location || "Ukjent lokasjon"}
+                      meta={
+                        [
+                          cabin.price_per_night ? `${Number(cabin.price_per_night)} kr/natt` : null,
+                          cabin.capacity ? `${Number(cabin.capacity)} personer` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ") || null
+                      }
+                      href={`/reserver/booking?cabinId=${encodeURIComponent(cabin.id)}`}
+                      icon={<FiHome />}
+                    />
+                  ))
+                ) : (
+                  <p className={styles.sectionEmpty}>Ingen hytteresultater.</p>
+                )}
+              </div>
+            </section>
+
+            <section className={styles.section}>
+              <div className={styles.sectionHeader}>
+                <h2>Turer</h2>
+                <span>{results.trips.length}</span>
+              </div>
+              <div className={styles.list}>
+                {results.trips.length > 0 ? (
+                  results.trips.map((trip) => (
+                    <ResultCard
+                      key={trip.id}
+                      title={trip.navn}
+                      subtitle={trip.type || trip.vanskelighetsgrad || "Tur"}
+                      meta={
+                        [
+                          trip.lengde_km ? `${trip.lengde_km} km` : null,
+                          trip.vanskelighetsgrad ? trip.vanskelighetsgrad : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ") || null
+                      }
+                      href="/explore"
+                      icon={<FiCompass />}
+                    />
+                  ))
+                ) : (
+                  <p className={styles.sectionEmpty}>Ingen turtreff.</p>
+                )}
+              </div>
+            </section>
+          </div>
+        ) : (
+          <div className={styles.emptyState}>
+            <h2>Ingen treff</h2>
+            <p>Prøv et annet navn, sted eller aktivitet.</p>
+          </div>
+        )}
+      </section>
+    </main>
   );
 }

@@ -34,6 +34,6 @@ export async function addMaskLayer(map, L) {
   }).addTo(map);
 
   // Zoom til Norge
- // const norwayLayer = L.geoJSON(norwayGeoJSON);
- // map.fitBounds(norwayLayer.getBounds(), { padding: [50, 50] });
+  const norwayLayer = L.geoJSON(norwayGeoJSON);
+  map.fitBounds(norwayLayer.getBounds(), { padding: [50, 50] });
 }

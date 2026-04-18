@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
 import bcrypt from "bcryptjs";
+import pool from "../../../lib/db";
 import { isSignupRole, ROLE_USER } from "../../../lib/roles";
-
-const pool = new Pool({
-  connectionString: process.env.COCKROACH_URL,
-  // ssl: { rejectUnauthorized: true }, // hvis dere bruker dette ellers
-});
 
 export async function POST(req) {
   try {

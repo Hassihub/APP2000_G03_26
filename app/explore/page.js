@@ -1,18 +1,33 @@
 "use client";
+export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useCallback } from "react";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./explore.module.css";
+import { useTranslations } from "../components/LanguageProvider";
 
-export default function ExplorePage() {
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Laster...</div>}>
+      <ExplorePage />
+    </Suspense>
+  );
+}
+
+function ExplorePage() {
+  const searchParams = useSearchParams();
+  const t = useTranslations("explorePage");
   const [trips, setTrips] = useState([]);
 
-  // Filters
   const [search, setSearch] = useState("");
   const [type, setType] = useState("alle");
   const [difficulty, setDifficulty] = useState("alle");
   const [onlyTiu, setOnlyTiu] = useState(false);
 
-  // Create modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createStatus, setCreateStatus] = useState({
     loading: false,
@@ -25,16 +40,27 @@ export default function ExplorePage() {
     lengde_km: "",
     type: "fottur",
     vanskelighetsgrad: "lett",
-    start_lat: "",
-    start_lng: "",
-    end_lat: "",
-    end_lng: "",
     bilde_url: "",
     isTiu: false,
     turleder_navn: "",
+    isFlexible: false,
+    dateOptions: [
+      { start_time: "", end_time: "" },
+      { start_time: "", end_time: "" },
+      { start_time: "", end_time: "" },
+    ],
+  });
+  const [Leaflet, setLeaflet] = useState(null);
+  const mapRef = useRef(null);
+  const [placing, setPlacing] = useState(false);
+  const placingRef = useRef(false);
+  const drawCleanupRef = useRef(null);
+  const [currentRoute, setCurrentRoute] = useState({
+    points: [],
+    geometry: null,
   });
 
-  const fetchTrips = async () => {
+  const fetchTrips = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         search,
@@ -45,7 +71,7 @@ export default function ExplorePage() {
 
       const res = await fetch(`/api/trips?${params.toString()}`);
 
-      if (!res.ok) throw new Error("Kunne ikke hente turer");
+      if (!res.ok) throw new Error(t.fetchError);
 
       const data = await res.json();
       setTrips(data);
@@ -53,11 +79,86 @@ export default function ExplorePage() {
       console.error(err);
       setTrips([]);
     }
-  };
+  }, [difficulty, onlyTiu, search, t.fetchError, type]);
 
   useEffect(() => {
     fetchTrips();
-  }, [search, type, difficulty, onlyTiu]);
+  }, [fetchTrips]);
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setType(searchParams.get("type") || "alle");
+    setDifficulty(searchParams.get("difficulty") || "alle");
+    setOnlyTiu(searchParams.get("onlyTiu") === "true");
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (Leaflet) return;
+
+    import("leaflet").then((L) => {
+      import("leaflet/dist/leaflet.css");
+      setLeaflet(L);
+    });
+  }, [Leaflet]);
+
+  useEffect(() => {
+    if (!Leaflet || !isCreateOpen || mapRef.current) return;
+
+    const container = document.getElementById("new-trip-map");
+    if (!container) return;
+
+    const L = Leaflet;
+    const map = L.map(container, {
+      center: [63.2, 15],
+      zoom: 5,
+      minZoom: 4,
+    });
+    mapRef.current = map;
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+    }).addTo(map);
+
+    import("../components/map/maskLayer").then(({ addMaskLayer }) => {
+      try {
+        addMaskLayer(map, L);
+      } catch (e) {
+        console.error("Kunne ikke legge til maske for Norge på ny tur-kart:", e);
+      }
+    });
+
+    const getPlacing = () => placingRef.current;
+
+    import("../components/map/drawRoutes").then(({ enableRouteDrawing }) => {
+      drawCleanupRef.current = enableRouteDrawing(
+        map,
+        L,
+        (route) => {
+          setCurrentRoute(route);
+          if (route.distanceKm) {
+            setNewTrip((prev) => ({ ...prev, lengde_km: String(route.distanceKm) }));
+          }
+        },
+        getPlacing
+      );
+    });
+
+    return () => {
+      if (drawCleanupRef.current) {
+        drawCleanupRef.current();
+        drawCleanupRef.current = null;
+      }
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [Leaflet, isCreateOpen]);
+
+  useEffect(() => {
+    placingRef.current = placing;
+  }, [placing]);
 
   const openCreate = () => {
     setCreateStatus({ loading: false, error: "" });
@@ -67,6 +168,29 @@ export default function ExplorePage() {
   const closeCreate = () => {
     setIsCreateOpen(false);
     setCreateStatus({ loading: false, error: "" });
+  };
+
+  const updateDateOption = (index, field, value) => {
+    const updated = [...newTrip.dateOptions];
+    updated[index] = {
+      ...updated[index],
+      [field]: value,
+    };
+    setNewTrip({ ...newTrip, dateOptions: updated });
+  };
+
+  const addDateOption = () => {
+    if (newTrip.dateOptions.length >= 5) return;
+    setNewTrip({
+      ...newTrip,
+      dateOptions: [...newTrip.dateOptions, { start_time: "", end_time: "" }],
+    });
+  };
+
+  const removeDateOption = (index) => {
+    if (newTrip.dateOptions.length <= 3) return;
+    const updated = newTrip.dateOptions.filter((_, i) => i !== index);
+    setNewTrip({ ...newTrip, dateOptions: updated });
   };
 
   const submitCreate = async (e) => {
@@ -80,14 +204,21 @@ export default function ExplorePage() {
         lengde_km: Number(newTrip.lengde_km),
         type: newTrip.type,
         vanskelighetsgrad: newTrip.vanskelighetsgrad,
-        start_lat: newTrip.start_lat === "" ? null : Number(newTrip.start_lat),
-        start_lng: newTrip.start_lng === "" ? null : Number(newTrip.start_lng),
-        end_lat: newTrip.end_lat === "" ? null : Number(newTrip.end_lat),
-        end_lng: newTrip.end_lng === "" ? null : Number(newTrip.end_lng),
         bilde_url: newTrip.bilde_url || null,
+        geometry: currentRoute.geometry || null,
         isTiu: newTrip.isTiu,
         turleder_navn: newTrip.isTiu ? newTrip.turleder_navn : null,
+        isFlexible: newTrip.isFlexible,
+        dateOptions: newTrip.isFlexible ? newTrip.dateOptions : [],
       };
+
+      if (!payload.geometry) {
+        throw new Error("Du må tegne en rute på kartet for turen.");
+      }
+
+      if (newTrip.isFlexible && !newTrip.isTiu) {
+        throw new Error("Fleksibel fellestur må være en TiU-tur.");
+      }
 
       const res = await fetch("/api/trips", {
         method: "POST",
@@ -100,7 +231,7 @@ export default function ExplorePage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || "Kunne ikke opprette tur");
+        throw new Error(data?.error || t.submitError);
       }
 
       setNewTrip({
@@ -109,21 +240,25 @@ export default function ExplorePage() {
         lengde_km: "",
         type: "fottur",
         vanskelighetsgrad: "lett",
-        start_lat: "",
-        start_lng: "",
-        end_lat: "",
-        end_lng: "",
         bilde_url: "",
         isTiu: false,
         turleder_navn: "",
+        isFlexible: false,
+        dateOptions: [
+          { start_time: "", end_time: "" },
+          { start_time: "", end_time: "" },
+          { start_time: "", end_time: "" },
+        ],
       });
+
+      setCurrentRoute({ points: [], geometry: null });
 
       closeCreate();
       await fetchTrips();
     } catch (err) {
       setCreateStatus({
         loading: false,
-        error: err.message || "Noe gikk galt",
+        error: err.message || t.genericError,
       });
       return;
     }
@@ -135,19 +270,19 @@ export default function ExplorePage() {
     <main className={styles.container}>
       <section className={styles.headerRow}>
         <div>
-          <h1 className={styles.heading}>Utforsk Norge</h1>
-          <p className={styles.subheading}>Finn turer over hele landet</p>
+          <h1 className={styles.heading}>{t.title}</h1>
+          <p className={styles.subheading}>{t.subtitle}</p>
         </div>
 
         <button className={styles.createButton} onClick={openCreate}>
-          + Opprett tur
+          + {t.createTrip}
         </button>
       </section>
 
       <section className={styles.filters}>
         <input
           className={styles.search}
-          placeholder="Søk etter tur"
+          placeholder={t.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -157,10 +292,10 @@ export default function ExplorePage() {
           value={type}
           onChange={(e) => setType(e.target.value)}
         >
-          <option value="alle">Alle typer</option>
-          <option value="fottur">Fottur</option>
-          <option value="skitur">Skitur</option>
-          <option value="sykkel">Sykkel</option>
+          <option value="alle">{t.allTypes}</option>
+          <option value="fottur">{t.hike}</option>
+          <option value="skitur">{t.ski}</option>
+          <option value="sykkel">{t.bike}</option>
         </select>
 
         <select
@@ -168,10 +303,10 @@ export default function ExplorePage() {
           value={difficulty}
           onChange={(e) => setDifficulty(e.target.value)}
         >
-          <option value="alle">Vanskelighet</option>
-          <option value="lett">Lett</option>
-          <option value="middels">Middels</option>
-          <option value="krevende">Krevende</option>
+          <option value="alle">{t.difficulty}</option>
+          <option value="lett">{t.easy}</option>
+          <option value="middels">{t.medium}</option>
+          <option value="krevende">{t.hard}</option>
         </select>
 
         <label className={styles.checkbox}>
@@ -180,17 +315,19 @@ export default function ExplorePage() {
             checked={onlyTiu}
             onChange={(e) => setOnlyTiu(e.target.checked)}
           />
-          Kun TiU-fellesturer
+          {t.tiuOnly}
         </label>
       </section>
 
       <section className={styles.results}>
-        <h2>Turer</h2>
+        <h2>{t.trips}</h2>
         <div className={styles.grid}>
           {trips.length > 0 ? (
-            trips.map((trip) => <TripCard key={trip.id} trip={trip} />)
+            trips.map((trip) => (
+              <TripCard key={trip.id} trip={trip} onUpdated={fetchTrips} />
+            ))
           ) : (
-            <p>Ingen turer funnet</p>
+            <p>{t.noTrips}</p>
           )}
         </div>
       </section>
@@ -199,11 +336,11 @@ export default function ExplorePage() {
         <div className={styles.modalOverlay} onMouseDown={closeCreate}>
           <div className={styles.modal} onMouseDown={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3>Opprett ny tur</h3>
+              <h3>{t.createTitle}</h3>
               <button
                 className={styles.iconButton}
                 onClick={closeCreate}
-                aria-label="Lukk"
+                aria-label={t.close}
                 type="button"
               >
                 ✕
@@ -292,56 +429,37 @@ export default function ExplorePage() {
                 </label>
               </div>
 
-              <div className={styles.row}>
-                <label className={styles.field}>
-                  <span>Start lat</span>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={newTrip.start_lat}
-                    onChange={(e) =>
-                      setNewTrip({ ...newTrip, start_lat: e.target.value })
-                    }
-                  />
-                </label>
-
-                <label className={styles.field}>
-                  <span>Start lng</span>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={newTrip.start_lng}
-                    onChange={(e) =>
-                      setNewTrip({ ...newTrip, start_lng: e.target.value })
-                    }
-                  />
-                </label>
-              </div>
-
-              <div className={styles.row}>
-                <label className={styles.field}>
-                  <span>Slutt lat</span>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={newTrip.end_lat}
-                    onChange={(e) =>
-                      setNewTrip({ ...newTrip, end_lat: e.target.value })
-                    }
-                  />
-                </label>
-
-                <label className={styles.field}>
-                  <span>Slutt lng</span>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={newTrip.end_lng}
-                    onChange={(e) =>
-                      setNewTrip({ ...newTrip, end_lng: e.target.value })
-                    }
-                  />
-                </label>
+              <div className={styles.field}>
+                <span>Rute på kart</span>
+                <div
+                  id="new-trip-map"
+                  style={{
+                    width: "100%",
+                    height: 260,
+                    borderRadius: 12,
+                    border: "1px solid #e6e6ef",
+                    overflow: "hidden",
+                    marginBottom: 8,
+                  }}
+                />
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => setPlacing((p) => !p)}
+                  >
+                    {placing ? "Avslutt punktplassering" : "Plasser punkter"}
+                  </button>
+                  <span style={{ fontSize: 12, color: "#6b7280" }}>
+                    Klikk på kartet for å legge til punkter. Minst to punkter
+                    kreves for en rute.
+                  </span>
+                </div>
+                {currentRoute.geometry && (
+                  <div style={{ marginTop: 4, fontSize: 12, color: "#10b981" }}>
+                    Rute valgt med {currentRoute.points.length} punkt(er).
+                  </div>
+                )}
               </div>
 
               <label className={styles.checkbox}>
@@ -369,6 +487,78 @@ export default function ExplorePage() {
                     required
                   />
                 </label>
+              )}
+
+              {newTrip.isTiu && (
+                <label className={styles.checkbox}>
+                  <input
+                    type="checkbox"
+                    checked={newTrip.isFlexible}
+                    onChange={(e) =>
+                      setNewTrip({ ...newTrip, isFlexible: e.target.checked })
+                    }
+                  />
+                  Fleksibel fellestur
+                </label>
+              )}
+
+              {newTrip.isFlexible && (
+                <div className={styles.field}>
+                  <span>Datoalternativer (3-5)</span>
+
+                  {newTrip.dateOptions.map((option, index) => (
+                    <div
+                      key={index}
+                      className={styles.row}
+                      style={{ alignItems: "end", marginBottom: 8 }}
+                    >
+                      <label className={styles.field}>
+                        <span>Start</span>
+                        <input
+                          type="datetime-local"
+                          value={option.start_time}
+                          onChange={(e) =>
+                            updateDateOption(index, "start_time", e.target.value)
+                          }
+                          required
+                        />
+                      </label>
+
+                      <label className={styles.field}>
+                        <span>Slutt</span>
+                        <input
+                          type="datetime-local"
+                          value={option.end_time}
+                          onChange={(e) =>
+                            updateDateOption(index, "end_time", e.target.value)
+                          }
+                          required
+                        />
+                      </label>
+
+                      {newTrip.dateOptions.length > 3 && (
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          onClick={() => removeDateOption(index)}
+                        >
+                          Fjern
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={addDateOption}
+                      disabled={newTrip.dateOptions.length >= 5}
+                    >
+                      Legg til datoalternativ
+                    </button>
+                  </div>
+                </div>
               )}
 
               {createStatus.error && (
@@ -399,14 +589,111 @@ export default function ExplorePage() {
   );
 }
 
-function TripCard({ trip }) {
+function TripCard({ trip, onUpdated }) {
+  const router = useRouter();
+
+  const [actionState, setActionState] = useState({
+    loading: false,
+    message: "",
+    error: "",
+  });
+
+  const canRegisterBinding = Boolean(trip.departure_id);
+  const canExpressInterest =
+    Boolean(trip.tiu_trip_id) &&
+    trip.is_flexible === true &&
+    trip.planning_status === "interest_open";
+
+  const handleRegister = async () => {
+    if (!trip.departure_id) return;
+
+    setActionState({
+      loading: true,
+      message: "",
+      error: "",
+    });
+
+    try {
+      const res = await fetch(`/api/departures/${trip.departure_id}/register`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Kunne ikke registrere bindende påmelding");
+      }
+
+      setActionState({
+        loading: false,
+        message: data?.message || "Bindende påmelding registrert",
+        error: "",
+      });
+
+      if (onUpdated) {
+        await onUpdated();
+      }
+    } catch (err) {
+      setActionState({
+        loading: false,
+        message: "",
+        error: err.message || "Noe gikk galt",
+      });
+    }
+  };
+
+  const handleInterest = async () => {
+    setActionState({
+      loading: true,
+      message: "",
+      error: "",
+    });
+
+    try {
+      const res = await fetch(`/api/trips/${trip.id}/interest`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Kunne ikke registrere interesse");
+      }
+
+      setActionState({
+        loading: false,
+        message: data?.message || "Ikke-bindende interesse registrert",
+        error: "",
+      });
+
+      if (onUpdated) {
+        await onUpdated();
+      }
+    } catch (err) {
+      setActionState({
+        loading: false,
+        message: "",
+        error: err.message || "Noe gikk galt",
+      });
+    }
+  };
+
+  const goToDetails = () => {
+    router.push(`/explore/${trip.id}`);
+  };
+
   return (
     <article className={styles.card}>
       {trip.bilde_url ? (
-        <img
+        <Image
           src={trip.bilde_url}
           alt={trip.navn}
           className={styles.tripImage}
+          width={480}
+          height={320}
+          unoptimized
         />
       ) : (
         <div className={styles.imagePlaceholder} />
@@ -423,12 +710,79 @@ function TripCard({ trip }) {
 
         {trip.tiu_trip_id && (
           <span className={styles.tiuBadge}>
-            Organisert av TiU
+            TiU
             {trip.turleder_navn ? ` • ${trip.turleder_navn}` : ""}
           </span>
         )}
 
-        <button className={styles.button}>Se detaljer</button>
+        {trip.is_flexible && (
+          <p className={styles.departureInfo}>
+            Fleksibel fellestur • {trip.date_options_count || 0} datoalternativer
+          </p>
+        )}
+
+        {trip.planning_status && (
+          <p className={styles.departureInfo}>
+            Planstatus: {trip.planning_status}
+          </p>
+        )}
+
+        {trip.departure_start_time && (
+          <p className={styles.departureInfo}>
+            Neste avgang:{" "}
+            {new Date(trip.departure_start_time).toLocaleString("no-NO")}
+          </p>
+        )}
+
+        {trip.departure_status && (
+          <p className={styles.departureInfo}>
+            Status på avgang: {trip.departure_status}
+          </p>
+        )}
+
+        {actionState.message && (
+          <p className={styles.successMessage}>{actionState.message}</p>
+        )}
+
+        {actionState.error && (
+          <p className={styles.errorMessage}>{actionState.error}</p>
+        )}
+
+        <div className={styles.cardActions}>
+          <button
+            className={styles.button}
+            onClick={goToDetails}
+            type="button"
+          >
+            Se detaljer
+          </button>
+
+          {canExpressInterest && (
+            <button
+              className={styles.registerButton}
+              onClick={handleInterest}
+              disabled={actionState.loading}
+              type="button"
+            >
+              {actionState.loading
+                ? "Registrerer..."
+                : "Meld ikke-bindende interesse"}
+            </button>
+          )}
+
+          {canRegisterBinding && (
+            <button
+              className={styles.registerButton}
+              onClick={handleRegister}
+              disabled={actionState.loading}
+              type="button"
+            >
+              {actionState.loading
+                ? "Registrerer..."
+                : "Meld meg bindende på"}
+            </button>
+          )}
+        </div>
       </div>
     </article>
   );

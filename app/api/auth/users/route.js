@@ -7,8 +7,8 @@ export async function GET() {
   const { user, response } = await requireAuth();
   if (response) return response;
 
-  const roleError = requireRole(user, [ROLE_ADMIN]);
-  if (roleError) return roleError;
+    const roleError = requireRole(user, [ROLE_ADMIN]);
+    if (roleError) return roleError;
 
   const { rows } = await pool.query(
     `SELECT id, username, email, role, created_at

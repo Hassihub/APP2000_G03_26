@@ -1,0 +1,328 @@
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(80% 60% at 10% 5%, #d1f7ea 0%, rgba(209, 247, 234, 0) 65%),
+    radial-gradient(70% 50% at 90% 0%, #e6f0ff 0%, rgba(230, 240, 255, 0) 70%),
+    #f7faf8;
+  padding: 2rem 1rem 3rem;
+}
+
+.shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.hero {
+  border: 1px solid #d3ebe2;
+  border-radius: 20px;
+  padding: 1.2rem 1.3rem;
+  background: linear-gradient(160deg, #0f392f, #165747);
+  color: #ecfff7;
+  box-shadow: 0 18px 38px rgba(22, 87, 71, 0.2);
+}
+
+.kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(1.65rem, 4vw, 2.4rem);
+  line-height: 1.15;
+}
+
+.hero p {
+  margin: 0.6rem 0 0;
+  max-width: 70ch;
+  color: #d2f0e4;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #dce7e2;
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.main {
+  grid-column: span 12;
+  display: grid;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.side {
+  grid-column: span 12;
+  display: grid;
+  gap: 0.8rem;
+  align-content: start;
+}
+
+.side h2 {
+  margin: 0;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.field label {
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  font-weight: 700;
+  color: #325248;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #c6d8d0;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: #fbfffd;
+  color: #16352c;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.map {
+  height: 360px;
+  border-radius: 14px;
+  border: 1px solid #c6d8d0;
+  overflow: hidden;
+}
+
+.mapWrap {
+  position: relative;
+}
+
+.modeOverlay {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 900;
+  background: transparent;
+}
+
+.gpxBox {
+  border: 1px dashed #b5cec4;
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem;
+  background: #f7fcfa;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.gpxLabel {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #325248;
+}
+
+.gpxMeta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #56766b;
+}
+
+.help {
+  margin: 0;
+  color: #4f6f64;
+  font-size: 0.86rem;
+}
+
+.modeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.modeLabel {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #325248;
+}
+
+.modeButtons {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.modeBtn,
+.modeBtnActive {
+  border: 1px solid #c0d4cb;
+  border-radius: 999px;
+  background: #f8fdfb;
+  color: #31564a;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+.modeBtnActive {
+  border-color: #155e47;
+  background: #dff8ee;
+  color: #114637;
+}
+
+.modeNotice {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #7a5206;
+}
+
+.actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.btn,
+.btnAlt {
+  border: none;
+  border-radius: 10px;
+  padding: 0.62rem 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.btn {
+  background: #145643;
+  color: #f2fff9;
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btnAlt {
+  border: 1px solid #b9d4ca;
+  background: #f3faf7;
+  color: #20463a;
+}
+
+.cabinList {
+  max-height: 420px;
+  overflow: auto;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ownerActions {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.ownerActions .btn {
+  text-align: center;
+  text-decoration: none;
+}
+
+.ownerNote {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #5d7f73;
+}
+
+.cabinItem {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  border: 1px solid #dbe8e2;
+  border-radius: 10px;
+  padding: 0.55rem 0.6rem;
+  background: #fbfefd;
+}
+
+.cabinInfo {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.cabinName {
+  font-weight: 700;
+  color: #1f493c;
+  line-height: 1.25;
+}
+
+.cabinMeta {
+  font-size: 0.8rem;
+  color: #587a6e;
+}
+
+.status {
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  font-weight: 600;
+}
+
+.success {
+  border: 1px solid #9fdfc5;
+  background: #e8fff3;
+  color: #0e5a36;
+}
+
+.error {
+  border: 1px solid #efbbbb;
+  background: #fff1f0;
+  color: #8f2424;
+}
+
+.warn {
+  border: 1px solid #f0d6a0;
+  background: #fff7e8;
+  color: #7a5206;
+}
+
+@media (min-width: 980px) {
+  .main {
+    grid-column: span 8;
+  }
+
+  .side {
+    grid-column: span 4;
+  }
+}
+
+@media (max-width: 720px) {
+  .fieldGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .map {
+    height: 300px;
+  }
+}

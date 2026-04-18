@@ -38,13 +38,13 @@ export default function DropDown() {
             padding: "1rem 2rem",
             fontSize: "1.2rem",
             borderRadius: "12px",
-            border: "2px solid #000",
-            background: "#fff",
+            border: "2px solid var(--border)",
+            background: "var(--bg-panel)",
             cursor: "pointer",
             transition: "background 0.3s, transform 0.2s",
           }}
-          onMouseEnter={(e) => e.currentTarget.style.background = "#dde6fc"}
-          onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}
+          onMouseEnter={(e) => e.currentTarget.style.background = "var(--accent-bg)"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "var(--bg-panel)"}
         >
           {open ? "Lukk meny" : "Åpne meny"}
         </button>
@@ -57,8 +57,8 @@ export default function DropDown() {
               top: "110%",
               left: 0,
               width: "100%",
-              background: "#fff",
-              border: "2px solid #000",
+              background: "var(--bg-panel)",
+              border: "2px solid var(--border)",
               borderRadius: "12px",
               overflow: "hidden",
               boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
@@ -74,12 +74,12 @@ export default function DropDown() {
                 style={{
                   padding: "1rem 2rem",
                   textDecoration: "none",
-                  color: "#000",
+                  color: "var(--text)",
                   fontWeight: "600",
                   transition: "background 0.2s",
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "#eef2ff"}
-                onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}
+                onMouseEnter={(e) => e.currentTarget.style.background = "var(--accent-bg)"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "var(--bg-panel)"}
               >
                 {p.name}
               </Link>
