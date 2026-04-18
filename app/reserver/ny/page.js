@@ -6,42 +6,10 @@ import { useEffect, useRef, useState } from "react";
 import styles from "../Reserver.module.css";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
 import { formatTranslation, useTranslations } from "../../components/LanguageProvider";
+import { COMMON_AMENITIES } from "../amenities";
 
 const STANDARD_IMAGE_WIDTH = 1200;
 const STANDARD_IMAGE_HEIGHT = 900;
-
-const COMMON_AMENITIES = [
-  "WiFi",
-  "Parkering",
-  "Kjøkken",
-  "Oppvaskmaskin",
-  "Kjøleskap",
-  "Fryser",
-  "Stekeovn",
-  "Mikrobølgeovn",
-  "Kaffemaskin",
-  "Vannkoker",
-  "Peis",
-  "Badstue",
-  "Badehus",
-  "Boblebad",
-  "TV",
-  "Kabel-TV",
-  "Vaskemaskin",
-  "Tørketrommel",
-  "Ski-in/ski-out",
-  "Skotørker",
-  "Sengetøy",
-  "Håndklær",
-  "Grill",
-  "Balkong",
-  "Terrasse",
-  "Uteplass",
-  "Barnevennlig",
-  "Kjæledyr tillatt",
-  "Røyking forbudt",
-  "Tilgjengelig for rullestol",
-];
 
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {

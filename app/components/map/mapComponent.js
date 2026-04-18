@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FiMenu, FiX, FiChevronLeft, FiChevronRight, FiNavigation } from "react-icons/fi";
+import { COMMON_AMENITIES } from "../../reserver/amenities";
 
 export default function MapComponent() {
   const mapRef = useRef(null);
@@ -26,6 +27,11 @@ export default function MapComponent() {
   const [turforslagOpen, setTurforslagOpen] = useState(false);
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
+  const [cabinSearchFilter, setCabinSearchFilter] = useState("");
+  const [cabinStaffedFilter, setCabinStaffedFilter] = useState("alle");
+  const [cabinMinPriceFilter, setCabinMinPriceFilter] = useState("");
+  const [cabinMaxPriceFilter, setCabinMaxPriceFilter] = useState("");
+  const [cabinAmenitiesFilter, setCabinAmenitiesFilter] = useState([]);
   const [tripTypeFilter, setTripTypeFilter] = useState("alle"); // fottur/skitur/sykkel/alle
   const [tripDifficultyFilter, setTripDifficultyFilter] = useState("alle"); // lett/middels/krevende/alle
   const [tripOnlyTiu, setTripOnlyTiu] = useState(false);
@@ -175,6 +181,28 @@ export default function MapComponent() {
           params.set("start_date", filterStartDate);
           params.set("end_date", filterEndDate);
         }
+        if (cabinSearchFilter.trim()) {
+          params.set("search", cabinSearchFilter.trim());
+        }
+        if (cabinStaffedFilter === "betjent") {
+          params.set("staffed", "true");
+        } else if (cabinStaffedFilter === "ubetjent") {
+          params.set("staffed", "false");
+        }
+
+        const minPrice = Number(cabinMinPriceFilter);
+        if (Number.isFinite(minPrice) && cabinMinPriceFilter !== "") {
+          params.set("min_price", String(minPrice));
+        }
+
+        const maxPrice = Number(cabinMaxPriceFilter);
+        if (Number.isFinite(maxPrice) && cabinMaxPriceFilter !== "") {
+          params.set("max_price", String(maxPrice));
+        }
+
+        if (cabinAmenitiesFilter.length) {
+          params.set("amenities", cabinAmenitiesFilter.join(","));
+        }
 
         const url = params.toString()
           ? `/api/cabins?${params.toString()}`
@@ -253,7 +281,17 @@ export default function MapComponent() {
     };
 
     fetchAndRenderCabins();
-  }, [showCabins, Leaflet, filterStartDate, filterEndDate]);
+  }, [
+    showCabins,
+    Leaflet,
+    filterStartDate,
+    filterEndDate,
+    cabinSearchFilter,
+    cabinStaffedFilter,
+    cabinMinPriceFilter,
+    cabinMaxPriceFilter,
+    cabinAmenitiesFilter,
+  ]);
 
   // 🔹 Vis lagrede trips (fra /api/trips) på kartet, med filtrering
   useEffect(() => {
@@ -1025,7 +1063,7 @@ export default function MapComponent() {
             position: "absolute",
             top: 10,
             left: 54, // litt til høyre for Leaflet sin zoom-kontroll
-            zIndex: 1200,
+            zIndex: 800,
             display: "flex",
             gap: 8,
           }}
@@ -1069,8 +1107,60 @@ export default function MapComponent() {
                   Filtrer hytter
                 </div>
                 <div style={{ fontSize: 12, marginBottom: 4 }}>
-                  Velg fra-/til-dato for å vise ledige hytter.
+                  Velg kriterier for tilgjengelighet, type, pris og fasiliteter.
                 </div>
+                <label style={{ display: "block", marginBottom: 4 }}>
+                  <span style={{ display: "block", fontSize: 12 }}>
+                    Søk i navn/sted
+                  </span>
+                  <input
+                    type="text"
+                    value={cabinSearchFilter}
+                    onChange={(e) => setCabinSearchFilter(e.target.value)}
+                    placeholder="F.eks. Rondane"
+                    style={{ width: "100%" }}
+                  />
+                </label>
+
+                <div style={{ marginBottom: 4 }}>
+                  <span style={{ display: "block", fontSize: 12, marginBottom: 2 }}>
+                    Betjening
+                  </span>
+                  <select
+                    value={cabinStaffedFilter}
+                    onChange={(e) => setCabinStaffedFilter(e.target.value)}
+                    style={{ width: "100%" }}
+                  >
+                    <option value="alle">Alle</option>
+                    <option value="betjent">Kun betjente</option>
+                    <option value="ubetjent">Kun ubetjente</option>
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: 4 }}>
+                  <span style={{ display: "block", fontSize: 12, marginBottom: 2 }}>
+                    Prisnivå per natt
+                  </span>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      type="number"
+                      min="0"
+                      value={cabinMinPriceFilter}
+                      onChange={(e) => setCabinMinPriceFilter(e.target.value)}
+                      placeholder="Min"
+                      style={{ width: "100%" }}
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={cabinMaxPriceFilter}
+                      onChange={(e) => setCabinMaxPriceFilter(e.target.value)}
+                      placeholder="Maks"
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                </div>
+
                 <label style={{ display: "block", marginBottom: 4 }}>
                   <span style={{ display: "block", fontSize: 12 }}>Fra dato</span>
                   <input
@@ -1089,8 +1179,76 @@ export default function MapComponent() {
                     style={{ width: "100%" }}
                   />
                 </label>
+
+                <div style={{ marginBottom: 6 }}>
+                  <span style={{ display: "block", fontSize: 12, marginBottom: 4 }}>
+                    Fasiliteter
+                  </span>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 4,
+                      maxHeight: 140,
+                      overflowY: "auto",
+                    }}
+                  >
+                    {COMMON_AMENITIES.map((amenity) => {
+                      const isChecked = cabinAmenitiesFilter.includes(amenity);
+                      return (
+                        <label
+                          key={amenity}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            fontSize: 12,
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              setCabinAmenitiesFilter((prev) => {
+                                if (e.target.checked) return [...prev, amenity];
+                                return prev.filter((item) => item !== amenity);
+                              });
+                            }}
+                          />
+                          <span>{amenity}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCabinSearchFilter("");
+                    setCabinStaffedFilter("alle");
+                    setCabinMinPriceFilter("");
+                    setCabinMaxPriceFilter("");
+                    setCabinAmenitiesFilter([]);
+                    setFilterStartDate("");
+                    setFilterEndDate("");
+                  }}
+                  style={{
+                    width: "100%",
+                    marginTop: 4,
+                    marginBottom: 4,
+                    padding: "0.35rem 0.55rem",
+                    borderRadius: 6,
+                    border: "1px solid #d1d5db",
+                    backgroundColor: "#f9fafb",
+                    fontSize: 12,
+                    cursor: "pointer",
+                  }}
+                >
+                  Nullstill filter
+                </button>
                 <div style={{ fontSize: 11, color: "#555" }}>
-                  Hvis datoer er tomme vises alle hytter.
+                  Hvis datoer er tomme vises både ledige og reserverte hytter.
                 </div>
               </div>
             )}
@@ -1213,7 +1371,7 @@ export default function MapComponent() {
             top: "50%",
             left: 0,
             transform: "translate(-50%, -50%)",
-            zIndex: 1150,
+            zIndex: 1100,
           }}
         >
           <button
@@ -1251,7 +1409,7 @@ export default function MapComponent() {
             position: "absolute",
             right: 10,
             bottom: 20,
-            zIndex: 1200,
+            zIndex: 800,
             width: 36,
             height: 36,
             borderRadius: 8,
@@ -1282,7 +1440,7 @@ export default function MapComponent() {
             position: "absolute",
             top: 10,
             right: 10,
-            zIndex: 1200,
+            zIndex: 800,
           }}
         >
           <div
