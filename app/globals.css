@@ -81,10 +81,37 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.5rem;
+  gap: 1rem;
+  padding: 0 1rem;
   font-weight: 700;
   font-size: 0.9rem;
   box-sizing: border-box;
+}
+
+.reset-test-data-btn {
+  background: black;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.reset-test-data-btn:hover:not(:disabled) {
+  background: #333;
+}
+
+.reset-test-data-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reset-test-data-msg {
+  font-weight: normal;
+  font-size: 0.85rem;
 }
 
 /* Boksene på hovedsiden */

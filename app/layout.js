@@ -3,6 +3,7 @@ import "./globals.css";
 import AppShell from "./components/AppShell";
 import { LanguageProvider } from "./components/LanguageProvider";
 import CookieBanner from "./components/CookieBanner";
+import ResetBanner from "./components/ResetBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,9 +23,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="no">
       <body style={{ margin: 0, padding: 0 }}>
-        <div className="school-project-banner">
-          Dette er et skoleprosjekt
-        </div>
+        <ResetBanner />
         <LanguageProvider>
           <AppShell>{children}</AppShell>
           <CookieBanner />
