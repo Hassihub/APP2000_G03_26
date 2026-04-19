@@ -1,6 +1,7 @@
 "use client";
 
 export const dynamic = "force-dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -84,6 +85,13 @@ export default function CabinsPage() {
     return `/reserver/booking?cabinId=${encodeURIComponent(selectedCabin.id)}`;
   }, [selectedCabin]);
 
+  function formatRating(cabin) {
+    const avg = Number(cabin?.average_rating);
+    const count = Number(cabin?.review_count) || 0;
+    if (!Number.isFinite(avg)) return "Ingen anmeldelser";
+    return `${avg.toFixed(1)} / 5 (${count})`;
+  }
+
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh", color: "var(--text)", fontFamily: "'Inter','Poppins',sans-serif" }}>
 
@@ -133,6 +141,9 @@ export default function CabinsPage() {
                     <span style={{ fontWeight: 800, fontSize: "0.8rem", color: "var(--text)", whiteSpace: "nowrap" }}>{cabin.price_per_night} kr</span>
                   </div>
                   <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{cabin.location} &middot; {cabin.capacity} {t.people}</div>
+                  <div style={{ fontSize: "0.72rem", color: "#9a6700", marginTop: "0.2rem", fontWeight: 700 }}>
+                    ★ {formatRating(cabin)}
+                  </div>
                 </button>
               );
             })}
@@ -154,9 +165,11 @@ export default function CabinsPage() {
 
             {/* Hero image */}
             <div style={{ height: 260, position: "relative", background: "var(--bg)" }}>
-              <img
+              <Image
                 src="/images/hytte.jpg"
                 alt={selectedCabin.name}
+                fill
+                sizes="(max-width: 1200px) 100vw, 900px"
                 style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.5 }}
               />
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, var(--bg-panel) 100%)" }} />
@@ -172,7 +185,9 @@ export default function CabinsPage() {
                 { label: "Kapasitet", value: `${selectedCabin.capacity} personer` },
                 { label: "Pris", value: `${selectedCabin.price_per_night} kr / natt` },
                 { label: "Sted", value: selectedCabin.location },
+                { label: "Rating", value: formatRating(selectedCabin) },
                 ...(selectedCabin.description ? [{ label: "Beskrivelse", value: selectedCabin.description }] : []),
+                { label: "Utleier", value: selectedCabin.owner_name || selectedCabin.owner_id || "Ikke oppgitt" },
               ].map(({ label, value }) => (
                 <div key={label} style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: "1rem", padding: "0.9rem 1.75rem", borderBottom: "1px solid var(--border)" }}>
                   <span style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", paddingTop: "0.1rem" }}>{label}</span>

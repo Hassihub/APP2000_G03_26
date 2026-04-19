@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FiMenu, FiX, FiChevronLeft, FiChevronRight, FiNavigation } from "react-icons/fi";
 import { COMMON_AMENITIES } from "../../reserver/amenities";
@@ -608,9 +609,12 @@ export default function MapComponent() {
                       overflow: "hidden",
                     }}
                   >
-                    <img
+                    <Image
                       src={selectedCabin.image_urls[0]}
                       alt={selectedCabin.name || "Hyttebilde"}
+                      width={1200}
+                      height={180}
+                      unoptimized
                       style={{ width: "100%", height: 180, objectFit: "cover" }}
                     />
                   </div>
@@ -786,9 +790,12 @@ export default function MapComponent() {
                     overflow: "hidden",
                   }}
                 >
-                  <img
+                  <Image
                     src={selectedTrip.bilde_url}
                     alt={selectedTrip.navn || "Turbilde"}
+                    width={1200}
+                    height={180}
+                    unoptimized
                     style={{ width: "100%", height: 180, objectFit: "cover" }}
                   />
                 </div>

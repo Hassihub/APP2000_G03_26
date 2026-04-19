@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styles from "../Reserver.module.css";
 import CabinWeather from "../CabinWeather";
@@ -11,9 +11,12 @@ export default function BookingClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const cabinId = searchParams.get("cabinId");
+  const focusReviewParam = String(searchParams.get("review") ?? "").trim();
+  const shouldFocusReview = focusReviewParam === "1" || focusReviewParam.toLowerCase() === "true";
   const loginHref = cabinId
     ? `/login?redirect=${encodeURIComponent(`/reserver/booking?cabinId=${cabinId}`)}`
     : "/login?redirect=%2Freserver";
+  const reviewSectionRef = useRef(null);
 
   const [cabin, setCabin] = useState(null);
   const [loadingCabin, setLoadingCabin] = useState(true);
@@ -34,6 +37,17 @@ export default function BookingClient() {
 
   const [showWeather, setShowWeather] = useState(false);
   const [weather, setWeather] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState("");
+  const [reviewCount, setReviewCount] = useState(0);
+  const [averageRating, setAverageRating] = useState(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSuccess, setReviewSuccess] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [canReview, setCanReview] = useState(false);
+  const [reviewBlockReason, setReviewBlockReason] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -117,6 +131,63 @@ export default function BookingClient() {
       alive = false;
     };
   }, [cabinId, loginHref, router]);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadReviews() {
+      if (!cabinId) return;
+
+      try {
+        setReviewsLoading(true);
+        setReviewsError("");
+        setReviewSuccess("");
+
+        const res = await fetch(`/api/cabins/${encodeURIComponent(cabinId)}/reviews`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(json?.error || "Kunne ikke hente anmeldelser.");
+        }
+
+        if (!alive) return;
+
+        setReviews(Array.isArray(json.reviews) ? json.reviews : []);
+        setReviewCount(Number(json.review_count) || 0);
+        setAverageRating(
+          json.average_rating === null || json.average_rating === undefined
+            ? null
+            : Number(json.average_rating)
+        );
+        setCanReview(Boolean(json.can_review));
+        setReviewBlockReason(String(json.review_block_reason || ""));
+
+        if (json.user_review) {
+          setReviewRating(Number(json.user_review.rating) || 5);
+          setReviewComment(String(json.user_review.comment ?? ""));
+        } else {
+          setReviewRating(5);
+          setReviewComment("");
+        }
+      } catch (e) {
+        if (!alive) return;
+        setReviewsError(e?.message || "Kunne ikke hente anmeldelser.");
+      } finally {
+        if (!alive) return;
+        setReviewsLoading(false);
+      }
+    }
+
+    loadReviews();
+    return () => {
+      alive = false;
+    };
+  }, [cabinId]);
+
   useEffect(() => {
     if (!cabin?.location) return;
     async function fetchWeather() {
@@ -135,6 +206,15 @@ export default function BookingClient() {
     }
     fetchWeather();
   }, [cabin?.location]);
+
+  useEffect(() => {
+    if (!shouldFocusReview) return;
+    if (!cabinId) return;
+    if (loadingCabin || reviewsLoading) return;
+
+    reviewSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [shouldFocusReview, cabinId, loadingCabin, reviewsLoading]);
+
   const nights = useMemo(() => {
     if (!start_date || !end_date) return 0;
     const s = new Date(start_date);
@@ -159,6 +239,80 @@ export default function BookingClient() {
   function formatNok(value) {
     if (!Number.isFinite(value)) return "—";
     return `${value.toLocaleString("nb-NO")} kr`;
+  }
+
+  function renderStars(value) {
+    const safe = Math.max(0, Math.min(5, Number(value) || 0));
+    const rounded = Math.round(safe);
+    const full = "★".repeat(rounded);
+    const empty = "☆".repeat(5 - rounded);
+    return `${full}${empty}`;
+  }
+
+  async function submitReview(e) {
+    e.preventDefault();
+
+    if (!isAuthenticated) {
+      router.push(loginHref);
+      return;
+    }
+
+    const ratingNum = Number(reviewRating);
+    if (!canReview) {
+      setReviewsError(reviewBlockReason || "Du kan anmelde først når oppholdet er over.");
+      return;
+    }
+
+    if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+      setReviewsError("Du må velge en stjernerating mellom 1 og 5.");
+      return;
+    }
+
+    try {
+      setReviewSubmitting(true);
+      setReviewsError("");
+      setReviewSuccess("");
+
+      const res = await fetch(`/api/cabins/${encodeURIComponent(cabinId)}/reviews`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rating: ratingNum,
+          comment: String(reviewComment || "").trim(),
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunne ikke lagre anmeldelsen.");
+      }
+
+      setReviewSuccess("✅ Anmeldelsen er lagret.");
+
+      const reload = await fetch(`/api/cabins/${encodeURIComponent(cabinId)}/reviews`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+      const reloadJson = await reload.json().catch(() => ({}));
+
+      if (reload.ok) {
+        setReviews(Array.isArray(reloadJson.reviews) ? reloadJson.reviews : []);
+        setReviewCount(Number(reloadJson.review_count) || 0);
+        setAverageRating(
+          reloadJson.average_rating === null || reloadJson.average_rating === undefined
+            ? null
+            : Number(reloadJson.average_rating)
+        );
+        setCanReview(Boolean(reloadJson.can_review));
+        setReviewBlockReason(String(reloadJson.review_block_reason || ""));
+      }
+    } catch (e) {
+      setReviewsError(e?.message || "Kunne ikke lagre anmeldelsen.");
+    } finally {
+      setReviewSubmitting(false);
+    }
   }
 
   const dateError = useMemo(() => {
@@ -195,7 +349,6 @@ export default function BookingClient() {
     guest_email,
     submitting,
     authChecked,
-    isAuthenticated,
   ]);
 
   async function submit(e) {
@@ -230,6 +383,7 @@ export default function BookingClient() {
         throw new Error(json?.error || "Kunne ikke opprette reservasjon.");
 
       setOk("✅ Reservasjon opprettet!");
+      window.dispatchEvent(new Event("ff-notifications-updated"));
       setTimeout(() => router.push("/reserver"), 900);
     } catch (e) {
       setError(e?.message || "Ukjent feil ved opprettelse.");
@@ -476,6 +630,22 @@ export default function BookingClient() {
                           <div>
                             <h3 className={styles.summaryCabinName}>{cabin.name}</h3>
                             <p className={styles.summaryLocation}>📍 {cabin.location}</p>
+                            <p className={styles.summaryLocation}>👤 Utleier: {cabin.owner_name || cabin.owner_id || "Ikke oppgitt"}</p>
+                            <p className={styles.summaryRatingLine}>
+                              <span className={styles.summaryRatingStars}>
+                                {renderStars(averageRating ?? cabin.average_rating ?? 0)}
+                              </span>
+                              <span>
+                                {Number.isFinite(averageRating)
+                                  ? `${averageRating.toFixed(1)} / 5`
+                                  : Number.isFinite(cabin.average_rating)
+                                    ? `${Number(cabin.average_rating).toFixed(1)} / 5`
+                                    : "Ingen rating enda"}
+                              </span>
+                              <span>
+                                ({reviewCount || Number(cabin.review_count) || 0} anmeldelser)
+                              </span>
+                            </p>
                           </div>
                           <span className={styles.summaryCabinType}>
                             {cabin.is_staffed ? "Betjent" : "Ubetjent"}
@@ -572,6 +742,86 @@ export default function BookingClient() {
                           <div className={`${styles.summaryStatCard} ${styles.summaryTotalCard}`}>
                             <span className={styles.summaryStatLabel}>Estimert total</span>
                             <span className={styles.summaryTotalValue}>{formatNok(estimatedPrice)}</span>
+                          </div>
+                        </div>
+
+                        <div id="reviews" ref={reviewSectionRef} className={styles.reviewSection}>
+                          <div className={styles.reviewSectionHeader}>
+                            <h4 className={styles.reviewSectionTitle}>Anmeldelser</h4>
+                            <span className={styles.reviewSectionMeta}>
+                              {Number.isFinite(averageRating)
+                                ? `${averageRating.toFixed(1)} / 5`
+                                : Number.isFinite(cabin.average_rating)
+                                  ? `${Number(cabin.average_rating).toFixed(1)} / 5`
+                                  : "Ingen rating"}
+                              {` · ${reviewCount || Number(cabin.review_count) || 0} stk`}
+                            </span>
+                          </div>
+
+                          {reviewsLoading ? <p className={styles.helper}>Laster anmeldelser...</p> : null}
+                          {reviewsError ? <div className={styles.errorBox}>❌ {reviewsError}</div> : null}
+                          {reviewSuccess ? <div className={styles.successBox}>{reviewSuccess}</div> : null}
+
+                          {isAuthenticated ? (
+                            canReview ? (
+                              <form className={styles.reviewForm} onSubmit={submitReview}>
+                                <div className={styles.field}>
+                                  <div className={styles.label}>Stjerner</div>
+                                  <select
+                                    className={styles.select}
+                                    value={reviewRating}
+                                    onChange={(e) => setReviewRating(Number(e.target.value))}
+                                  >
+                                    <option value={5}>5 - Supert</option>
+                                    <option value={4}>4 - Veldig bra</option>
+                                    <option value={3}>3 - Bra</option>
+                                    <option value={2}>2 - Ok</option>
+                                    <option value={1}>1 - Dårlig</option>
+                                  </select>
+                                </div>
+
+                                <div className={styles.field}>
+                                  <div className={styles.label}>Kommentar</div>
+                                  <textarea
+                                    className={styles.textarea}
+                                    rows={3}
+                                    maxLength={1000}
+                                    placeholder="Hvordan var oppholdet?"
+                                    value={reviewComment}
+                                    onChange={(e) => setReviewComment(e.target.value)}
+                                  />
+                                </div>
+
+                                <button className={styles.button} type="submit" disabled={reviewSubmitting}>
+                                  {reviewSubmitting ? "Lagrer..." : "Lagre anmeldelse"}
+                                </button>
+                              </form>
+                            ) : (
+                              <div className={styles.helper}>
+                                {reviewBlockReason || "Du kan anmelde først når oppholdet er over."}
+                              </div>
+                            )
+                          ) : (
+                            <div className={styles.helper}>Logg inn for å legge igjen anmeldelse.</div>
+                          )}
+
+                          <div className={styles.reviewList}>
+                            {reviews.length === 0 ? (
+                              <p className={styles.summaryNoAmenities}>Ingen anmeldelser enda.</p>
+                            ) : (
+                              reviews.map((review) => (
+                                <article className={styles.reviewItem} key={review.id}>
+                                  <div className={styles.reviewItemTop}>
+                                    <strong>{review.username || "Bruker"}</strong>
+                                    <span className={styles.reviewStars}>{renderStars(review.rating)}</span>
+                                  </div>
+                                  {review.comment ? <p className={styles.reviewComment}>{review.comment}</p> : null}
+                                  <p className={styles.reviewDate}>
+                                    {new Date(review.updated_at || review.created_at).toLocaleDateString("nb-NO")}
+                                  </p>
+                                </article>
+                              ))
+                            )}
                           </div>
                         </div>
                       </>

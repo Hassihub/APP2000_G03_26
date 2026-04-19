@@ -61,6 +61,7 @@ export default function Profile() {
   const [reservationCabins, setReservationCabins] = useState({});
   const [reservationsLoading, setReservationsLoading] = useState(false);
   const [reservationsError, setReservationsError] = useState("");
+  const [deletingReservationId, setDeletingReservationId] = useState(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -191,7 +192,45 @@ export default function Profile() {
           return;
         }
 
-        syncProfileState(json.profile);
+        const nextProfile = json.profile || emptyProfile;
+        const normalizedDob = (() => {
+          const value = nextProfile.dob;
+          if (!value) return "";
+
+          if (typeof value === "string") {
+            const trimmed = value.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+            const parsed = new Date(trimmed);
+            if (!Number.isNaN(parsed.getTime())) {
+              const y = parsed.getFullYear();
+              const m = String(parsed.getMonth() + 1).padStart(2, "0");
+              const d = String(parsed.getDate()).padStart(2, "0");
+              return `${y}-${m}-${d}`;
+            }
+          }
+
+          if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            const y = value.getFullYear();
+            const m = String(value.getMonth() + 1).padStart(2, "0");
+            const d = String(value.getDate()).padStart(2, "0");
+            return `${y}-${m}-${d}`;
+          }
+
+          return "";
+        })();
+        const normalizedProfile = {
+          ...nextProfile,
+          dob: normalizedDob,
+        };
+
+        setUserData(nextProfile);
+        setEditFields(normalizedProfile);
+        setProfileImage(nextProfile.profileImage || emptyProfile.profileImage);
+        setBannerImage(nextProfile.bannerImage || "/images/profilbakgrunn.jpg");
+        setTheme(nextProfile.settings?.theme || "Lys");
+        setInterests(Array.isArray(nextProfile.interests) ? nextProfile.interests : []);
+        setRadius(typeof nextProfile.radius_km === "number" ? nextProfile.radius_km : 50);
       } catch (err) {
         if (!cancelled) {
           setError(err.message || "Could not load profile.");
@@ -562,6 +601,35 @@ async function handleSaveEdit() {
     if (!status) return t.statusActive;
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
+
+  async function handleDeleteReservation(reservationId) {
+    if (!reservationId) return;
+
+    const confirmed = window.confirm("Er du sikker på at du vil slette denne reservasjonen?");
+    if (!confirmed) return;
+
+    try {
+      setDeletingReservationId(String(reservationId));
+      setReservationsError("");
+
+      const res = await fetch(`/api/reservations?id=${encodeURIComponent(reservationId)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunne ikke slette reservasjonen.");
+      }
+
+      setReservations((prev) => prev.filter((reservation) => String(reservation.id) !== String(reservationId)));
+      window.dispatchEvent(new Event("ff-notifications-updated"));
+    } catch (err) {
+      setReservationsError(err.message || "Kunne ikke slette reservasjonen.");
+    } finally {
+      setDeletingReservationId(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -1144,6 +1212,22 @@ async function handleSaveEdit() {
                           >
                             {t.openCabin}
                           </a>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteReservation(reservation.id)}
+                            disabled={deletingReservationId === String(reservation.id)}
+                            style={{
+                              ...secondaryButtonStyle,
+                              borderColor: "#dc2626",
+                              color: "#dc2626",
+                              background: "transparent",
+                              minWidth: "160px",
+                            }}
+                          >
+                            {deletingReservationId === String(reservation.id)
+                              ? "Sletter..."
+                              : "Slett reservasjon"}
+                          </button>
                         </div>
                       </div>
                     </article>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "./tripDetails.module.css";
 import CabinWeather from "../../reserver/CabinWeather";
@@ -19,7 +20,7 @@ export default function TripDetailsPage() {
     error: "",
   });
 
-  const fetchTrip = async () => {
+  const fetchTrip = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -40,13 +41,13 @@ export default function TripDetailsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params?.id]);
 
   useEffect(() => {
     if (params?.id) {
       fetchTrip();
     }
-  }, [params?.id]);
+  }, [params?.id, fetchTrip]);
 
   const handleRegister = async () => {
     if (!trip?.departure_id) return;
@@ -164,9 +165,12 @@ export default function TripDetailsPage() {
 
       <article className={styles.detailsCard}>
         {trip.bilde_url ? (
-          <img
+          <Image
             src={trip.bilde_url}
             alt={trip.navn}
+            width={1400}
+            height={700}
+            unoptimized
             className={styles.heroImage}
           />
         ) : (
