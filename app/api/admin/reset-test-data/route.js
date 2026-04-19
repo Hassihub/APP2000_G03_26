@@ -83,6 +83,11 @@ const PRESET_CABINS = [
     amenities: ["WiFi", "Parkering", "Vedovn", "Kjøkken"],
     latitude: 59.4512,
     longitude: 9.0721,
+    images: [
+      "/images/seed/001_Bo_i_Telemark_-_foto_Geir_Johansen.jpg",
+      "/images/seed/iamnordic-28-10-19--3_1003920891.jpg",
+      "/images/seed/20190113-050.jpg",
+    ],
   },
   {
     name: "Skogshytta Bø",
@@ -94,6 +99,11 @@ const PRESET_CABINS = [
     amenities: ["Parkering", "Terrasse", "Grill"],
     latitude: 59.4198,
     longitude: 9.0634,
+    images: [
+      "/images/seed/20150926-078-1024x569.jpg",
+      "/images/seed/20190113-244.jpg",
+      "/images/seed/eu-assets.simpleview-europe.jpg",
+    ],
   },
   {
     name: "Dalhytta Gvarv",
@@ -105,6 +115,11 @@ const PRESET_CABINS = [
     amenities: ["WiFi", "Badstue", "Parkering", "Vedovn", "Sykkelutleie"],
     latitude: 59.3945,
     longitude: 9.0312,
+    images: [
+      "/images/seed/20190710-371-360x240.jpg",
+      "/images/seed/20190716-268-360x240.jpg",
+      "/images/seed/images.jpg",
+    ],
   },
   {
     name: "Utsiktshytta Notodden",
@@ -116,8 +131,21 @@ const PRESET_CABINS = [
     amenities: ["WiFi", "Terrasse", "Vedovn", "Kjøkken", "Parkering"],
     latitude: 59.4367,
     longitude: 9.1045,
+    images: [
+      "/images/seed/images222.jpg",
+      "/images/seed/IMG_9228.JPG",
+      "/images/seed/001_Bo_i_Telemark_-_foto_Geir_Johansen.jpg",
+    ],
   },
 ];
+
+// Kobler GPX-filnavn til et forsidebilde for turen.
+// Nøklene er unike ord fra filnavnet (lowercase), verdiene er bilde-URL-er.
+const TRIP_IMAGES = {
+  "gvarv":          "/images/seed/iamnordic-28-10-19--3_1003920891.jpg",
+  "kulturvandring": "/images/seed/001_Bo_i_Telemark_-_foto_Geir_Johansen.jpg",
+  "h-yslass":       "/images/seed/20190113-050.jpg", // URL-encodet "høyslass"
+};
 
 // ── GPX-hjelpe­funksjoner ─────────────────────────────────────────────────────
 
@@ -252,6 +280,8 @@ function parseGpx(content, filename) {
     // Vi trenger minst 2 punkter for å danne en linje.
     geometry:
       coords.length >= 2 ? { type: "LineString", coordinates: coords } : null,
+    // Behold filnavnet så reset-ruten kan slå opp riktig bilde fra TRIP_IMAGES
+    filename,
   };
 }
 
@@ -363,55 +393,43 @@ export async function POST() {
 
     // ── Steg 3: Opprett forhåndsinnstilte hytter ───────────────────────────
     for (const c of PRESET_CABINS) {
+      let cabinId;
       try {
-        // Prøv å sette inn hytte med owner_id-kolonnen.
-        // owner?.id bruker "optional chaining": hvis owner er undefined,
-        // returneres undefined i stedet for å kaste feil.
-        // ?? null betyr: bruk null som fallback hvis verdien er undefined.
-        await db.query(
+        // RETURNING id gir oss tilbake id-en til den nyopprettede hytten
+        // slik at vi kan koble bilder til riktig hytte etterpå.
+        const { rows } = await db.query(
           `INSERT INTO public.cabins
              (name, description, location, price_per_night, capacity, amenities, latitude, longitude, owner_id, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
-          [
-            c.name,
-            c.description,
-            c.location,
-            c.price_per_night,
-            c.capacity,
-            c.amenities,
-            c.latitude,
-            c.longitude,
-            owner?.id ?? null,
-          ],
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+           RETURNING id`,
+          [c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, owner?.id ?? null],
         );
+        cabinId = rows[0].id;
       } catch (err) {
         // Feilkode 42703 betyr "ukjent kolonne" i PostgreSQL.
         // owner_id-kolonnen legges til av server.js første gang noen logger inn.
         // Hvis databasen ikke har den enda, faller vi tilbake til insert uten den.
-        if (
-          err?.code === "42703" ||
-          err?.message?.includes('column "owner_id"')
-        ) {
-          await db.query(
+        if (err?.code === "42703" || err?.message?.includes('column "owner_id"')) {
+          const { rows } = await db.query(
             `INSERT INTO public.cabins
                (name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
-            [
-              c.name,
-              c.description,
-              c.location,
-              c.price_per_night,
-              c.capacity,
-              c.amenities,
-              c.latitude,
-              c.longitude,
-            ],
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+             RETURNING id`,
+            [c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude],
           );
+          cabinId = rows[0].id;
         } else {
-          // Var det en annen feil, kast den videre slik at den fanges av
-          // den ytre try/catch og returneres som feilmelding til klienten.
           throw err;
         }
+      }
+
+      // Sett inn bilder for denne hytten i cabin_images-tabellen.
+      // sort_order bestemmer rekkefølgen bildene vises i (0 = første bilde).
+      for (let i = 0; i < c.images.length; i++) {
+        await db.query(
+          `INSERT INTO public.cabin_images (cabin_id, image_url, sort_order) VALUES ($1, $2, $3)`,
+          [String(cabinId), c.images[i], i],
+        );
       }
     }
 
@@ -420,17 +438,26 @@ export async function POST() {
     const trips = await loadTripsFromGpx();
 
     for (const t of trips) {
+      // Slå opp bilde for turen basert på GPX-filnavnet.
+      // Object.entries() gir oss [nøkkel, verdi]-par fra TRIP_IMAGES.
+      // .find() leter etter et nøkkelord som finnes i filnavnet.
+      const imageEntry = Object.entries(TRIP_IMAGES).find(([keyword]) =>
+        t.filename.toLowerCase().includes(keyword)
+      );
+      const bilde_url = imageEntry ? imageEntry[1] : null;
+
       // JSON.stringify() gjør JavaScript-objektet om til en JSON-tekststreng
       // fordi PostgreSQL forventer JSONB-kolonner som tekst.
       await db.query(
-        `INSERT INTO public.trips (navn, beskrivelse, lengde_km, type, vanskelighetsgrad, geometry)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO public.trips (navn, beskrivelse, lengde_km, type, vanskelighetsgrad, bilde_url, geometry)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           t.navn,
           t.beskrivelse,
           t.lengde_km,
           t.type,
           t.vanskelighetsgrad,
+          bilde_url,
           t.geometry ? JSON.stringify(t.geometry) : null,
         ],
       );
