@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import db from "../../../../lib/db";
 import bcrypt from "bcrypt";
+import fs from "fs/promises";
+import path from "path";
 
 const PRESET_USERS = [
   { username: "Admin",     email: "admin@usn.no",     password: "hemmelig", role: "ADMIN"   },
@@ -52,6 +54,94 @@ const PRESET_CABINS = [
     longitude: 9.1045,
   },
 ];
+
+// ── GPX helpers ──────────────────────────────────────────────────────────────
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function parseGpx(content, filename) {
+  // Name: prefer <trk><name>, fall back to filename stem
+  const nameMatch = content.match(/<trk[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/);
+  const rawName = nameMatch
+    ? nameMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, "$1").trim()
+    : path.basename(filename, ".gpx");
+
+  // Description
+  const descMatch = content.match(/<desc[^>]*>([\s\S]*?)<\/desc>/);
+  const beskrivelse = descMatch
+    ? descMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, "$1").trim() || null
+    : null;
+
+  // Track points
+  const coords = [];
+  const trkptRe = /<trkpt\s[^>]*lat="([^"]+)"[^>]*lon="([^"]+)"[^>]*>([\s\S]*?)<\/trkpt>/g;
+  let m;
+  while ((m = trkptRe.exec(content)) !== null) {
+    const lat = parseFloat(m[1]);
+    const lon = parseFloat(m[2]);
+    if (isNaN(lat) || isNaN(lon)) continue;
+    const eleMatch = m[3].match(/<ele[^>]*>([^<]+)<\/ele>/);
+    const ele = eleMatch ? parseFloat(eleMatch[1]) : null;
+    coords.push(ele !== null && !isNaN(ele) ? [lon, lat, ele] : [lon, lat]);
+  }
+
+  // Distance
+  let lengde_km = 0;
+  for (let i = 1; i < coords.length; i++) {
+    lengde_km += haversineKm(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
+  }
+
+  // Type / difficulty from filename
+  const lower = filename.toLowerCase();
+  const type = lower.includes("ski") ? "skitur" : lower.includes("sykkel") ? "sykkel" : "fottur";
+  const vanskelighetsgrad = lower.includes("krevende")
+    ? "krevende"
+    : lower.includes("lett")
+    ? "lett"
+    : "middels";
+
+  return {
+    navn: rawName,
+    beskrivelse,
+    lengde_km: Math.round(lengde_km * 10) / 10 || 1,
+    type,
+    vanskelighetsgrad,
+    geometry: coords.length >= 2 ? { type: "LineString", coordinates: coords } : null,
+  };
+}
+
+async function loadTripsFromGpx() {
+  const gpxDir = path.join(process.cwd(), "public", "gpx");
+  let files;
+  try {
+    files = (await fs.readdir(gpxDir)).filter((f) => f.toLowerCase().endsWith(".gpx"));
+  } catch {
+    return []; // folder empty or missing — fine
+  }
+
+  const trips = [];
+  for (const file of files) {
+    try {
+      const content = await fs.readFile(path.join(gpxDir, file), "utf-8");
+      trips.push(parseGpx(content, file));
+    } catch {
+      // skip unreadable files
+    }
+  }
+  return trips;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export async function POST() {
   try {
@@ -107,7 +197,20 @@ export async function POST() {
       }
     }
 
-    return NextResponse.json({ success: true, message: "Testdata tilbakestilt" });
+    // Insert trips from public/gpx/
+    const trips = await loadTripsFromGpx();
+    for (const t of trips) {
+      await db.query(
+        `INSERT INTO public.trips (navn, beskrivelse, lengde_km, type, vanskelighetsgrad, geometry)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [t.navn, t.beskrivelse, t.lengde_km, t.type, t.vanskelighetsgrad, t.geometry ? JSON.stringify(t.geometry) : null]
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Testdata tilbakestilt (${trips.length} tur${trips.length !== 1 ? "er" : ""} lastet inn)`,
+    });
   } catch (e) {
     console.error("reset-test-data error:", e);
     return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
