@@ -5,7 +5,10 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import styles from "../Reserver.module.css";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
-import { formatTranslation, useTranslations } from "../../components/LanguageProvider";
+import {
+  formatTranslation,
+  useTranslations,
+} from "../../components/LanguageProvider";
 import { COMMON_AMENITIES } from "../amenities";
 
 const STANDARD_IMAGE_WIDTH = 1200;
@@ -45,7 +48,7 @@ async function normalizeImageFile(file, index) {
 
   const scale = Math.max(
     STANDARD_IMAGE_WIDTH / img.width,
-    STANDARD_IMAGE_HEIGHT / img.height
+    STANDARD_IMAGE_HEIGHT / img.height,
   );
   const drawWidth = img.width * scale;
   const drawHeight = img.height * scale;
@@ -63,8 +66,10 @@ async function normalizeImageFile(file, index) {
   if (!blob) throw new Error(`Kunne ikke konvertere bildet: ${file.name}`);
 
   const baseName =
-    file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9-_]/g, "-").toLowerCase() ||
-    "hyttebilde";
+    file.name
+      .replace(/\.[^.]+$/, "")
+      .replace(/[^a-zA-Z0-9-_]/g, "-")
+      .toLowerCase() || "hyttebilde";
 
   return new File([blob], `${baseName}-${index + 1}.jpg`, {
     type: "image/jpeg",
@@ -135,14 +140,17 @@ export default function NewCabinPage() {
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
-    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   }
 
   function toggleAmenity(amenity) {
     setSelectedAmenities((prev) =>
       prev.includes(amenity)
         ? prev.filter((item) => item !== amenity)
-        : [...prev, amenity]
+        : [...prev, amenity],
     );
   }
 
@@ -150,6 +158,9 @@ export default function NewCabinPage() {
     if (typeof window === "undefined") return;
     if (authLoading) return;
     if (!(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN)) return;
+
+    // Vent til authLoading er ferdig – map-div-en finnes ikke i DOM før da
+    if (authLoading) return;
 
     if (!Leaflet) {
       import("leaflet").then((L) => {
@@ -180,7 +191,10 @@ export default function NewCabinPage() {
       try {
         addMaskLayer(map, L);
       } catch (e) {
-        console.error("Kunne ikke legge til maske for Norge på nytt hytte-kart:", e);
+        console.error(
+          "Kunne ikke legge til maske for Norge på nytt hytte-kart:",
+          e,
+        );
       }
     });
 
@@ -196,7 +210,9 @@ export default function NewCabinPage() {
       setCoords({ lat, lon: lng });
 
       if (!markerRef.current) {
-        markerRef.current = L.marker([lat, lng], { icon: cabinIcon }).addTo(map);
+        markerRef.current = L.marker([lat, lng], { icon: cabinIcon }).addTo(
+          map,
+        );
         markerRef.current.on("click", () => {
           if (markerRef.current) {
             map.removeLayer(markerRef.current);
@@ -215,7 +231,7 @@ export default function NewCabinPage() {
       mapRef.current = null;
       markerRef.current = null;
     };
-  }, [Leaflet, authLoading, userRole]);
+  }, [Leaflet, authLoading]);
 
   async function handleImageChange(e) {
     const files = Array.from(e.target.files || []).slice(0, 8);
@@ -227,7 +243,7 @@ export default function NewCabinPage() {
     setIsProcessingImages(true);
     try {
       const normalizedFiles = await Promise.all(
-        files.map((file, index) => normalizeImageFile(file, index))
+        files.map((file, index) => normalizeImageFile(file, index)),
       );
       setImageFiles(normalizedFiles);
     } catch (err) {
@@ -315,7 +331,9 @@ export default function NewCabinPage() {
 
       setStatus({
         type: "success",
-        message: formatTranslation(t.savedCabin, { name: json?.cabin?.name || payload.name }),
+        message: formatTranslation(t.savedCabin, {
+          name: json?.cabin?.name || payload.name,
+        }),
       });
 
       // Reset skjema (valgfritt)
@@ -347,7 +365,10 @@ export default function NewCabinPage() {
   if (authLoading) {
     return (
       <main className={styles.reservePageShell}>
-        <section className={styles.reserveContentSection} style={{ marginTop: 0 }}>
+        <section
+          className={styles.reserveContentSection}
+          style={{ marginTop: 0 }}
+        >
           <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
             <p>Laster tilgang...</p>
           </div>
@@ -359,7 +380,10 @@ export default function NewCabinPage() {
   if (!(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN)) {
     return (
       <main className={styles.reservePageShell}>
-        <section className={styles.reserveContentSection} style={{ marginTop: 0 }}>
+        <section
+          className={styles.reserveContentSection}
+          style={{ marginTop: 0 }}
+        >
           <div style={{ padding: "2rem", maxWidth: "600px", margin: "0 auto" }}>
             <h1>Ingen tilgang</h1>
             <p>Du må være utleier for å opprette hytter.</p>
@@ -387,7 +411,10 @@ export default function NewCabinPage() {
         <div className={styles.reserveHeroContent}>
           <p className={styles.reserveHeroKicker}>Fritt Fram</p>
           <h1 className={styles.reserveHeroTitle}>Legg til ny hytte</h1>
-          <p className={styles.reserveHeroText}>Opprett en ny hytte i samme visuelle uttrykk som resten av applikasjonen.</p>
+          <p className={styles.reserveHeroText}>
+            Opprett en ny hytte i samme visuelle uttrykk som resten av
+            applikasjonen.
+          </p>
         </div>
       </section>
 
@@ -404,9 +431,31 @@ export default function NewCabinPage() {
               <div className={styles.listCard}>
                 <h3 className={styles.listTitle}>{t.tips || "Tips"}</h3>
                 <div className={styles.meta} style={{ marginTop: 10 }}>
-                  <div>• {t.facilityTip || <><b>Fasiliteter</b>: kryss av vanlige valg og legg eventuelt til egne under</>}</div>
-                  <div>• {t.priceTip || <><b>Pris</b> og <b>kapasitet</b> må være tall</>}</div>
-                  <div>• {t.locationTip || <><b>Lokasjon</b> er f.eks: “Hemsedal, Norge”</>}</div>
+                  <div>
+                    •{" "}
+                    {t.facilityTip || (
+                      <>
+                        <b>Fasiliteter</b>: kryss av vanlige valg og legg
+                        eventuelt til egne under
+                      </>
+                    )}
+                  </div>
+                  <div>
+                    •{" "}
+                    {t.priceTip || (
+                      <>
+                        <b>Pris</b> og <b>kapasitet</b> må være tall
+                      </>
+                    )}
+                  </div>
+                  <div>
+                    •{" "}
+                    {t.locationTip || (
+                      <>
+                        <b>Lokasjon</b> er f.eks: “Hemsedal, Norge”
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div style={{ marginTop: 12 }}>
@@ -432,8 +481,8 @@ export default function NewCabinPage() {
                         {status.type === "loading"
                           ? ""
                           : status.type === "success"
-                          ? ""
-                          : ""}
+                            ? ""
+                            : ""}
                         {status.message}
                       </div>
                     ) : null}
@@ -485,14 +534,22 @@ export default function NewCabinPage() {
 
                       <label className={styles.filterField}>
                         <span className={styles.filterLabel}>Type hytte</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
                           <input
                             name="is_staffed"
                             type="checkbox"
                             checked={Boolean(form.is_staffed)}
                             onChange={handleChange}
                           />
-                          <span>{form.is_staffed ? "Betjent" : "Ubetjent"}</span>
+                          <span>
+                            {form.is_staffed ? "Betjent" : "Ubetjent"}
+                          </span>
                         </div>
                       </label>
 
@@ -523,13 +580,17 @@ export default function NewCabinPage() {
                           })}
                         </div>
                         <div className={styles.helper}>
-                          Velg det som passer best. Du kan også legge til egne fasiliteter i feltet under.
+                          Velg det som passer best. Du kan også legge til egne
+                          fasiliteter i feltet under.
                         </div>
                       </div>
 
                       <input
                         name="customAmenities"
-                        placeholder={t.customAmenitiesPlaceholder || "Andre fasiliteter, kommaseparert"}
+                        placeholder={
+                          t.customAmenitiesPlaceholder ||
+                          "Andre fasiliteter, kommaseparert"
+                        }
                         value={form.customAmenities}
                         onChange={handleChange}
                       />
@@ -548,18 +609,29 @@ export default function NewCabinPage() {
                             overflow: "hidden",
                           }}
                         />
-                        <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                        <div
+                          style={{
+                            marginTop: 4,
+                            fontSize: 12,
+                            color: "#6b7280",
+                          }}
+                        >
                           {t.mapHelp}
                         </div>
                         {coords ? (
                           <div style={{ marginTop: 4, fontSize: 12 }}>
-                            {formatTranslation(t.selectedPosition, { lat: coords.lat.toFixed(5), lon: coords.lon.toFixed(5) })}
+                            {formatTranslation(t.selectedPosition, {
+                              lat: coords.lat.toFixed(5),
+                              lon: coords.lon.toFixed(5),
+                            })}
                           </div>
                         ) : null}
                       </div>
 
                       <div className={styles.field}>
-                        <label className={styles.label}>Bilder (valgfritt)</label>
+                        <label className={styles.label}>
+                          Bilder (valgfritt)
+                        </label>
                         <input
                           ref={fileInputRef}
                           className={styles.input}
@@ -569,18 +641,22 @@ export default function NewCabinPage() {
                           onChange={handleImageChange}
                         />
                         <div className={styles.helper}>
-                          Maks 8 bilder. JPG, PNG eller WEBP. Maks 5 MB per bilde.
+                          Maks 8 bilder. JPG, PNG eller WEBP. Maks 5 MB per
+                          bilde.
                         </div>
                         <div className={styles.helper}>
-                          Bildene tilpasses automatisk til 1200x900 (4:3), en vanlig standard
-                          for kort- og bookingvisning.
+                          Bildene tilpasses automatisk til 1200x900 (4:3), en
+                          vanlig standard for kort- og bookingvisning.
                         </div>
                         {isProcessingImages ? (
-                          <div className={styles.helper}>Tilpasser bilder...</div>
+                          <div className={styles.helper}>
+                            Tilpasser bilder...
+                          </div>
                         ) : null}
                         {imageFiles.length > 0 ? (
                           <div className={styles.helper}>
-                            Valgt: {imageFiles.length} bilde{imageFiles.length > 1 ? "r" : ""}
+                            Valgt: {imageFiles.length} bilde
+                            {imageFiles.length > 1 ? "r" : ""}
                           </div>
                         ) : null}
                       </div>
@@ -588,7 +664,9 @@ export default function NewCabinPage() {
                       <button
                         className={styles.button}
                         type="submit"
-                        disabled={status.type === "loading" || isProcessingImages}
+                        disabled={
+                          status.type === "loading" || isProcessingImages
+                        }
                       >
                         {status.type === "loading" ? t.saving : t.saveCabin}
                       </button>

@@ -68,6 +68,11 @@ body {
   transition: background 0.25s ease, color 0.25s ease;
 }
 
+/* Den røde banneren som vises øverst på alle sider.
+   position: fixed gjør at den henger fast øverst selv når man scroller.
+   z-index: 1100 sørger for at den ligger over alt annet innhold på siden.
+   display: flex lar oss plassere tekst og knapp side om side på samme linje.
+   gap: 1rem setter luft mellom teksten og knappen (1rem = 16px som standard). */
 .school-project-banner {
   width: 100%;
   position: fixed;
@@ -79,12 +84,48 @@ body {
   color: black;
   height: 40px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 0.5rem;
+  align-items: center;    /* sentrerer innholdet vertikalt i de 40px høye */
+  justify-content: center; /* sentrerer innholdet horisontalt */
+  gap: 1rem;              /* luft mellom tekst og knapp */
+  padding: 0 1rem;
   font-weight: 700;
   font-size: 0.9rem;
-  box-sizing: border-box;
+  box-sizing: border-box; /* padding trekkes fra bredden i stedet for å legges til */
+}
+
+/* Styling for selve reset-knappen.
+   Den er bevisst enkel og kontrastfull (svart på rødt) for å synes godt. */
+.reset-test-data-btn {
+  background: black;
+  color: white;
+  border: none;           /* fjern nettleserens standard kantlinje på knapper */
+  border-radius: 4px;     /* avrundede hjørner */
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;        /* vis håndpeker når man holder musepekeren over */
+  white-space: nowrap;    /* hindre at knappteksten brytes over flere linjer */
+}
+
+/* Hover-effekt: litt lysere svart når man holder musepekeren over.
+   :not(:disabled) betyr: gjelder IKKE når knappen er deaktivert.
+   Slik unngår vi at "loading"-knappen ser ut som den reagerer på hover. */
+.reset-test-data-btn:hover:not(:disabled) {
+  background: #333;
+}
+
+/* Når knappen er disabled (loading=true): gjør den halvgjennomsiktig
+   og vis en "forbudt"-peker for å signalisere at den ikke kan trykkes. */
+.reset-test-data-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Tilbakemeldingsteksten ("Testdata tilbakestilt!" / feilmelding).
+   font-weight: normal overskriver den fete skriften fra banneret. */
+.reset-test-data-msg {
+  font-weight: normal;
+  font-size: 0.85rem;
 }
 
 /* Boksene på hovedsiden */
