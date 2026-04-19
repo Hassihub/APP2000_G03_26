@@ -1031,9 +1031,6 @@ export default function NewTripRoutePage() {
             {isTiuMode ? (
               <>
                 <h2>TiU-oppsummering</h2>
-                <p className={styles.ownerNote}>
-                  TiU-turer lagres i <strong>public.tiu_trips</strong> med status <strong>draft</strong> til en admin godkjenner dem.
-                </p>
                 <div className={`${styles.status} ${styles.warn}`}>
                   Ruten blir synlig i explore, men kan ikke brukes til interessemelding før godkjenning.
                 </div>

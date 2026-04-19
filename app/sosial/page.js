@@ -8,8 +8,6 @@ import LikerKnappAv from "./post_buttons/LikerKnappAv.png"
 import LikerKnappPaa from "./post_buttons/LikerKnappPaa.png"
 import "./sosial.css"
 
-
-
 export default function SosialPage() {
   const [posts, setPosts] = useState([])
   const [caption, setCaption] = useState("")
@@ -127,7 +125,14 @@ async function submitComment(postid) {
           <div key={p.postid} id={`post-${p.postid}`} className="post">
             <p>{p.caption}</p>
               {p.image && (
-              <img src={p.image} style={{ width: "300px" }} />
+              <Image
+                src={p.image}
+                alt={p.caption ? `Bilde til innlegg: ${p.caption.slice(0, 40)}` : "Innleggsbilde"}
+                width={300}
+                height={300}
+                unoptimized
+                style={{ width: "300px", height: "auto" }}
+              />
                )}
                <div className="post-header">
             <small>
