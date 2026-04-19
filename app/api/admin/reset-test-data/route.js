@@ -311,17 +311,25 @@ export async function POST() {
     // .catch(() => {}) betyr: ignorer feil hvis tabellen ikke finnes enda
     // (noen tabeller opprettes først når de brukes for første gang).
 
-    await db.query(`DELETE FROM public.post_comments`).catch(() => {}); // kommentarer på innlegg
-    await db.query(`DELETE FROM public.post_liked`).catch(() => {}); // likes på innlegg
-    await db.query(`DELETE FROM public.posts`).catch(() => {}); // innlegg i sosial-feeden
-    await db.query(`DELETE FROM public.user_follows`).catch(() => {}); // følger-relasjoner
-    await db.query(`DELETE FROM public.reservations`).catch(() => {}); // hyttebooker
-    await db.query(`DELETE FROM public.cabin_images`).catch(() => {}); // hyttebilder
-    await db.query(`DELETE FROM public.cabins`).catch(() => {}); // hytter
-    await db.query(`DELETE FROM public.tiu_trips`).catch(() => {}); // TiU-tilknytning for turer
-    await db.query(`DELETE FROM public.trips`).catch(() => {}); // turer
-    await db.query(`DELETE FROM public."session"`).catch(() => {}); // innloggingssesjoner
-    await db.query(`DELETE FROM public.users`).catch(() => {}); // brukere (sist, andre tabeller peker hit)
+    await db.query(`DELETE FROM public.post_comments`).catch(() => {});          // kommentarer på innlegg
+    await db.query(`DELETE FROM public.post_liked`).catch(() => {});             // likes på innlegg
+    await db.query(`DELETE FROM public.posts`).catch(() => {});                  // innlegg i sosial-feeden
+    await db.query(`DELETE FROM public.user_follows`).catch(() => {});           // følger-relasjoner
+    await db.query(`DELETE FROM public.messages`).catch(() => {});               // meldinger mellom brukere
+    await db.query(`DELETE FROM public.trip_registrations`).catch(() => {});     // påmeldinger til avreiser
+    await db.query(`DELETE FROM public.trip_departures`).catch(() => {});        // planlagte avreiser
+    await db.query(`DELETE FROM public.trip_date_options`).catch(() => {});      // datoalternativer for fleksible turer
+    await db.query(`DELETE FROM public.trip_interest`).catch(() => {});          // interessemeldinger på turer
+    await db.query(`DELETE FROM public.route_verification_cabins`).catch(() => {}); // koblingstabell rute↔hytte
+    await db.query(`DELETE FROM public.routes_to_verification`).catch(() => {}); // ruter som venter på godkjenning
+    await db.query(`DELETE FROM public.reservations`).catch(() => {});           // hyttebooker
+    await db.query(`DELETE FROM public.cabin_images`).catch(() => {});           // hyttebilder
+    await db.query(`DELETE FROM public.cabins`).catch(() => {});                 // hytter
+    await db.query(`DELETE FROM public.tiu_trips`).catch(() => {});              // TiU-tilknytning for turer
+    await db.query(`DELETE FROM public.trips`).catch(() => {});                  // turer
+    await db.query(`DELETE FROM public.ads`).catch(() => {});                    // annonser
+    await db.query(`DELETE FROM public."session"`).catch(() => {});              // innloggingssesjoner
+    await db.query(`DELETE FROM public.users`).catch(() => {});                  // brukere (sist, andre tabeller peker hit)
 
     // ── Steg 2: Opprett forhåndsinnstilte brukere ───────────────────────────
     // Vi lagrer id-ene etter innsetting slik at vi kan koble hytter til eier.
