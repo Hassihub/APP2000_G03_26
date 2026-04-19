@@ -181,6 +181,9 @@ export default function NewCabinPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Vent til authLoading er ferdig – map-div-en finnes ikke i DOM før da
+    if (authLoading) return;
+
     if (!Leaflet) {
       import("leaflet").then((L) => {
         import("leaflet/dist/leaflet.css");
@@ -242,7 +245,7 @@ export default function NewCabinPage() {
       mapRef.current = null;
       markerRef.current = null;
     };
-  }, [Leaflet]);
+  }, [Leaflet, authLoading]);
 
   async function handleImageChange(e) {
     const files = Array.from(e.target.files || []).slice(0, 8);
