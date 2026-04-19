@@ -164,16 +164,21 @@ export async function GET(_req, { params }) {
     if (!id) return badRequest("Mangler id");
 
     const sqlWithStaffed = `
-      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.created_at, c.owner_id, u.username AS owner_name, COALESCE(c.is_staffed, false) AS is_staffed
+      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, c.created_at, c.owner_id, u.username AS owner_name, COALESCE(c.is_staffed, false) AS is_staffed
       FROM public.cabins c
       LEFT JOIN public.users u ON u.id::text = c.owner_id::text
       WHERE c.id = $1
       LIMIT 1
     `;
     const sqlWithoutStaffed = `
-      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.created_at, c.owner_id, u.username AS owner_name
+      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities,
+             NULL::double precision AS latitude,
+             NULL::double precision AS longitude,
+             c.created_at,
+             NULL::text AS owner_id,
+             NULL::text AS owner_name,
+             false AS is_staffed
       FROM public.cabins c
-      LEFT JOIN public.users u ON u.id::text = c.owner_id::text
       WHERE c.id = $1
       LIMIT 1
     `;
@@ -182,12 +187,18 @@ export async function GET(_req, { params }) {
     try {
       result = await db.query(sqlWithStaffed, [id]);
     } catch (err) {
-      if (!isMissingColumn(err, "is_staffed")) throw err;
+      const fallbackAllowed =
+        err?.code === "42703" ||
+        err?.code === "42P01" ||
+        err?.message?.includes("owner_id") ||
+        err?.message?.includes("latitude") ||
+        err?.message?.includes("longitude") ||
+        err?.message?.includes("public.users") ||
+        isMissingColumn(err, "is_staffed");
+
+      if (!fallbackAllowed) throw err;
       const fallback = await db.query(sqlWithoutStaffed, [id]);
-      result = {
-        ...fallback,
-        rows: fallback.rows.map((cabin) => ({ ...cabin, is_staffed: false })),
-      };
+      result = fallback;
     }
 
     if (result.rowCount === 0) {

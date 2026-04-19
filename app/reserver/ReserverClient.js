@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatTranslation, useTranslations } from "../components/LanguageProvider";
+import CabinWeather from "./CabinWeather";
 
 export default function CabinsPage() {
   const searchParams = useSearchParams();
@@ -193,6 +194,15 @@ export default function CabinsPage() {
                   <span style={{ fontSize: "0.9rem", color: "var(--text)", lineHeight: 1.6 }}>{value}</span>
                 </div>
               ))}
+              {/* Vær */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: "1rem", padding: "0.9rem 1.75rem", borderBottom: "1px solid var(--border)" }}>
+                <span style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", paddingTop: "0.1rem" }}>Vær nå</span>
+                <CabinWeather
+                  location={selectedCabin.location}
+                  lat={selectedCabin.latitude}
+                  lon={selectedCabin.longitude}
+                />
+              </div>
             </div>
 
             {/* Amenities */}

@@ -6,42 +6,10 @@ import { useEffect, useRef, useState } from "react";
 import styles from "../Reserver.module.css";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
 import { formatTranslation, useTranslations } from "../../components/LanguageProvider";
+import { COMMON_AMENITIES } from "../amenities";
 
 const STANDARD_IMAGE_WIDTH = 1200;
 const STANDARD_IMAGE_HEIGHT = 900;
-
-const COMMON_AMENITIES = [
-  "WiFi",
-  "Parkering",
-  "Kjøkken",
-  "Oppvaskmaskin",
-  "Kjøleskap",
-  "Fryser",
-  "Stekeovn",
-  "Mikrobølgeovn",
-  "Kaffemaskin",
-  "Vannkoker",
-  "Peis",
-  "Badstue",
-  "Badehus",
-  "Boblebad",
-  "TV",
-  "Kabel-TV",
-  "Vaskemaskin",
-  "Tørketrommel",
-  "Ski-in/ski-out",
-  "Skotørker",
-  "Sengetøy",
-  "Håndklær",
-  "Grill",
-  "Balkong",
-  "Terrasse",
-  "Uteplass",
-  "Barnevennlig",
-  "Kjæledyr tillatt",
-  "Røyking forbudt",
-  "Tilgjengelig for rullestol",
-];
 
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
@@ -180,6 +148,8 @@ export default function NewCabinPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (authLoading) return;
+    if (!(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN)) return;
 
     if (!Leaflet) {
       import("leaflet").then((L) => {
@@ -191,8 +161,11 @@ export default function NewCabinPage() {
 
     if (mapRef.current) return;
 
+    const mapContainer = document.getElementById("new-cabin-map");
+    if (!mapContainer) return;
+
     const L = Leaflet;
-    const map = L.map("new-cabin-map", {
+    const map = L.map(mapContainer, {
       center: [63.2, 15],
       zoom: 5,
       minZoom: 4,
@@ -242,7 +215,7 @@ export default function NewCabinPage() {
       mapRef.current = null;
       markerRef.current = null;
     };
-  }, [Leaflet]);
+  }, [Leaflet, authLoading, userRole]);
 
   async function handleImageChange(e) {
     const files = Array.from(e.target.files || []).slice(0, 8);

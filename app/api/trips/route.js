@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import pool from "../../../lib/db";
+import { requireAuth, requireRole } from "../../../lib/auth";
+import { ROLE_ADMIN, ROLE_TURLEDER } from "../../../lib/roles";
 
 export async function GET(request) {
   try {
@@ -21,9 +23,37 @@ export async function GET(request) {
         t.bilde_url,
         t.geometry,
         tt.id AS tiu_trip_id,
-        tt.turleder_navn
+        tt.turleder_navn,
+        tt.is_flexible,
+        tt.planning_status,
+        (
+          SELECT COUNT(*)::int
+          FROM public.trip_date_options tdo
+          WHERE tdo.trip_id = t.id
+        ) AS date_options_count,
+        d.id AS departure_id,
+        d.status AS departure_status,
+        d.start_time AS departure_start_time,
+        d.end_time AS departure_end_time,
+        d.min_participants,
+        d.max_participants
       FROM public.trips t
-      LEFT JOIN public.tiu_trips tt ON tt.trip_id = t.id
+      LEFT JOIN public.tiu_trips tt
+        ON tt.trip_id = t.id
+      LEFT JOIN LATERAL (
+        SELECT
+          td.id,
+          td.status,
+          td.start_time,
+          td.end_time,
+          td.min_participants,
+          td.max_participants
+        FROM public.trip_departures td
+        WHERE td.trip_id = t.id
+          AND td.status <> 'cancelled'
+        ORDER BY td.start_time ASC
+        LIMIT 1
+      ) d ON true
       WHERE t.navn ILIKE $1
     `;
 
@@ -68,11 +98,25 @@ export async function POST(request) {
     const type = (body.type || "").trim();
     const vanskelighetsgrad = (body.vanskelighetsgrad || "").trim();
     const bilde_url = body.bilde_url?.trim() || null;
-
     const geometry = body.geometry ?? null;
 
     const isTiu = body.isTiu === true;
     const turleder_navn = body.turleder_navn?.trim() || null;
+
+    const isFlexible = body.isFlexible === true;
+    const dateOptions = Array.isArray(body.dateOptions) ? body.dateOptions : [];
+
+    if (isTiu) {
+      const { user, response } = await requireAuth();
+      if (response) {
+        return response;
+      }
+
+      const roleError = requireRole(user, [ROLE_ADMIN, ROLE_TURLEDER]);
+      if (roleError) {
+        return roleError;
+      }
+    }
 
     if (!navn) {
       return NextResponse.json({ error: "Navn er påkrevd" }, { status: 400 });
@@ -120,6 +164,55 @@ export async function POST(request) {
       );
     }
 
+    if (isFlexible && !isTiu) {
+      return NextResponse.json(
+        { error: "Fleksibel fellestur må være en TiU-tur" },
+        { status: 400 }
+      );
+    }
+
+    if (isTiu && !isFlexible) {
+      return NextResponse.json(
+        { error: "TiU-turer må ha fleksible startdatoer" },
+        { status: 400 }
+      );
+    }
+
+    if (isTiu && (dateOptions.length < 3 || dateOptions.length > 5)) {
+      return NextResponse.json(
+        { error: "Fleksibel fellestur må ha 3–5 datoalternativer" },
+        { status: 400 }
+      );
+    }
+
+    if (isTiu) {
+      for (const option of dateOptions) {
+        const start = option?.start_time;
+        const end = option?.end_time;
+
+        if (!start || !end) {
+          return NextResponse.json(
+            { error: "Alle datoalternativer må ha start- og sluttid" },
+            { status: 400 }
+          );
+        }
+
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+
+        if (
+          Number.isNaN(startDate.getTime()) ||
+          Number.isNaN(endDate.getTime()) ||
+          endDate <= startDate
+        ) {
+          return NextResponse.json(
+            { error: "Ugyldige datoalternativer" },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     await client.query("BEGIN");
 
     const insertTripQuery = `
@@ -161,20 +254,43 @@ export async function POST(request) {
     const trip = tripResult.rows[0];
 
     if (isTiu) {
+      const planningStatus = "draft";
+
       const tiuResult = await client.query(
         `
-        INSERT INTO public.tiu_trips (trip_id, turleder_navn)
-        VALUES ($1, $2)
-        RETURNING id, turleder_navn
+        INSERT INTO public.tiu_trips (
+          trip_id,
+          turleder_navn,
+          is_flexible,
+          planning_status
+        )
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, turleder_navn, is_flexible, planning_status
         `,
-        [trip.id, turleder_navn]
+        [trip.id, turleder_navn, isFlexible, planningStatus]
       );
 
       trip.tiu_trip_id = tiuResult.rows[0].id;
       trip.turleder_navn = tiuResult.rows[0].turleder_navn;
+      trip.is_flexible = tiuResult.rows[0].is_flexible;
+      trip.planning_status = tiuResult.rows[0].planning_status;
     } else {
       trip.tiu_trip_id = null;
       trip.turleder_navn = null;
+      trip.is_flexible = false;
+      trip.planning_status = null;
+    }
+
+    if (isTiu) {
+      for (const option of dateOptions) {
+        await client.query(
+          `
+          INSERT INTO public.trip_date_options (trip_id, start_time, end_time)
+          VALUES ($1, $2, $3)
+          `,
+          [trip.id, option.start_time, option.end_time]
+        );
+      }
     }
 
     await client.query("COMMIT");
