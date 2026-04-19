@@ -335,9 +335,14 @@ export default function MapComponent() {
         }
 
         const trips = Array.isArray(json) ? json : [];
-        if (!trips.length) return;
+        const approvedTrips = trips.filter((trip) => {
+          // TiU-turer vises kun etter godkjenning (interest_open).
+          if (!trip?.tiu_trip_id) return true;
+          return trip?.planning_status === "interest_open";
+        });
+        if (!approvedTrips.length) return;
 
-        const features = trips
+        const features = approvedTrips
           .filter((trip) =>
             trip && trip.geometry && typeof trip.geometry === "object"
           )
@@ -915,31 +920,294 @@ export default function MapComponent() {
             </div>
           ) : (
             <>
-              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <button onClick={locateUser} style={{ flex: 1 }}>
-                  Min posisjon
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <button
+                  onClick={() => {
+                    const next = !hytterOpen;
+                    setHytterOpen(next);
+                    setShowCabins(next);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "0.45rem 0.85rem",
+                    borderRadius: 9999,
+                    border: hytterOpen ? "2px solid #2563eb" : "1px solid #d4d4d4",
+                    backgroundColor: hytterOpen ? "#dbeafe" : "#ffffff",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Hytter
                 </button>
-                <button onClick={toggleLiveUserTracking} style={{ flex: 1 }}>
-                  {isTrackingUserLocation ? "Stopp live-sporing" : "Start live-sporing"}
+
+                <button
+                  onClick={() => {
+                    const next = !turforslagOpen;
+                    setTurforslagOpen(next);
+                    setShowTrips(next);
+                    if (!next) setSelectedTrip(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "0.45rem 0.85rem",
+                    borderRadius: 9999,
+                    border: turforslagOpen ? "2px solid #16a34a" : "1px solid #d4d4d4",
+                    backgroundColor: turforslagOpen ? "#dcfce7" : "#ffffff",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Turforslag
                 </button>
               </div>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 12,
-                  fontSize: 13,
-                  color: "#374151",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={autoFollowUserLocation}
-                  onChange={(e) => setAutoFollowUserLocation(e.target.checked)}
-                />
-                Følg meg automatisk når live-sporing er aktiv
-              </label>
+
+              {hytterOpen && (
+                <div
+                  style={{
+                    backgroundColor: "#ffffff",
+                    borderRadius: 8,
+                    border: "1px solid #dbeafe",
+                    padding: "0.6rem 0.8rem",
+                    marginBottom: 10,
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                    Filtrer hytter
+                  </div>
+                  <div style={{ fontSize: 12, marginBottom: 4 }}>
+                    Velg kriterier for tilgjengelighet, type, pris og fasiliteter.
+                  </div>
+                  <label style={{ display: "block", marginBottom: 4 }}>
+                    <span style={{ display: "block", fontSize: 12 }}>
+                      Søk i navn/sted
+                    </span>
+                    <input
+                      type="text"
+                      value={cabinSearchFilter}
+                      onChange={(e) => setCabinSearchFilter(e.target.value)}
+                      placeholder="F.eks. Rondane"
+                      style={{ width: "100%" }}
+                    />
+                  </label>
+
+                  <div style={{ marginBottom: 4 }}>
+                    <span style={{ display: "block", fontSize: 12, marginBottom: 2 }}>
+                      Betjening
+                    </span>
+                    <select
+                      value={cabinStaffedFilter}
+                      onChange={(e) => setCabinStaffedFilter(e.target.value)}
+                      style={{ width: "100%" }}
+                    >
+                      <option value="alle">Alle</option>
+                      <option value="betjent">Kun betjente</option>
+                      <option value="ubetjent">Kun ubetjente</option>
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: 4 }}>
+                    <span style={{ display: "block", fontSize: 12, marginBottom: 2 }}>
+                      Prisnivå per natt
+                    </span>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input
+                        type="number"
+                        min="0"
+                        value={cabinMinPriceFilter}
+                        onChange={(e) => setCabinMinPriceFilter(e.target.value)}
+                        placeholder="Min"
+                        style={{ width: "100%" }}
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        value={cabinMaxPriceFilter}
+                        onChange={(e) => setCabinMaxPriceFilter(e.target.value)}
+                        placeholder="Maks"
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+                  </div>
+
+                  <label style={{ display: "block", marginBottom: 4 }}>
+                    <span style={{ display: "block", fontSize: 12 }}>Fra dato</span>
+                    <input
+                      type="date"
+                      value={filterStartDate}
+                      onChange={(e) => setFilterStartDate(e.target.value)}
+                      style={{ width: "100%" }}
+                    />
+                  </label>
+                  <label style={{ display: "block", marginBottom: 4 }}>
+                    <span style={{ display: "block", fontSize: 12 }}>Til dato</span>
+                    <input
+                      type="date"
+                      value={filterEndDate}
+                      onChange={(e) => setFilterEndDate(e.target.value)}
+                      style={{ width: "100%" }}
+                    />
+                  </label>
+
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{ display: "block", fontSize: 12, marginBottom: 4 }}>
+                      Fasiliteter
+                    </span>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 4,
+                        maxHeight: 140,
+                        overflowY: "auto",
+                      }}
+                    >
+                      {COMMON_AMENITIES.map((amenity) => {
+                        const isChecked = cabinAmenitiesFilter.includes(amenity);
+                        return (
+                          <label
+                            key={amenity}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              fontSize: 12,
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                setCabinAmenitiesFilter((prev) => {
+                                  if (e.target.checked) return [...prev, amenity];
+                                  return prev.filter((item) => item !== amenity);
+                                });
+                              }}
+                            />
+                            <span>{amenity}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCabinSearchFilter("");
+                      setCabinStaffedFilter("alle");
+                      setCabinMinPriceFilter("");
+                      setCabinMaxPriceFilter("");
+                      setCabinAmenitiesFilter([]);
+                      setFilterStartDate("");
+                      setFilterEndDate("");
+                    }}
+                    style={{
+                      width: "100%",
+                      marginTop: 4,
+                      marginBottom: 4,
+                      padding: "0.35rem 0.55rem",
+                      borderRadius: 6,
+                      border: "1px solid #d1d5db",
+                      backgroundColor: "#f9fafb",
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Nullstill filter
+                  </button>
+                  <div style={{ fontSize: 11, color: "#555" }}>
+                    Hvis datoer er tomme vises både ledige og reserverte hytter.
+                  </div>
+                </div>
+              )}
+
+              {turforslagOpen && (
+                <div
+                  style={{
+                    backgroundColor: "#ffffff",
+                    borderRadius: 8,
+                    border: "1px solid #dcfce7",
+                    padding: "0.6rem 0.8rem",
+                    marginBottom: 10,
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                    Filtrer turforslag
+                  </div>
+                  <div style={{ marginTop: 2, fontSize: 13 }}>Aktivitet</div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      flexWrap: "wrap",
+                      marginTop: 4,
+                      marginBottom: 6,
+                    }}
+                  >
+                    {[
+                      { id: "alle", label: "Alle" },
+                      { id: "fottur", label: "Fottur" },
+                      { id: "skitur", label: "Skitur" },
+                      { id: "sykkel", label: "Sykkeltur" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => setTripTypeFilter(opt.id)}
+                        style={{
+                          flex: "0 0 auto",
+                          padding: "0.2rem 0.5rem",
+                          borderRadius: 9999,
+                          border:
+                            tripTypeFilter === opt.id
+                              ? "2px solid #16a34a"
+                              : "1px solid #d4d4d4",
+                          backgroundColor:
+                            tripTypeFilter === opt.id ? "#bbf7d0" : "#f9fafb",
+                          fontSize: 11,
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div style={{ marginTop: 4 }}>
+                    <div style={{ fontSize: 13 }}>Vanskelighetsgrad</div>
+                    <select
+                      value={tripDifficultyFilter}
+                      onChange={(e) => setTripDifficultyFilter(e.target.value)}
+                      style={{ width: "100%", marginTop: 4, fontSize: 12 }}
+                    >
+                      <option value="alle">Alle</option>
+                      <option value="lett">Lett</option>
+                      <option value="middels">Middels</option>
+                      <option value="krevende">Krevende</option>
+                    </select>
+                  </div>
+
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      marginTop: 8,
+                      fontSize: 13,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={tripOnlyTiu}
+                      onChange={(e) => setTripOnlyTiu(e.target.checked)}
+                    />
+                    <span>Bare TiU-turer</span>
+                  </label>
+                </div>
+              )}
+
               <div style={{ marginTop: 16 }}>
                 <strong>GeoJSON-lag (zoom inn for å se)</strong>
                 <label
@@ -1057,313 +1325,6 @@ export default function MapComponent() {
           position: "relative",
         }}
       >
-        {/* Hytter / Turforslag-knapper ved siden av +- zoom-kontrollen */}
-        <div
-          style={{
-            position: "absolute",
-            top: 10,
-            left: 54, // litt til høyre for Leaflet sin zoom-kontroll
-            zIndex: 800,
-            display: "flex",
-            gap: 8,
-          }}
-        >
-          <div style={{ position: "relative" }}>
-            <button
-              onClick={() => {
-                const next = !hytterOpen;
-                setHytterOpen(next);
-                setShowCabins(next);
-              }}
-              style={{
-                padding: "0.45rem 0.85rem",
-                borderRadius: 9999,
-                border: hytterOpen ? "2px solid #2563eb" : "1px solid #d4d4d4",
-                backgroundColor: hytterOpen ? "#dbeafe" : "#ffffff",
-                fontSize: 14,
-                fontWeight: 600,
-                boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Hytter
-            </button>
-
-            {hytterOpen && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "115%",
-                  left: 0,
-                  backgroundColor: "#ffffff",
-                  borderRadius: 8,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
-                  padding: "0.6rem 0.8rem",
-                  minWidth: 220,
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  Filtrer hytter
-                </div>
-                <div style={{ fontSize: 12, marginBottom: 4 }}>
-                  Velg kriterier for tilgjengelighet, type, pris og fasiliteter.
-                </div>
-                <label style={{ display: "block", marginBottom: 4 }}>
-                  <span style={{ display: "block", fontSize: 12 }}>
-                    Søk i navn/sted
-                  </span>
-                  <input
-                    type="text"
-                    value={cabinSearchFilter}
-                    onChange={(e) => setCabinSearchFilter(e.target.value)}
-                    placeholder="F.eks. Rondane"
-                    style={{ width: "100%" }}
-                  />
-                </label>
-
-                <div style={{ marginBottom: 4 }}>
-                  <span style={{ display: "block", fontSize: 12, marginBottom: 2 }}>
-                    Betjening
-                  </span>
-                  <select
-                    value={cabinStaffedFilter}
-                    onChange={(e) => setCabinStaffedFilter(e.target.value)}
-                    style={{ width: "100%" }}
-                  >
-                    <option value="alle">Alle</option>
-                    <option value="betjent">Kun betjente</option>
-                    <option value="ubetjent">Kun ubetjente</option>
-                  </select>
-                </div>
-
-                <div style={{ marginBottom: 4 }}>
-                  <span style={{ display: "block", fontSize: 12, marginBottom: 2 }}>
-                    Prisnivå per natt
-                  </span>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input
-                      type="number"
-                      min="0"
-                      value={cabinMinPriceFilter}
-                      onChange={(e) => setCabinMinPriceFilter(e.target.value)}
-                      placeholder="Min"
-                      style={{ width: "100%" }}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      value={cabinMaxPriceFilter}
-                      onChange={(e) => setCabinMaxPriceFilter(e.target.value)}
-                      placeholder="Maks"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                </div>
-
-                <label style={{ display: "block", marginBottom: 4 }}>
-                  <span style={{ display: "block", fontSize: 12 }}>Fra dato</span>
-                  <input
-                    type="date"
-                    value={filterStartDate}
-                    onChange={(e) => setFilterStartDate(e.target.value)}
-                    style={{ width: "100%" }}
-                  />
-                </label>
-                <label style={{ display: "block", marginBottom: 4 }}>
-                  <span style={{ display: "block", fontSize: 12 }}>Til dato</span>
-                  <input
-                    type="date"
-                    value={filterEndDate}
-                    onChange={(e) => setFilterEndDate(e.target.value)}
-                    style={{ width: "100%" }}
-                  />
-                </label>
-
-                <div style={{ marginBottom: 6 }}>
-                  <span style={{ display: "block", fontSize: 12, marginBottom: 4 }}>
-                    Fasiliteter
-                  </span>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 4,
-                      maxHeight: 140,
-                      overflowY: "auto",
-                    }}
-                  >
-                    {COMMON_AMENITIES.map((amenity) => {
-                      const isChecked = cabinAmenitiesFilter.includes(amenity);
-                      return (
-                        <label
-                          key={amenity}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            fontSize: 12,
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              setCabinAmenitiesFilter((prev) => {
-                                if (e.target.checked) return [...prev, amenity];
-                                return prev.filter((item) => item !== amenity);
-                              });
-                            }}
-                          />
-                          <span>{amenity}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCabinSearchFilter("");
-                    setCabinStaffedFilter("alle");
-                    setCabinMinPriceFilter("");
-                    setCabinMaxPriceFilter("");
-                    setCabinAmenitiesFilter([]);
-                    setFilterStartDate("");
-                    setFilterEndDate("");
-                  }}
-                  style={{
-                    width: "100%",
-                    marginTop: 4,
-                    marginBottom: 4,
-                    padding: "0.35rem 0.55rem",
-                    borderRadius: 6,
-                    border: "1px solid #d1d5db",
-                    backgroundColor: "#f9fafb",
-                    fontSize: 12,
-                    cursor: "pointer",
-                  }}
-                >
-                  Nullstill filter
-                </button>
-                <div style={{ fontSize: 11, color: "#555" }}>
-                  Hvis datoer er tomme vises både ledige og reserverte hytter.
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={{ position: "relative" }}>
-            <button
-              onClick={() => {
-                const next = !turforslagOpen;
-                setTurforslagOpen(next);
-                setShowTrips(next);
-                if (!next) setSelectedTrip(null);
-              }}
-              style={{
-                padding: "0.45rem 0.85rem",
-                borderRadius: 9999,
-                border: turforslagOpen ? "2px solid #16a34a" : "1px solid #d4d4d4",
-                backgroundColor: turforslagOpen ? "#dcfce7" : "#ffffff",
-                fontSize: 14,
-                fontWeight: 600,
-                boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Turforslag
-            </button>
-
-            {turforslagOpen && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "115%",
-                  left: 0,
-                  backgroundColor: "#ffffff",
-                  borderRadius: 8,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
-                  padding: "0.6rem 0.8rem",
-                  minWidth: 230,
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  Filtrer turforslag
-                </div>
-                <div style={{ marginTop: 2, fontSize: 13 }}>Aktivitet</div>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    flexWrap: "wrap",
-                    marginTop: 4,
-                    marginBottom: 6,
-                  }}
-                >
-                  {[
-                    { id: "alle", label: "Alle" },
-                    { id: "fottur", label: "Fottur" },
-                    { id: "skitur", label: "Skitur" },
-                    { id: "sykkel", label: "Sykkeltur" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      onClick={() => setTripTypeFilter(opt.id)}
-                      style={{
-                        flex: "0 0 auto",
-                        padding: "0.2rem 0.5rem",
-                        borderRadius: 9999,
-                        border:
-                          tripTypeFilter === opt.id
-                            ? "2px solid #16a34a"
-                            : "1px solid #d4d4d4",
-                        backgroundColor:
-                          tripTypeFilter === opt.id ? "#bbf7d0" : "#f9fafb",
-                        fontSize: 11,
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ marginTop: 4 }}>
-                  <div style={{ fontSize: 13 }}>Vanskelighetsgrad</div>
-                  <select
-                    value={tripDifficultyFilter}
-                    onChange={(e) => setTripDifficultyFilter(e.target.value)}
-                    style={{ width: "100%", marginTop: 4, fontSize: 12 }}
-                  >
-                    <option value="alle">Alle</option>
-                    <option value="lett">Lett</option>
-                    <option value="middels">Middels</option>
-                    <option value="krevende">Krevende</option>
-                  </select>
-                </div>
-
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    marginTop: 8,
-                    fontSize: 13,
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={tripOnlyTiu}
-                    onChange={(e) => setTripOnlyTiu(e.target.checked)}
-                  />
-                  <span>Bare TiU-turer</span>
-                </label>
-              </div>
-            )}
-          </div>
-        </div>
         {/* Flytende pil-knapp ved venstre kant av kartet */}
         <div
           style={{
