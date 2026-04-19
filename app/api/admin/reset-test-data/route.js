@@ -24,12 +24,49 @@ import path from "path";
 // som skal opprettes i databasen ved reset. "role" styrer hva brukeren
 // har tilgang til i applikasjonen (ADMIN, UTLEIER, USER).
 const PRESET_USERS = [
-  { username: "Admin",     email: "admin@usn.no",     password: "hemmelig", role: "ADMIN"   },
-  { username: "Hytteeier", email: "hytteeier@usn.no", password: "hemmelig", role: "UTLEIER" },
-  { username: "Utleier",   email: "utleier@usn.no",   password: "hemmelig", role: "UTLEIER" },
-  { username: "Bruker1",   email: "bruker1@usn.no",   password: "hemmelig", role: "USER"    },
-  { username: "Bruker2",   email: "bruker2@usn.no",   password: "hemmelig", role: "USER"    },
+  {
+    username: "Bruker1",
+    email: "bruker1@usn.no",
+    password: "hemmelig",
+    role: "ADMIN",
+  },
+  {
+    username: "Bruker2",
+    email: "bruker2@usn.no",
+    password: "hemmelig",
+    role: "TURLEDER",
+  },
+  {
+    username: "Bruker3",
+    email: "bruker3@usn.no",
+    password: "hemmelig",
+    role: "UTLEIER",
+  },
+  {
+    username: "Bruker4",
+    email: "bruker4@usn.no",
+    password: "hemmelig",
+    role: "USER",
+  },
+  {
+    username: "Bruker5",
+    email: "bruker5@usn.no",
+    password: "hemmelig",
+    role: "USER",
+  },
+  {
+    username: "Bruker6",
+    email: "bruker6@usn.no",
+    password: "hemmelig",
+    role: "USER",
+  },
 ];
+/* bruker1@usn.no (admin)
+bruker2@usn.no (turleder)
+bruker3@usn.no (hytteeier)
+bruker4@usn.no (bruker)
+bruker5@usn.no (bruker)
+bruker6@usn.no (bruker) */
 
 // ── Forhåndsinnstilte hytter ──────────────────────────────────────────────────
 // 4 fiktive hytter i Bø i Telemark.
@@ -38,7 +75,8 @@ const PRESET_USERS = [
 const PRESET_CABINS = [
   {
     name: "Lifjellhytta",
-    description: "Koselig hytte med utsikt over Lifjell. Perfekt for turer i nærområdet.",
+    description:
+      "Koselig hytte med utsikt over Lifjell. Perfekt for turer i nærområdet.",
     location: "Bø i Telemark",
     price_per_night: 950,
     capacity: 6,
@@ -48,7 +86,8 @@ const PRESET_CABINS = [
   },
   {
     name: "Skogshytta Bø",
-    description: "Rolig hytte midt i skogen, nær Bø Sommarland. Ideell for barnefamilier.",
+    description:
+      "Rolig hytte midt i skogen, nær Bø Sommarland. Ideell for barnefamilier.",
     location: "Bø i Telemark",
     price_per_night: 750,
     capacity: 4,
@@ -58,7 +97,8 @@ const PRESET_CABINS = [
   },
   {
     name: "Dalhytta Gvarv",
-    description: "Moderne hytte i rolig dalstrøk nær Bø. Flott utgangspunkt for fjellturer.",
+    description:
+      "Moderne hytte i rolig dalstrøk nær Bø. Flott utgangspunkt for fjellturer.",
     location: "Bø i Telemark",
     price_per_night: 1100,
     capacity: 8,
@@ -68,7 +108,8 @@ const PRESET_CABINS = [
   },
   {
     name: "Utsiktshytta Notodden",
-    description: "Høytliggende hytte med fantastisk utsikt over Telemarkslandskapet.",
+    description:
+      "Høytliggende hytte med fantastisk utsikt over Telemarkslandskapet.",
     location: "Bø i Telemark",
     price_per_night: 1250,
     capacity: 5,
@@ -114,25 +155,28 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 //   filename – filnavnet, brukes til å bestemme type og vanskelighetsgrad
 // Returnerer: et objekt med feltene som trengs for trips-tabellen
 function parseGpx(content, filename) {
-
   // Regex (regulært uttrykk) for å lete etter tekst-mønstre i en streng.
   // Her leter vi etter <name>...</name> inne i <trk>-blokken.
   // [\s\S]*? betyr: "hvilken som helst tegn (inkl. linjeskift), så kort som mulig"
-  const trkNameMatch = content.match(/<trk[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/);
+  const trkNameMatch = content.match(
+    /<trk[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/,
+  );
 
   // GPX fra UT.no har navn i <metadata><name> i stedet for <trk><name>.
   // Vi prøver begge steder og bruker det første som treffer.
-  const metaNameMatch = content.match(/<metadata[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/);
+  const metaNameMatch = content.match(
+    /<metadata[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/,
+  );
 
   // Velg det første treffet (trkNameMatch har prioritet)
   const nameMatch = trkNameMatch || metaNameMatch;
 
   const rawName = nameMatch
-    // Noen GPX-filer pakker inn tekst i CDATA: <![CDATA[Navn her]]>
-    // .replace() fjerner CDATA-innpakningene og beholder bare teksten.
-    ? nameMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, "$1").trim()
-    // Fallback: bruk filnavnet uten .gpx-ending hvis ingen <name>-tag finnes
-    : path.basename(filename, ".gpx");
+    ? // Noen GPX-filer pakker inn tekst i CDATA: <![CDATA[Navn her]]>
+      // .replace() fjerner CDATA-innpakningene og beholder bare teksten.
+      nameMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, "$1").trim()
+    : // Fallback: bruk filnavnet uten .gpx-ending hvis ingen <name>-tag finnes
+      path.basename(filename, ".gpx");
 
   // Hent beskrivelse fra <desc>-taggen (valgfri i GPX)
   const descMatch = content.match(/<desc[^>]*>([\s\S]*?)<\/desc>/);
@@ -144,7 +188,8 @@ function parseGpx(content, filename) {
   // En GPX-fil kan ha tusenvis av slike punkter.
   // Regex-en fanger lat, lon og innholdet mellom <trkpt> og </trkpt>.
   const coords = [];
-  const trkptRe = /<trkpt\s[^>]*lat="([^"]+)"[^>]*lon="([^"]+)"[^>]*>([\s\S]*?)<\/trkpt>/g;
+  const trkptRe =
+    /<trkpt\s[^>]*lat="([^"]+)"[^>]*lon="([^"]+)"[^>]*>([\s\S]*?)<\/trkpt>/g;
 
   // exec() med /g-flagg finner ett treff av gangen i en løkke.
   // m[1] = lat, m[2] = lon, m[3] = innholdet mellom taggene (inkl. <ele>)
@@ -171,7 +216,12 @@ function parseGpx(content, filename) {
   for (let i = 1; i < coords.length; i++) {
     // coords[i-1] og coords[i] er to nabopunkter.
     // [0] = lon, [1] = lat – vi sender lat, lon til haversineKm (den rekkefølgen).
-    lengde_km += haversineKm(coords[i - 1][1], coords[i - 1][0], coords[i][1], coords[i][0]);
+    lengde_km += haversineKm(
+      coords[i - 1][1],
+      coords[i - 1][0],
+      coords[i][1],
+      coords[i][0],
+    );
   }
 
   // Bestem type tur basert på nøkkelord i filnavnet (små bokstaver).
@@ -180,15 +230,15 @@ function parseGpx(content, filename) {
   const type = lower.includes("ski")
     ? "skitur"
     : lower.includes("sykkel")
-    ? "sykkel"
-    : "fottur"; // standard hvis ingen nøkkelord matcher
+      ? "sykkel"
+      : "fottur"; // standard hvis ingen nøkkelord matcher
 
   // Bestem vanskelighetsgrad på samme måte
   const vanskelighetsgrad = lower.includes("krevende")
     ? "krevende"
     : lower.includes("lett")
-    ? "lett"
-    : "middels"; // standard
+      ? "lett"
+      : "middels"; // standard
 
   return {
     navn: rawName,
@@ -200,7 +250,8 @@ function parseGpx(content, filename) {
     vanskelighetsgrad,
     // Bygg et GeoJSON LineString-objekt – dette er formatet kartet forventer.
     // Vi trenger minst 2 punkter for å danne en linje.
-    geometry: coords.length >= 2 ? { type: "LineString", coordinates: coords } : null,
+    geometry:
+      coords.length >= 2 ? { type: "LineString", coordinates: coords } : null,
   };
 }
 
@@ -215,7 +266,9 @@ async function loadTripsFromGpx() {
   try {
     // fs.readdir() leser alle filnavn i mappen.
     // .filter() beholder bare filer som slutter på .gpx (case-insensitiv).
-    files = (await fs.readdir(gpxDir)).filter((f) => f.toLowerCase().endsWith(".gpx"));
+    files = (await fs.readdir(gpxDir)).filter((f) =>
+      f.toLowerCase().endsWith(".gpx"),
+    );
   } catch {
     // Hvis mappen ikke finnes eller er tom, returner tom array.
     // Dette betyr at reset fungerer fint selv uten GPX-filer.
@@ -242,6 +295,15 @@ async function loadTripsFromGpx() {
 // automatisk når nettleseren sender en POST til /api/admin/reset-test-data.
 export async function POST() {
   try {
+    // Sjekk at innlogget bruker er ADMIN før vi gjør noe som helst.
+    // getCurrentUser() leser sesjons-cookien og slår opp brukeren i databasen.
+    // Hvis brukeren ikke er logget inn eller ikke er ADMIN, avvises forespørselen
+    // med HTTP 403 (Forbidden) – dette gjelder selv om noen kjenner URL-en.
+    const { getCurrentUser } = await import("../../../../lib/auth");
+    const user = await getCurrentUser();
+    if (!user || user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Ingen tilgang" }, { status: 403 });
+    }
 
     // ── Steg 1: Slett alt eksisterende innhold ──────────────────────────────
     // Vi sletter i riktig rekkefølge for å unngå feil med fremmednøkler:
@@ -249,17 +311,17 @@ export async function POST() {
     // .catch(() => {}) betyr: ignorer feil hvis tabellen ikke finnes enda
     // (noen tabeller opprettes først når de brukes for første gang).
 
-    await db.query(`DELETE FROM public.post_comments`).catch(() => {});  // kommentarer på innlegg
-    await db.query(`DELETE FROM public.post_liked`).catch(() => {});     // likes på innlegg
-    await db.query(`DELETE FROM public.posts`).catch(() => {});          // innlegg i sosial-feeden
-    await db.query(`DELETE FROM public.user_follows`).catch(() => {});   // følger-relasjoner
-    await db.query(`DELETE FROM public.reservations`).catch(() => {});   // hyttebooker
-    await db.query(`DELETE FROM public.cabin_images`).catch(() => {});   // hyttebilder
-    await db.query(`DELETE FROM public.cabins`).catch(() => {});         // hytter
-    await db.query(`DELETE FROM public.tiu_trips`).catch(() => {});      // TiU-tilknytning for turer
-    await db.query(`DELETE FROM public.trips`).catch(() => {});          // turer
-    await db.query(`DELETE FROM public."session"`).catch(() => {});      // innloggingssesjoner
-    await db.query(`DELETE FROM public.users`).catch(() => {});          // brukere (sist, andre tabeller peker hit)
+    await db.query(`DELETE FROM public.post_comments`).catch(() => {}); // kommentarer på innlegg
+    await db.query(`DELETE FROM public.post_liked`).catch(() => {}); // likes på innlegg
+    await db.query(`DELETE FROM public.posts`).catch(() => {}); // innlegg i sosial-feeden
+    await db.query(`DELETE FROM public.user_follows`).catch(() => {}); // følger-relasjoner
+    await db.query(`DELETE FROM public.reservations`).catch(() => {}); // hyttebooker
+    await db.query(`DELETE FROM public.cabin_images`).catch(() => {}); // hyttebilder
+    await db.query(`DELETE FROM public.cabins`).catch(() => {}); // hytter
+    await db.query(`DELETE FROM public.tiu_trips`).catch(() => {}); // TiU-tilknytning for turer
+    await db.query(`DELETE FROM public.trips`).catch(() => {}); // turer
+    await db.query(`DELETE FROM public."session"`).catch(() => {}); // innloggingssesjoner
+    await db.query(`DELETE FROM public.users`).catch(() => {}); // brukere (sist, andre tabeller peker hit)
 
     // ── Steg 2: Opprett forhåndsinnstilte brukere ───────────────────────────
     // Vi lagrer id-ene etter innsetting slik at vi kan koble hytter til eier.
@@ -279,7 +341,7 @@ export async function POST() {
         `INSERT INTO public.users (username, email, password, role, created_at)
          VALUES ($1, $2, $3, $4, NOW())
          RETURNING id, username, email, role`,
-        [u.username, u.email, hash, u.role]
+        [u.username, u.email, hash, u.role],
       );
 
       // rows[0] er den første (og eneste) raden som ble returnert
@@ -302,18 +364,40 @@ export async function POST() {
           `INSERT INTO public.cabins
              (name, description, location, price_per_night, capacity, amenities, latitude, longitude, owner_id, created_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
-          [c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, owner?.id ?? null]
+          [
+            c.name,
+            c.description,
+            c.location,
+            c.price_per_night,
+            c.capacity,
+            c.amenities,
+            c.latitude,
+            c.longitude,
+            owner?.id ?? null,
+          ],
         );
       } catch (err) {
         // Feilkode 42703 betyr "ukjent kolonne" i PostgreSQL.
         // owner_id-kolonnen legges til av server.js første gang noen logger inn.
         // Hvis databasen ikke har den enda, faller vi tilbake til insert uten den.
-        if (err?.code === "42703" || err?.message?.includes('column "owner_id"')) {
+        if (
+          err?.code === "42703" ||
+          err?.message?.includes('column "owner_id"')
+        ) {
           await db.query(
             `INSERT INTO public.cabins
                (name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
-            [c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude]
+            [
+              c.name,
+              c.description,
+              c.location,
+              c.price_per_night,
+              c.capacity,
+              c.amenities,
+              c.latitude,
+              c.longitude,
+            ],
           );
         } else {
           // Var det en annen feil, kast den videre slik at den fanges av
@@ -333,7 +417,14 @@ export async function POST() {
       await db.query(
         `INSERT INTO public.trips (navn, beskrivelse, lengde_km, type, vanskelighetsgrad, geometry)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [t.navn, t.beskrivelse, t.lengde_km, t.type, t.vanskelighetsgrad, t.geometry ? JSON.stringify(t.geometry) : null]
+        [
+          t.navn,
+          t.beskrivelse,
+          t.lengde_km,
+          t.type,
+          t.vanskelighetsgrad,
+          t.geometry ? JSON.stringify(t.geometry) : null,
+        ],
       );
     }
 
@@ -344,7 +435,6 @@ export async function POST() {
       success: true,
       message: `Testdata tilbakestilt (${trips.length} tur${trips.length !== 1 ? "er" : ""} lastet inn)`,
     });
-
   } catch (e) {
     // Noe uventet gikk galt. console.error() skriver til server-loggen
     // slik at vi kan se feilen i terminalen der appen kjører.
@@ -353,6 +443,9 @@ export async function POST() {
     // Send feilmeldingen tilbake til nettleseren med HTTP-statuskode 500
     // (500 = "Internal Server Error" – noe gikk galt på serveren).
     // e?.message bruker optional chaining: trygt selv om e er null/undefined.
-    return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message ?? "Ukjent feil" },
+      { status: 500 },
+    );
   }
 }
