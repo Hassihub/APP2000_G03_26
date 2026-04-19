@@ -6,6 +6,8 @@ const LocalStrategy = require("passport-local").Strategy;
 const PgSession = require("connect-pg-simple")(session);
 const bcrypt = require("bcrypt");
 const { Pool } = require("pg");
+const fs = require("fs");
+const path = require("path");
 
 // Optional: load .env in development
 try {
@@ -25,6 +27,37 @@ const handle = appNext.getRequestHandler();
 const port = process.env.PORT || 3000;
 
 const pool = new Pool(getDatabaseConfig());
+const publicDir = path.join(process.cwd(), "public");
+const fallbackImagePath = path.join(publicDir, "images", "fjell.jpg");
+
+function servePublicAssetOrFallback(req, res, next) {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return next();
+  }
+
+  let requestPath = req.path;
+
+  try {
+    requestPath = decodeURIComponent(new URL(req.originalUrl, `http://${req.headers.host || "localhost"}`).pathname);
+  } catch {
+    // Keep the raw path if decoding fails.
+  }
+
+  if (requestPath === "/images/profilbilde.jpg") {
+    return res.sendFile(fallbackImagePath);
+  }
+
+  if (requestPath.startsWith("/uploads/")) {
+    const assetPath = path.join(publicDir, requestPath);
+    if (fs.existsSync(assetPath) && fs.statSync(assetPath).isFile()) {
+      return res.sendFile(assetPath);
+    }
+
+    return res.sendFile(fallbackImagePath);
+  }
+
+  return next();
+}
 
 let userColumnsPromise = null;
 
@@ -367,6 +400,8 @@ appNext.prepare().then(() => {
 
   app.use(passport.initialize());
   app.use(passport.session());
+
+  app.use(servePublicAssetOrFallback);
 
   // Body parsers for selected Express endpoints (not global Next.js routes)
   const jsonParser = express.json();

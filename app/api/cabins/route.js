@@ -105,6 +105,10 @@ export async function GET(req) {
     const start_date = searchParams.get("start_date");
     const end_date = searchParams.get("end_date");
     const search = searchParams.get("search")?.trim() || "";
+    const staffed = searchParams.get("staffed");
+    const minPriceRaw = searchParams.get("min_price");
+    const maxPriceRaw = searchParams.get("max_price");
+    const amenitiesRaw = searchParams.get("amenities")?.trim() || "";
 
     const values = [];
     const conditions = [];
@@ -131,6 +135,36 @@ export async function GET(req) {
         COALESCE(c.description, '') ILIKE $${paramIndex}
       )`);
       values.push(`%${search}%`);
+      paramIndex += 1;
+    }
+
+    if (staffed === "true" || staffed === "false") {
+      conditions.push(`COALESCE(c.is_staffed, false) = $${paramIndex}::boolean`);
+      values.push(staffed === "true");
+      paramIndex += 1;
+    }
+
+    const minPrice = minPriceRaw === null ? null : Number(minPriceRaw);
+    if (Number.isFinite(minPrice) && minPrice >= 0) {
+      conditions.push(`c.price_per_night >= $${paramIndex}`);
+      values.push(minPrice);
+      paramIndex += 1;
+    }
+
+    const maxPrice = maxPriceRaw === null ? null : Number(maxPriceRaw);
+    if (Number.isFinite(maxPrice) && maxPrice >= 0) {
+      conditions.push(`c.price_per_night <= $${paramIndex}`);
+      values.push(maxPrice);
+      paramIndex += 1;
+    }
+
+    const amenities = amenitiesRaw
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (amenities.length > 0) {
+      conditions.push(`COALESCE(c.amenities, ARRAY[]::text[]) @> $${paramIndex}::text[]`);
+      values.push(amenities);
       paramIndex += 1;
     }
 

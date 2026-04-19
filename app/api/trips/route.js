@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import pool from "../../../lib/db";
+import { requireAuth, requireRole } from "../../../lib/auth";
+import { ROLE_ADMIN, ROLE_TURLEDER } from "../../../lib/roles";
 
 export async function GET(request) {
   try {
@@ -104,6 +106,18 @@ export async function POST(request) {
     const isFlexible = body.isFlexible === true;
     const dateOptions = Array.isArray(body.dateOptions) ? body.dateOptions : [];
 
+    if (isTiu) {
+      const { user, response } = await requireAuth();
+      if (response) {
+        return response;
+      }
+
+      const roleError = requireRole(user, [ROLE_ADMIN, ROLE_TURLEDER]);
+      if (roleError) {
+        return roleError;
+      }
+    }
+
     if (!navn) {
       return NextResponse.json({ error: "Navn er påkrevd" }, { status: 400 });
     }
@@ -157,14 +171,21 @@ export async function POST(request) {
       );
     }
 
-    if (isFlexible && (dateOptions.length < 3 || dateOptions.length > 5)) {
+    if (isTiu && !isFlexible) {
+      return NextResponse.json(
+        { error: "TiU-turer må ha fleksible startdatoer" },
+        { status: 400 }
+      );
+    }
+
+    if (isTiu && (dateOptions.length < 3 || dateOptions.length > 5)) {
       return NextResponse.json(
         { error: "Fleksibel fellestur må ha 3–5 datoalternativer" },
         { status: 400 }
       );
     }
 
-    if (isFlexible) {
+    if (isTiu) {
       for (const option of dateOptions) {
         const start = option?.start_time;
         const end = option?.end_time;
@@ -233,7 +254,7 @@ export async function POST(request) {
     const trip = tripResult.rows[0];
 
     if (isTiu) {
-      const planningStatus = isFlexible ? "interest_open" : "date_selected";
+      const planningStatus = "draft";
 
       const tiuResult = await client.query(
         `
@@ -260,7 +281,7 @@ export async function POST(request) {
       trip.planning_status = null;
     }
 
-    if (isFlexible) {
+    if (isTiu) {
       for (const option of dateOptions) {
         await client.query(
           `
