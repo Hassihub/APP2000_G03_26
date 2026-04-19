@@ -15,27 +15,80 @@ function getBounds(points) {
   ];
 }
 
+function toLatLngs(geometry) {
+  let value = geometry;
+
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      value = null;
+    }
+  }
+
+  const coords = value?.coordinates;
+  if (!Array.isArray(coords) || coords.length < 2) return [];
+
+  return coords
+    .map((point) => {
+      if (!Array.isArray(point) || point.length < 2) return null;
+      const lon = Number(point[0]);
+      const lat = Number(point[1]);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+      return [lat, lon];
+    })
+    .filter(Boolean);
+}
+
+function getFirstMapSelection(routes, trips) {
+  if (Array.isArray(routes) && routes.length > 0) {
+    return { kind: "verification", id: routes[0].id };
+  }
+
+  if (Array.isArray(trips) && trips.length > 0) {
+    return { kind: "tiu", id: trips[0].id };
+  }
+
+  return { kind: null, id: null };
+}
+
 export default function AdminTripsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [routeLoading, setRouteLoading] = useState(false);
   const [error, setError] = useState("");
   const [routeError, setRouteError] = useState("");
   const [routeStatusMessage, setRouteStatusMessage] = useState("");
   const [routeActionLoading, setRouteActionLoading] = useState({});
   const [verificationRoutes, setVerificationRoutes] = useState([]);
-  const [selectedRouteId, setSelectedRouteId] = useState(null);
+  const [selectedMapItem, setSelectedMapItem] = useState({ kind: null, id: null });
+  const [tiuTrips, setTiuTrips] = useState([]);
+  const [tiuLoading, setTiuLoading] = useState(false);
+  const [tiuError, setTiuError] = useState("");
+  const [tiuStatusMessage, setTiuStatusMessage] = useState("");
+  const [tiuActionLoading, setTiuActionLoading] = useState({});
 
   const mapRef = useRef(null);
   const routeLayerRef = useRef(null);
 
   const selectedRoute = useMemo(
-    () => verificationRoutes.find((route) => String(route.id) === String(selectedRouteId)) || null,
-    [verificationRoutes, selectedRouteId]
+    () =>
+      selectedMapItem.kind === "verification"
+        ? verificationRoutes.find((route) => String(route.id) === String(selectedMapItem.id)) || null
+        : null,
+    [verificationRoutes, selectedMapItem]
   );
 
+  const selectedTiuTrip = useMemo(
+    () =>
+      selectedMapItem.kind === "tiu"
+        ? tiuTrips.find((trip) => String(trip.id) === String(selectedMapItem.id)) || null
+        : null,
+    [tiuTrips, selectedMapItem]
+  );
+
+  const selectedMapGeometry = selectedRoute?.geometry || selectedTiuTrip?.geometry || null;
+
   async function loadRoutes() {
-    setRouteLoading(true);
     setRouteError("");
 
     try {
@@ -53,18 +106,52 @@ export default function AdminTripsPage() {
       const routesData = await routesRes.json().catch(() => ({}));
       const list = Array.isArray(routesData?.routes) ? routesData.routes : [];
       setVerificationRoutes(list);
-
-      if (list.length > 0) {
-        setSelectedRouteId((prev) => (prev && list.some((r) => String(r.id) === String(prev)) ? prev : list[0].id));
-      } else {
-        setSelectedRouteId(null);
-      }
     } catch (err) {
       setRouteError(err?.message || "Noe gikk galt");
-    } finally {
-      setRouteLoading(false);
     }
   }
+
+  async function loadTiuTrips() {
+    setTiuLoading(true);
+    setTiuError("");
+
+    try {
+      const tiuRes = await fetch("/api/admin/tiu-trips", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      if (!tiuRes.ok) {
+        const json = await tiuRes.json().catch(() => ({}));
+        throw new Error(json?.error || "Kunne ikke hente TiU-turer");
+      }
+
+      const tiuData = await tiuRes.json().catch(() => ({}));
+      const list = Array.isArray(tiuData?.trips) ? tiuData.trips : [];
+      setTiuTrips(list);
+    } catch (err) {
+      setTiuError(err?.message || "Noe gikk galt");
+    } finally {
+      setTiuLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    setSelectedMapItem((prev) => {
+      const selectedRouteExists =
+        prev.kind === "verification" &&
+        verificationRoutes.some((route) => String(route.id) === String(prev.id));
+      const selectedTiuExists =
+        prev.kind === "tiu" && tiuTrips.some((trip) => String(trip.id) === String(prev.id));
+
+      if (selectedRouteExists || selectedTiuExists) {
+        return prev;
+      }
+
+      return getFirstMapSelection(verificationRoutes, tiuTrips);
+    });
+  }, [verificationRoutes, tiuTrips]);
 
   useEffect(() => {
     let alive = true;
@@ -98,7 +185,7 @@ export default function AdminTripsPage() {
           return;
         }
 
-        await loadRoutes();
+        await Promise.all([loadRoutes(), loadTiuTrips()]);
       } catch (err) {
         if (!alive) return;
         setError(err?.message || "Noe gikk galt");
@@ -175,63 +262,46 @@ export default function AdminTripsPage() {
       const L = await import("leaflet");
       routeLayer.clearLayers();
 
-      const boundsPoints = [];
+      const selectedLatLngs = toLatLngs(selectedMapGeometry);
 
-      verificationRoutes.forEach((route) => {
-        const coords = route?.geometry?.coordinates;
-        if (!Array.isArray(coords) || coords.length < 2) return;
+      if (selectedLatLngs.length >= 2) {
+        const color = selectedMapItem.kind === "tiu" ? "#b45309" : "#2563eb";
+        const dashArray = selectedMapItem.kind === "tiu" ? "8 6" : undefined;
 
-        const latLngs = coords
-          .map((point) => {
-            if (!Array.isArray(point) || point.length < 2) return null;
-            const lon = Number(point[0]);
-            const lat = Number(point[1]);
-            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-            return [lat, lon];
-          })
-          .filter(Boolean);
-
-        if (latLngs.length < 2) return;
-
-        boundsPoints.push(...latLngs);
-
-        const isSelected = String(route.id) === String(selectedRouteId);
-        const color = isSelected ? "#2563eb" : "#64748b";
-
-        const polyline = L.polyline(latLngs, {
+        L.polyline(selectedLatLngs, {
           color,
-          weight: isSelected ? 5 : 3,
-          opacity: isSelected ? 0.95 : 0.65,
+          weight: selectedMapItem.kind === "tiu" ? 4 : 5,
+          opacity: selectedMapItem.kind === "tiu" ? 0.85 : 0.95,
+          dashArray,
         }).addTo(routeLayer);
 
-        polyline.bindPopup(`<strong>${route.name || "Tur"}</strong><br/>${route.length_km || 0} km`);
-        polyline.on("click", () => setSelectedRouteId(route.id));
-      });
+        selectedLatLngs.forEach((latLng, index) => {
+          const isStart = index === 0;
+          const isEnd = index === selectedLatLngs.length - 1;
+          const markerColor = isStart ? "#0f766e" : isEnd ? "#b91c1c" : "#475569";
+          const markerLabel = isStart ? "Start" : isEnd ? "Slutt" : `Mellompunkt ${index}`;
 
-      if (selectedRoute?.geometry?.coordinates?.length >= 2) {
-        const selectedLatLngs = selectedRoute.geometry.coordinates
-          .map((point) => {
-            if (!Array.isArray(point) || point.length < 2) return null;
-            const lon = Number(point[0]);
-            const lat = Number(point[1]);
-            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-            return [lat, lon];
+          L.circleMarker(latLng, {
+            radius: isStart || isEnd ? 7 : 5,
+            color: markerColor,
+            fillColor: markerColor,
+            fillOpacity: 0.95,
+            weight: 2,
           })
-          .filter(Boolean);
+            .bindPopup(
+              `<strong>${markerLabel}</strong><br/>${latLng[0].toFixed(5)}, ${latLng[1].toFixed(5)}`
+            )
+            .addTo(routeLayer);
+        });
 
-        if (selectedLatLngs.length >= 2) {
-          map.fitBounds(getBounds(selectedLatLngs), { padding: [24, 24] });
-          return;
-        }
+        map.fitBounds(getBounds(selectedLatLngs), { padding: [24, 24] });
+        return;
       }
 
-      if (boundsPoints.length >= 2) {
-        map.fitBounds(getBounds(boundsPoints), { padding: [24, 24] });
-      }
     }
 
     redrawMap();
-  }, [verificationRoutes, selectedRouteId, selectedRoute]);
+  }, [selectedMapGeometry, selectedMapItem.kind, verificationRoutes, selectedRoute, selectedTiuTrip]);
 
   async function handleRouteDecision(routeId, decision) {
     setRouteError("");
@@ -257,8 +327,8 @@ export default function AdminTripsPage() {
       const remaining = verificationRoutes.filter((route) => String(route.id) !== String(routeId));
       setVerificationRoutes(remaining);
 
-      if (selectedRouteId && String(selectedRouteId) === String(routeId)) {
-        setSelectedRouteId(remaining[0]?.id ?? null);
+        if (selectedMapItem.kind === "verification" && String(selectedMapItem.id) === String(routeId)) {
+          setSelectedMapItem(getFirstMapSelection(remaining, tiuTrips));
       }
 
       setRouteStatusMessage(
@@ -270,6 +340,40 @@ export default function AdminTripsPage() {
       setRouteError(err?.message || "Noe gikk galt ved behandling av rute");
     } finally {
       setRouteActionLoading((prev) => ({ ...prev, [routeId]: false }));
+    }
+  }
+
+  async function handleTiuDecision(tripId, decision) {
+    setTiuError("");
+    setTiuStatusMessage("");
+    setTiuActionLoading((prev) => ({ ...prev, [tripId]: true }));
+
+    try {
+      const res = await fetch("/api/admin/tiu-trips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ tripId, decision }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunne ikke behandle TiU-tur");
+      }
+
+      setTiuTrips((prev) => prev.filter((trip) => String(trip.id) !== String(tripId)));
+      if (selectedMapItem.kind === "tiu" && String(selectedMapItem.id) === String(tripId)) {
+        setSelectedMapItem(getFirstMapSelection(verificationRoutes, tiuTrips.filter((trip) => String(trip.id) !== String(tripId))));
+      }
+      setTiuStatusMessage(
+        decision === "approve"
+          ? "TiU-turen ble godkjent og åpnet for interesse."
+          : "TiU-turen ble avslått og fjernet fra godkjenningskøen."
+      );
+    } catch (err) {
+      setTiuError(err?.message || "Noe gikk galt ved behandling av TiU-tur");
+    } finally {
+      setTiuActionLoading((prev) => ({ ...prev, [tripId]: false }));
     }
   }
 
@@ -314,26 +418,6 @@ export default function AdminTripsPage() {
         </div>
       ) : null}
 
-      <div style={{ marginBottom: "0.75rem" }}>
-        <button
-          type="button"
-          onClick={loadRoutes}
-          disabled={routeLoading}
-          style={{
-            padding: "0.5rem 0.8rem",
-            borderRadius: "8px",
-            border: "1px solid var(--border)",
-            background: "var(--bg-panel)",
-            color: "var(--text)",
-            cursor: routeLoading ? "not-allowed" : "pointer",
-            opacity: routeLoading ? 0.7 : 1,
-            fontWeight: 600,
-          }}
-        >
-          {routeLoading ? "Oppdaterer..." : "Oppdater ruter"}
-        </button>
-      </div>
-
       <div
         id="admin-routes-map"
         style={{
@@ -352,12 +436,12 @@ export default function AdminTripsPage() {
         <div style={{ display: "grid", gap: "0.75rem" }}>
           {verificationRoutes.map((route) => {
             const isBusy = routeActionLoading[route.id] === true;
-            const isSelected = String(route.id) === String(selectedRouteId);
+            const isSelected = selectedMapItem.kind === "verification" && String(route.id) === String(selectedMapItem.id);
 
             return (
               <article
                 key={route.id}
-                onClick={() => setSelectedRouteId(route.id)}
+                onClick={() => setSelectedMapItem({ kind: "verification", id: route.id })}
                 style={{
                   border: isSelected ? "2px solid #2563eb" : "1px solid var(--border)",
                   borderRadius: "10px",
@@ -436,6 +520,123 @@ export default function AdminTripsPage() {
           })}
         </div>
       )}
+
+      <section style={{ marginTop: "2rem" }}>
+        <h2>TiU-turer til godkjenning</h2>
+
+        {tiuError ? (
+          <div className={styles.errorBox} style={{ marginBottom: "0.75rem" }}>
+            ❌ {tiuError}
+          </div>
+        ) : null}
+
+        {tiuStatusMessage ? (
+          <div
+            style={{
+              marginBottom: "0.75rem",
+              padding: "0.6rem 0.8rem",
+              background: "#ecfdf5",
+              border: "1px solid #a7f3d0",
+              borderRadius: "8px",
+              color: "#065f46",
+            }}
+          >
+            {tiuStatusMessage}
+          </div>
+        ) : null}
+
+        {tiuLoading ? (
+          <p>Laster TiU-turer...</p>
+        ) : tiuTrips.length === 0 ? (
+          <p style={{ color: "var(--text-muted)" }}>Ingen TiU-turer venter på godkjenning.</p>
+        ) : (
+          <div style={{ display: "grid", gap: "0.75rem" }}>
+            {tiuTrips.map((trip) => {
+              const isBusy = tiuActionLoading[trip.id] === true;
+              const isSelected = selectedMapItem.kind === "tiu" && String(trip.id) === String(selectedMapItem.id);
+
+              return (
+                <article
+                  key={trip.id}
+                  onClick={() => setSelectedMapItem({ kind: "tiu", id: trip.id })}
+                  style={{
+                    border: isSelected ? "2px solid #b45309" : "1px solid var(--border)",
+                    borderRadius: "10px",
+                    padding: "0.9rem",
+                    background: "var(--bg-panel)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <h3 style={{ margin: "0 0 0.35rem 0" }}>{trip.navn}</h3>
+
+                  <p style={{ margin: "0 0 0.5rem 0", color: "var(--text-muted)" }}>
+                    Turleder: {trip.turleder_navn || "Ukjent"} | Opprettet:{" "}
+                    {trip.tiu_opprettet ? new Date(trip.tiu_opprettet).toLocaleString("no-NO") : "Ukjent"}
+                  </p>
+
+                  <p style={{ margin: "0 0 0.5rem 0" }}>
+                    <strong>Type:</strong> {trip.type} | <strong>Vanskelighet:</strong> {trip.vanskelighetsgrad} |{" "}
+                    <strong>Lengde:</strong> {trip.lengde_km} km
+                  </p>
+
+                  <p style={{ margin: "0 0 0.5rem 0", color: "var(--text-muted)" }}>
+                    {trip.date_options_count || 0} startalternativer
+                  </p>
+
+                  {Array.isArray(trip.date_options) && trip.date_options.length > 0 ? (
+                    <ul style={{ margin: "0 0 0.75rem 1.1rem", padding: 0 }}>
+                      {trip.date_options.map((option) => (
+                        <li key={option.id} style={{ marginBottom: "0.2rem" }}>
+                          {new Date(option.start_time).toLocaleString("no-NO")} –{" "}
+                          {new Date(option.end_time).toLocaleString("no-NO")}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+
+                  <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => handleTiuDecision(trip.id, "approve")}
+                      style={{
+                        padding: "0.5rem 0.8rem",
+                        borderRadius: "8px",
+                        border: "none",
+                        background: "#065f46",
+                        color: "white",
+                        fontWeight: 600,
+                        cursor: isBusy ? "not-allowed" : "pointer",
+                        opacity: isBusy ? 0.7 : 1,
+                      }}
+                    >
+                      {isBusy ? "Behandler..." : "Godkjenn TiU-tur"}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isBusy}
+                      onClick={() => handleTiuDecision(trip.id, "reject")}
+                      style={{
+                        padding: "0.5rem 0.8rem",
+                        borderRadius: "8px",
+                        border: "1px solid #dc2626",
+                        background: "transparent",
+                        color: "#dc2626",
+                        fontWeight: 600,
+                        cursor: isBusy ? "not-allowed" : "pointer",
+                        opacity: isBusy ? 0.7 : 1,
+                      }}
+                    >
+                      Avvis
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./page.module.css";
-import { ROLE_ADMIN, ROLE_UTLEIER } from "../../../lib/roles";
+import { ROLE_ADMIN, ROLE_TURLEDER, ROLE_UTLEIER } from "../../../lib/roles";
 
 const typeOptions = [
   { value: "fottur", label: "Fottur" },
@@ -16,6 +16,20 @@ const difficultyOptions = [
   { value: "middels", label: "Middels" },
   { value: "krevende", label: "Krevende" },
 ];
+
+const TIU_DATE_OPTION_MIN = 3;
+const TIU_DATE_OPTION_MAX = 5;
+
+function createDateOption() {
+  return {
+    start_time: "",
+    end_time: "",
+  };
+}
+
+function createInitialDateOptions() {
+  return Array.from({ length: TIU_DATE_OPTION_MIN }, () => createDateOption());
+}
 
 function toRadians(value) {
   return (value * Math.PI) / 180;
@@ -79,13 +93,17 @@ async function fetchRoutedSegment(startPoint, endPoint, profile) {
 export default function NewTripRoutePage() {
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [creationMode, setCreationMode] = useState("custom");
 
   const [form, setForm] = useState({
     navn: "",
     beskrivelse: "",
     type: "fottur",
     vanskelighetsgrad: "middels",
+    turleder_navn: "",
   });
+
+  const [dateOptions, setDateOptions] = useState(() => createInitialDateOptions());
 
   const [cabins, setCabins] = useState([]);
   const [loadingCabins, setLoadingCabins] = useState(true);
@@ -114,6 +132,12 @@ export default function NewTripRoutePage() {
   const canManageCabins =
     user?.role === ROLE_UTLEIER ||
     user?.role === ROLE_ADMIN;
+
+  const canCreateTiu =
+    user?.role === ROLE_ADMIN ||
+    user?.role === ROLE_TURLEDER;
+
+  const isTiuMode = creationMode === "tiu";
 
   function setRouteModeImmediate(nextMode) {
     routeModeRef.current = nextMode;
@@ -440,6 +464,39 @@ export default function NewTripRoutePage() {
     );
   }
 
+  function handleCreationModeChange(nextMode) {
+    setCreationMode(nextMode);
+    setStatus({ type: "idle", message: "" });
+    setRouteModeMessage("");
+  }
+
+  function updateDateOption(index, field, value) {
+    setDateOptions((prev) =>
+      prev.map((option, optionIndex) =>
+        optionIndex === index ? { ...option, [field]: value } : option
+      )
+    );
+  }
+
+  function addDateOption() {
+    setDateOptions((prev) => {
+      if (prev.length >= TIU_DATE_OPTION_MAX) return prev;
+      return [...prev, createDateOption()];
+    });
+  }
+
+  function removeDateOption(index) {
+    setDateOptions((prev) => {
+      if (prev.length <= TIU_DATE_OPTION_MIN) return prev;
+      return prev.filter((_, optionIndex) => optionIndex !== index);
+    });
+  }
+
+  function resetTiuFields() {
+    setDateOptions(createInitialDateOptions());
+    setForm((prev) => ({ ...prev, turleder_navn: "" }));
+  }
+
   function addCabinPointToRoute(cabin) {
     if (!cabin) return;
 
@@ -570,25 +627,86 @@ export default function NewTripRoutePage() {
       return;
     }
 
+    const isTiu = isTiuMode;
+
+    if (isTiu && !canCreateTiu) {
+      setStatus({
+        type: "error",
+        message: "Kun turleder og admin kan lage TiU-turer.",
+      });
+      return;
+    }
+
+    if (isTiu && !form.turleder_navn.trim()) {
+      setStatus({ type: "error", message: "Du må fylle inn navn på turleder." });
+      return;
+    }
+
+    if (isTiu) {
+      if (dateOptions.length < TIU_DATE_OPTION_MIN || dateOptions.length > TIU_DATE_OPTION_MAX) {
+        setStatus({
+          type: "error",
+          message: `TiU-turer må ha ${TIU_DATE_OPTION_MIN}-${TIU_DATE_OPTION_MAX} startalternativer.`,
+        });
+        return;
+      }
+
+      for (const option of dateOptions) {
+        if (!option.start_time || !option.end_time) {
+          setStatus({
+            type: "error",
+            message: "Alle datoalternativer må ha både start- og sluttid.",
+          });
+          return;
+        }
+
+        if (new Date(option.end_time) <= new Date(option.start_time)) {
+          setStatus({
+            type: "error",
+            message: "Sluttidspunkt må være etter starttidspunkt.",
+          });
+          return;
+        }
+      }
+    }
+
     const geometry = {
       type: "LineString",
       coordinates: routePoints.map((p) => [p.lon, p.lat]),
     };
 
-    const payload = {
-      navn: form.navn.trim(),
-      beskrivelse: form.beskrivelse.trim() || null,
-      lengde_km: Number(routeLengthKm.toFixed(2)),
-      type: form.type,
-      vanskelighetsgrad: form.vanskelighetsgrad,
-      geometry,
-      cabin_ids: selectedCabinIds,
-    };
+    const payload = isTiu
+      ? {
+          navn: form.navn.trim(),
+          beskrivelse: form.beskrivelse.trim() || null,
+          lengde_km: Number(routeLengthKm.toFixed(2)),
+          type: form.type,
+          vanskelighetsgrad: form.vanskelighetsgrad,
+          geometry,
+          isTiu: true,
+          isFlexible: true,
+          turleder_navn: form.turleder_navn.trim(),
+          dateOptions: dateOptions.map((option) => ({
+            start_time: option.start_time,
+            end_time: option.end_time,
+          })),
+        }
+      : {
+          navn: form.navn.trim(),
+          beskrivelse: form.beskrivelse.trim() || null,
+          lengde_km: Number(routeLengthKm.toFixed(2)),
+          type: form.type,
+          vanskelighetsgrad: form.vanskelighetsgrad,
+          geometry,
+          cabin_ids: selectedCabinIds,
+        };
+
+    const endpoint = isTiu ? "/api/trips" : "/api/trips/custom-route";
 
     setSubmitting(true);
 
     try {
-      const res = await fetch("/api/trips/custom-route", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -603,16 +721,26 @@ export default function NewTripRoutePage() {
 
       setStatus({
         type: "success",
-        message: `Turruten ble sendt til verifisering med ID ${data?.verification_route_id}.`,
+        message: isTiu
+          ? `TiU-turen ble sendt til admin for godkjenning med ID ${data?.id}.`
+          : `Turruten ble sendt til verifisering med ID ${data?.verification_route_id}.`,
       });
 
-      setForm((prev) => ({ ...prev, navn: "", beskrivelse: "" }));
+      setForm((prev) => ({
+        ...prev,
+        navn: "",
+        beskrivelse: "",
+        turleder_navn: "",
+      }));
       setSelectedCabinIds([]);
       setAnchorPoints([]);
       setSegmentModes([]);
       setRoutePoints([]);
       setGpxFileName("");
       setRouteModeMessage("");
+      if (isTiu) {
+        resetTiuFields();
+      }
     } catch (error) {
       setStatus({ type: "error", message: error?.message || "Ukjent feil oppstod." });
     } finally {
@@ -653,14 +781,50 @@ export default function NewTripRoutePage() {
       <div className={styles.shell}>
         <section className={styles.hero}>
           <p className={styles.kicker}>Turruteverktøy</p>
-          <h1>Lag din egen turrute med hytter</h1>
+          <h1>Lag en turrute, eller opprett en TiU-tur</h1>
           <p>
-            Klikk i kartet for å tegne ruten din, velg hytter på siden, og lagre turruten når den er klar.
+            Tegn ruten i kartet, velg mellom vanlig turrute og TiU-tur, og legg inn fleksible startdatoer når turen skal godkjennes av admin.
           </p>
         </section>
 
         <form className={styles.grid} onSubmit={handleSubmit}>
           <section className={`${styles.card} ${styles.main}`}>
+            <div className={styles.modeRow}>
+              <span className={styles.modeLabel}>Opprettelsestype</span>
+              <div className={styles.modeButtons}>
+                <button
+                  type="button"
+                  className={creationMode === "custom" ? styles.modeBtnActive : styles.modeBtn}
+                  onClick={() => handleCreationModeChange("custom")}
+                >
+                  Vanlig turrute
+                </button>
+                <button
+                  type="button"
+                  className={creationMode === "tiu" ? styles.modeBtnActive : styles.modeBtn}
+                  onClick={() => {
+                    if (!canCreateTiu) {
+                      setStatus({
+                        type: "error",
+                        message: "Kun turleder og admin kan lage TiU-turer.",
+                      });
+                      return;
+                    }
+
+                    handleCreationModeChange("tiu");
+                  }}
+                >
+                  TiU-tur
+                </button>
+              </div>
+            </div>
+
+            {isTiuMode && !canCreateTiu && (
+              <p className={styles.modeNotice}>
+                Kun turleder og admin kan lage TiU-turer.
+              </p>
+            )}
+
             <div className={styles.fieldGrid}>
               <div className={styles.field}>
                 <label htmlFor="navn">Rutenavn</label>
@@ -701,6 +865,19 @@ export default function NewTripRoutePage() {
                 </select>
               </div>
 
+              {isTiuMode && (
+                <div className={styles.field}>
+                  <label htmlFor="turleder_navn">Turleder</label>
+                  <input
+                    id="turleder_navn"
+                    name="turleder_navn"
+                    value={form.turleder_navn}
+                    onChange={handleFieldChange}
+                    placeholder="Navn på turleder"
+                  />
+                </div>
+              )}
+
               <div className={styles.field}>
                 <label>Estimert lengde</label>
                 <input value={`${routeLengthKm.toFixed(2)} km`} readOnly />
@@ -722,6 +899,68 @@ export default function NewTripRoutePage() {
             <p className={styles.help}>
               Kart: Venstreklikk for å legge til punkt, eller importer en GPX-rute. Du trenger minst to punkter.
             </p>
+
+            {isTiuMode && (
+              <section className={styles.tiuPanel}>
+                <div className={styles.tiuPanelHeader}>
+                  <div>
+                    <h3>Fleksible startdatoer</h3>
+                    <p className={styles.help}>
+                      Legg inn 3-5 alternative starttidspunkt. Admin må godkjenne TiU-turen før den blir åpen.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className={styles.btnAlt}
+                    onClick={addDateOption}
+                    disabled={dateOptions.length >= TIU_DATE_OPTION_MAX}
+                  >
+                    Legg til dato
+                  </button>
+                </div>
+
+                <div className={styles.dateOptionList}>
+                  {dateOptions.map((option, index) => (
+                    <div key={`${index}-${option.start_time}-${option.end_time}`} className={styles.dateOptionRow}>
+                      <div className={styles.dateOptionInputs}>
+                        <div className={styles.field}>
+                          <label htmlFor={`date-option-start-${index}`}>Start</label>
+                          <input
+                            id={`date-option-start-${index}`}
+                            type="datetime-local"
+                            value={option.start_time}
+                            onChange={(event) => updateDateOption(index, "start_time", event.target.value)}
+                          />
+                        </div>
+
+                        <div className={styles.field}>
+                          <label htmlFor={`date-option-end-${index}`}>Slutt</label>
+                          <input
+                            id={`date-option-end-${index}`}
+                            type="datetime-local"
+                            value={option.end_time}
+                            onChange={(event) => updateDateOption(index, "end_time", event.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className={styles.dateOptionActions}>
+                        <span className={styles.ownerNote}>Alternativ {index + 1}</span>
+                        <button
+                          type="button"
+                          className={styles.btnAlt}
+                          onClick={() => removeDateOption(index)}
+                          disabled={dateOptions.length <= TIU_DATE_OPTION_MIN}
+                        >
+                          Fjern
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {isRoutingPath && (
               <p className={styles.help}>Beregner sti/vei mellom punktene...</p>
@@ -789,48 +1028,62 @@ export default function NewTripRoutePage() {
           </section>
 
           <aside className={`${styles.card} ${styles.side}`}>
-            <h2>Velg hytter i ruten</h2>
-
-            {canManageCabins && (
-              <div className={styles.ownerActions}>
-                <Link href="/reserver/ny?next=/turrute/ny" className={styles.btn}>
-                  Legg til egen hytte
-                </Link>
+            {isTiuMode ? (
+              <>
+                <h2>TiU-oppsummering</h2>
                 <p className={styles.ownerNote}>
-                  Etter at hytten er opprettet kan du lage adkomstrute hit fra denne siden.
+                  TiU-turer lagres i <strong>public.tiu_trips</strong> med status <strong>draft</strong> til en admin godkjenner dem.
                 </p>
-              </div>
-            )}
-
-            {loadingCabins ? (
-              <div className={`${styles.status} ${styles.warn}`}>Laster hytter...</div>
-            ) : cabins.length === 0 ? (
-              <div className={`${styles.status} ${styles.warn}`}>Fant ingen hytter.</div>
+                <div className={`${styles.status} ${styles.warn}`}>
+                  Ruten blir synlig i explore, men kan ikke brukes til interessemelding før godkjenning.
+                </div>
+              </>
             ) : (
-              <div className={styles.cabinList}>
-                {cabins.map((cabin) => {
-                  const cabinId = String(cabin.id);
-                  const checked = selectedCabinIds.includes(cabinId);
-                  return (
-                    <label key={cabinId} className={styles.cabinItem}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleCabin(cabinId)}
-                      />
-                      <div className={styles.cabinInfo}>
-                        <span className={styles.cabinName}>{cabin.name || "Uten navn"}</span>
-                        <span className={styles.cabinMeta}>
-                          {cabin.location || "Ukjent sted"}
-                          {Number.isFinite(Number(cabin.price_per_night))
-                            ? ` | ${cabin.price_per_night} kr/natt`
-                            : ""}
-                        </span>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
+              <>
+                <h2>Velg hytter i ruten</h2>
+
+                {canManageCabins && (
+                  <div className={styles.ownerActions}>
+                    <Link href="/reserver/ny?next=/turrute/ny" className={styles.btn}>
+                      Legg til egen hytte
+                    </Link>
+                    <p className={styles.ownerNote}>
+                      Etter at hytten er opprettet kan du lage adkomstrute hit fra denne siden.
+                    </p>
+                  </div>
+                )}
+
+                {loadingCabins ? (
+                  <div className={`${styles.status} ${styles.warn}`}>Laster hytter...</div>
+                ) : cabins.length === 0 ? (
+                  <div className={`${styles.status} ${styles.warn}`}>Fant ingen hytter.</div>
+                ) : (
+                  <div className={styles.cabinList}>
+                    {cabins.map((cabin) => {
+                      const cabinId = String(cabin.id);
+                      const checked = selectedCabinIds.includes(cabinId);
+                      return (
+                        <label key={cabinId} className={styles.cabinItem}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleCabin(cabinId)}
+                          />
+                          <div className={styles.cabinInfo}>
+                            <span className={styles.cabinName}>{cabin.name || "Uten navn"}</span>
+                            <span className={styles.cabinMeta}>
+                              {cabin.location || "Ukjent sted"}
+                              {Number.isFinite(Number(cabin.price_per_night))
+                                ? ` | ${cabin.price_per_night} kr/natt`
+                                : ""}
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </aside>
         </form>

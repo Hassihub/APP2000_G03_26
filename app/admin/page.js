@@ -111,7 +111,7 @@ export default function AdminPage() {
         >
           <h2 style={{ marginTop: 0 }}>Turer</h2>
           <p style={{ marginBottom: 0, color: "var(--text-muted)" }}>
-            Se ruter til verifisering i kart, og godkjenn eller avvis.
+            Se ruter til verifisering i kart, og godkjenn både vanlige ruter og TiU-turer.
           </p>
         </Link>
       </div>

@@ -202,6 +202,60 @@
   color: #7a5206;
 }
 
+.tiuPanel {
+  border: 1px solid #cfe4db;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fbfffd 0%, #f4fbf7 100%);
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.tiuPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.tiuPanelHeader h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.tiuPanelHeader .help {
+  margin: 0;
+}
+
+.dateOptionList {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dateOptionRow {
+  border: 1px solid #d5e6de;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.dateOptionInputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dateOptionActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .actions {
   display: flex;
   gap: 0.6rem;
@@ -320,6 +374,24 @@
 @media (max-width: 720px) {
   .fieldGrid {
     grid-template-columns: 1fr;
+  }
+
+  .dateOptionInputs {
+    grid-template-columns: 1fr;
+  }
+
+  .modeRow,
+  .tiuPanelHeader,
+  .dateOptionActions {
+    align-items: stretch;
+  }
+
+  .modeButtons {
+    width: 100%;
+  }
+
+  .modeButtons > button {
+    flex: 1;
   }
 
   .map {
