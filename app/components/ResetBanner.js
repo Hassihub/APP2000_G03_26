@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export default function ResetBanner() {
   const [loading, setLoading] = useState(false);
@@ -10,17 +11,25 @@ export default function ResetBanner() {
   // Knappen vises bare hvis rollen er ADMIN.
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // usePathname() gir oss den nåværende URL-stien, f.eks. "/", "/login", "/profil".
+  // Hver gang brukeren navigerer til en ny side endrer denne seg.
+  // Vi bruker den som trigger for å re-sjekke hvem som er innlogget,
+  // slik at knappen dukker opp rett etter innlogging og forsvinner etter utlogging.
+  const pathname = usePathname();
+
   useEffect(() => {
-    // Spør serveren hvem som er innlogget
+    // Spør serveren hvem som er innlogget.
+    // cache: "no-store" sørger for at vi aldri får et gammelt cachet svar –
+    // vi vil alltid vite den faktiske innloggingsstatusen akkurat nå.
     fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         // data?.user?.role henter rollen trygt (optional chaining).
-        // Hvis brukeren ikke er logget inn er data null, og setIsAdmin forblir false.
-        if (data?.user?.role === "ADMIN") setIsAdmin(true);
+        // Hvis brukeren ikke er logget inn er data null → setIsAdmin(false).
+        setIsAdmin(data?.user?.role === "ADMIN");
       })
-      .catch(() => {});
-  }, []); // [] betyr: kjør kun én gang når komponenten først vises
+      .catch(() => setIsAdmin(false));
+  }, [pathname]); // kjører på nytt hver gang URL-stien endrer seg
 
   async function handleReset() {
     if (
