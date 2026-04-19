@@ -85,22 +85,26 @@ export async function POST() {
     const owner = insertedUsers.find((u) => u.email === "hytteeier@usn.no");
 
     for (const c of PRESET_CABINS) {
-      await db.query(
-        `INSERT INTO public.cabins
-           (name, description, location, price_per_night, capacity, amenities, latitude, longitude, owner_id, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
-        [
-          c.name,
-          c.description,
-          c.location,
-          c.price_per_night,
-          c.capacity,
-          c.amenities,
-          c.latitude,
-          c.longitude,
-          owner?.id ?? null,
-        ]
-      );
+      try {
+        await db.query(
+          `INSERT INTO public.cabins
+             (name, description, location, price_per_night, capacity, amenities, latitude, longitude, owner_id, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
+          [c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, owner?.id ?? null]
+        );
+      } catch (err) {
+        // Fall back without owner_id if the column doesn't exist yet
+        if (err?.code === "42703" || err?.message?.includes('column "owner_id"')) {
+          await db.query(
+            `INSERT INTO public.cabins
+               (name, description, location, price_per_night, capacity, amenities, latitude, longitude, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+            [c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude]
+          );
+        } else {
+          throw err;
+        }
+      }
     }
 
     return NextResponse.json({ success: true, message: "Testdata tilbakestilt" });
