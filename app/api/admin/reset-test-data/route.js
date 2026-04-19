@@ -70,8 +70,10 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 function parseGpx(content, filename) {
-  // Name: prefer <trk><name>, fall back to filename stem
-  const nameMatch = content.match(/<trk[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/);
+  // Name: prefer <trk><name>, then <metadata><name>, fall back to filename stem
+  const trkNameMatch = content.match(/<trk[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/);
+  const metaNameMatch = content.match(/<metadata[^>]*>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>/);
+  const nameMatch = trkNameMatch || metaNameMatch;
   const rawName = nameMatch
     ? nameMatch[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, "$1").trim()
     : path.basename(filename, ".gpx");
