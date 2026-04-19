@@ -136,6 +136,11 @@ function toBoolean(value, fallback = false) {
   return fallback;
 }
 
+function normalizeEmailInput(value) {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, "").trim().toLowerCase();
+}
+
 function calculateAge(dob) {
   if (!dob) return "";
 
@@ -285,9 +290,10 @@ async function buildProfilePayload(user) {
 }
 
 async function findUserByEmail(email) {
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-    email,
-  ]);
+  const result = await pool.query(
+    "SELECT * FROM users WHERE email = $1",
+    [email]
+  );
   return result.rows[0] || null;
 }
 
@@ -435,7 +441,7 @@ appNext.prepare().then(() => {
     try {
       const existing = await pool.query(
         "SELECT 1 FROM users WHERE email = $1 OR username = $2",
-        [email, username]
+        [email.toLowerCase(), username]
       );
 
       if (existing.rowCount > 0) {
@@ -448,7 +454,7 @@ appNext.prepare().then(() => {
 
       const insertResult = await pool.query(
         "INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *",
-        [username, email, hash, roleValue]
+        [username, email.toLowerCase(), hash, roleValue]
       );
 
       const user = sanitizeUser(insertResult.rows[0]);
@@ -485,12 +491,11 @@ appNext.prepare().then(() => {
   app.post("/api/auth/forgot-password", async (req, res) => {
     const { email, password, confirmPassword } = req.body || {};
 
-    const normalizedEmail = typeof email === "string" ? email.trim() : "";
     const nextPassword = typeof password === "string" ? password : "";
     const confirmedPassword =
       typeof confirmPassword === "string" ? confirmPassword : "";
 
-    if (!normalizedEmail || !nextPassword || !confirmedPassword) {
+    if (!email || !nextPassword || !confirmedPassword) {
       return res.status(400).json({ error: "Alle felt må fylles ut" });
     }
 
@@ -508,10 +513,10 @@ appNext.prepare().then(() => {
       const result = await pool.query(
         `UPDATE users
          SET password = $1
-         WHERE LOWER(email) = LOWER($2)
+         WHERE LOWER(BTRIM(email)) = $2
+         RETURNemail = $2
          RETURNING id`,
-        [await bcrypt.hash(nextPassword, 10), normalizedEmail]
-      );
+        [await bcrypt.hash(nextPassword, 10), email.toLowerCase()
 
       if (result.rowCount === 0) {
         return res.status(404).json({ error: "Fant ingen bruker med denne e-posten" });
