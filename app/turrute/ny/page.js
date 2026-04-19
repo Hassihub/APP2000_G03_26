@@ -690,6 +690,7 @@ export default function NewTripRoutePage() {
             start_time: option.start_time,
             end_time: option.end_time,
           })),
+          cabin_ids: selectedCabinIds,
         }
       : {
           navn: form.navn.trim(),
@@ -1028,59 +1029,57 @@ export default function NewTripRoutePage() {
           </section>
 
           <aside className={`${styles.card} ${styles.side}`}>
-            {isTiuMode ? (
+            {isTiuMode && (
               <>
                 <h2>TiU-oppsummering</h2>
                 <div className={`${styles.status} ${styles.warn}`}>
                   Ruten blir synlig i explore, men kan ikke brukes til interessemelding før godkjenning.
                 </div>
               </>
+            )}
+
+            <h2>Velg hytter i ruten</h2>
+
+            {canManageCabins && (
+              <div className={styles.ownerActions}>
+                <Link href="/reserver/ny?next=/turrute/ny" className={styles.btn}>
+                  Legg til egen hytte
+                </Link>
+                <p className={styles.ownerNote}>
+                  Etter at hytten er opprettet kan du lage adkomstrute hit fra denne siden.
+                </p>
+              </div>
+            )}
+
+            {loadingCabins ? (
+              <div className={`${styles.status} ${styles.warn}`}>Laster hytter...</div>
+            ) : cabins.length === 0 ? (
+              <div className={`${styles.status} ${styles.warn}`}>Fant ingen hytter.</div>
             ) : (
-              <>
-                <h2>Velg hytter i ruten</h2>
-
-                {canManageCabins && (
-                  <div className={styles.ownerActions}>
-                    <Link href="/reserver/ny?next=/turrute/ny" className={styles.btn}>
-                      Legg til egen hytte
-                    </Link>
-                    <p className={styles.ownerNote}>
-                      Etter at hytten er opprettet kan du lage adkomstrute hit fra denne siden.
-                    </p>
-                  </div>
-                )}
-
-                {loadingCabins ? (
-                  <div className={`${styles.status} ${styles.warn}`}>Laster hytter...</div>
-                ) : cabins.length === 0 ? (
-                  <div className={`${styles.status} ${styles.warn}`}>Fant ingen hytter.</div>
-                ) : (
-                  <div className={styles.cabinList}>
-                    {cabins.map((cabin) => {
-                      const cabinId = String(cabin.id);
-                      const checked = selectedCabinIds.includes(cabinId);
-                      return (
-                        <label key={cabinId} className={styles.cabinItem}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleCabin(cabinId)}
-                          />
-                          <div className={styles.cabinInfo}>
-                            <span className={styles.cabinName}>{cabin.name || "Uten navn"}</span>
-                            <span className={styles.cabinMeta}>
-                              {cabin.location || "Ukjent sted"}
-                              {Number.isFinite(Number(cabin.price_per_night))
-                                ? ` | ${cabin.price_per_night} kr/natt`
-                                : ""}
-                            </span>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
+              <div className={styles.cabinList}>
+                {cabins.map((cabin) => {
+                  const cabinId = String(cabin.id);
+                  const checked = selectedCabinIds.includes(cabinId);
+                  return (
+                    <label key={cabinId} className={styles.cabinItem}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleCabin(cabinId)}
+                      />
+                      <div className={styles.cabinInfo}>
+                        <span className={styles.cabinName}>{cabin.name || "Uten navn"}</span>
+                        <span className={styles.cabinMeta}>
+                          {cabin.location || "Ukjent sted"}
+                          {Number.isFinite(Number(cabin.price_per_night))
+                            ? ` | ${cabin.price_per_night} kr/natt`
+                            : ""}
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
             )}
           </aside>
         </form>

@@ -3,6 +3,50 @@ import pool from "../../../lib/db";
 import { requireAuth, requireRole } from "../../../lib/auth";
 import { ROLE_ADMIN, ROLE_TURLEDER } from "../../../lib/roles";
 
+let tripCabinsTableReady = false;
+
+async function ensureTripCabinsTable(client) {
+  if (tripCabinsTableReady) return;
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS public.trip_cabins (
+      trip_id BIGINT NOT NULL,
+      cabin_id UUID NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (trip_id, cabin_id)
+    )
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_trip_cabins_trip_id
+    ON public.trip_cabins (trip_id)
+  `);
+
+  await client.query(`
+    ALTER TABLE public.trip_cabins
+    ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0
+  `);
+
+  tripCabinsTableReady = true;
+}
+
+async function hasTripCabinsNightNumberColumn(client) {
+  const result = await client.query(
+    `
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'trip_cabins'
+          AND column_name = 'night_number'
+      ) AS exists
+    `
+  );
+
+  return result.rows[0]?.exists === true;
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -105,6 +149,8 @@ export async function POST(request) {
 
     const isFlexible = body.isFlexible === true;
     const dateOptions = Array.isArray(body.dateOptions) ? body.dateOptions : [];
+    const cabinIdsRaw = Array.isArray(body.cabin_ids) ? body.cabin_ids : [];
+    const cabin_ids = [...new Set(cabinIdsRaw.map((id) => String(id).trim()).filter(Boolean))];
 
     if (isTiu) {
       const { user, response } = await requireAuth();
@@ -155,6 +201,13 @@ export async function POST(request) {
           { status: 400 }
         );
       }
+    }
+
+    if (cabin_ids.length > 25) {
+      return NextResponse.json(
+        { error: "Du kan velge maks 25 hytter per tur" },
+        { status: 400 }
+      );
     }
 
     if (isTiu && !turleder_navn) {
@@ -213,7 +266,27 @@ export async function POST(request) {
       }
     }
 
+    const cabinsResult = await client.query(
+      `
+        SELECT id::text AS id, name
+        FROM public.cabins
+        WHERE id::text = ANY($1::text[])
+      `,
+      [cabin_ids]
+    );
+
+    if (cabinsResult.rowCount !== cabin_ids.length) {
+      return NextResponse.json(
+        { error: "En eller flere valgte hytter finnes ikke" },
+        { status: 400 }
+      );
+    }
+
+    const cabinsById = new Map(cabinsResult.rows.map((row) => [String(row.id), row]));
+
     await client.query("BEGIN");
+    await ensureTripCabinsTable(client);
+    const hasNightNumberColumn = await hasTripCabinsNightNumberColumn(client);
 
     const insertTripQuery = `
       INSERT INTO public.trips
@@ -281,6 +354,26 @@ export async function POST(request) {
       trip.planning_status = null;
     }
 
+    for (let i = 0; i < cabin_ids.length; i += 1) {
+      if (hasNightNumberColumn) {
+        await client.query(
+          `
+            INSERT INTO public.trip_cabins (trip_id, cabin_id, sort_order, night_number)
+            VALUES ($1, $2, $3, $4)
+          `,
+          [trip.id, cabin_ids[i], i, i + 1]
+        );
+      } else {
+        await client.query(
+          `
+            INSERT INTO public.trip_cabins (trip_id, cabin_id, sort_order)
+            VALUES ($1, $2, $3)
+          `,
+          [trip.id, cabin_ids[i], i]
+        );
+      }
+    }
+
     if (isTiu) {
       for (const option of dateOptions) {
         await client.query(
@@ -292,6 +385,11 @@ export async function POST(request) {
         );
       }
     }
+
+    trip.cabins = cabin_ids
+      .map((id) => cabinsById.get(id))
+      .filter(Boolean)
+      .map((row) => ({ id: row.id, name: row.name }));
 
     await client.query("COMMIT");
 

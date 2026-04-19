@@ -7,6 +7,28 @@ function jsonError(message, status = 500) {
   return NextResponse.json({ error: message }, { status });
 }
 
+async function hasTripCabinsTable(client) {
+  const result = await client.query(
+    "SELECT to_regclass('public.trip_cabins') IS NOT NULL AS exists"
+  );
+  return result.rows[0]?.exists === true;
+}
+
+async function hasTripCabinsSortOrderColumn(client) {
+  const result = await client.query(
+    `
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'trip_cabins'
+          AND column_name = 'sort_order'
+      ) AS exists
+    `
+  );
+  return result.rows[0]?.exists === true;
+}
+
 async function requireAdmin() {
   const { user, response } = await requireAuth();
   if (response) return { response };
@@ -21,8 +43,10 @@ export async function GET() {
   const auth = await requireAdmin();
   if (auth.response) return auth.response;
 
+  const client = await pool.connect();
+
   try {
-    const result = await pool.query(
+    const result = await client.query(
       `
         SELECT
           t.id,
@@ -62,10 +86,59 @@ export async function GET() {
       `
     );
 
-    return NextResponse.json({ trips: result.rows });
+    const trips = result.rows;
+    const tripIds = trips.map((trip) => Number(trip.id)).filter(Number.isFinite);
+
+    let cabinsByTripId = new Map();
+    if (tripIds.length > 0 && (await hasTripCabinsTable(client))) {
+      const hasSortOrder = await hasTripCabinsSortOrderColumn(client);
+      const cabinQuery = hasSortOrder
+        ? `
+            SELECT
+              tc.trip_id::text AS trip_id,
+              c.id::text AS cabin_id,
+              c.name,
+              tc.sort_order
+            FROM public.trip_cabins tc
+            JOIN public.cabins c
+              ON c.id::text = tc.cabin_id::text
+            WHERE tc.trip_id = ANY($1::bigint[])
+            ORDER BY tc.trip_id ASC, tc.sort_order ASC, c.name ASC
+          `
+        : `
+            SELECT
+              tc.trip_id::text AS trip_id,
+              c.id::text AS cabin_id,
+              c.name,
+              0::int AS sort_order
+            FROM public.trip_cabins tc
+            JOIN public.cabins c
+              ON c.id::text = tc.cabin_id::text
+            WHERE tc.trip_id = ANY($1::bigint[])
+            ORDER BY tc.trip_id ASC, c.name ASC
+          `;
+
+      const cabinResult = await client.query(cabinQuery, [tripIds]);
+      cabinsByTripId = cabinResult.rows.reduce((map, row) => {
+        const key = String(row.trip_id);
+        const list = map.get(key) || [];
+        list.push({ id: row.cabin_id, name: row.name, sort_order: row.sort_order });
+        map.set(key, list);
+        return map;
+      }, new Map());
+    }
+
+    const withCabins = trips.map((trip) => ({
+      ...trip,
+      cabins: cabinsByTripId.get(String(trip.id)) || [],
+    }));
+
+    return NextResponse.json({ trips: withCabins });
   } catch (error) {
     console.error("Admin TIU trips GET error:", error);
     return jsonError("Kunne ikke hente TiU-turer", 500);
+  } finally {
+    client.release();
   }
 }
 

@@ -583,6 +583,12 @@ export default function AdminTripsPage() {
                     {trip.date_options_count || 0} startalternativer
                   </p>
 
+                  {Array.isArray(trip.cabins) && trip.cabins.length > 0 ? (
+                    <p style={{ margin: "0 0 0.5rem 0", color: "var(--text-muted)" }}>
+                      Hytter: {trip.cabins.map((cabin) => cabin.name).join(", ")}
+                    </p>
+                  ) : null}
+
                   {Array.isArray(trip.date_options) && trip.date_options.length > 0 ? (
                     <ul style={{ margin: "0 0 0.75rem 1.1rem", padding: 0 }}>
                       {trip.date_options.map((option) => (
