@@ -108,13 +108,6 @@ export async function POST(request) {
       );
     }
 
-    if (cabin_ids.length === 0) {
-      return NextResponse.json(
-        { error: "Velg minst en hytte for turruten" },
-        { status: 400 }
-      );
-    }
-
     if (cabin_ids.length > 25) {
       return NextResponse.json(
         { error: "Du kan velge maks 25 hytter per turrute" },

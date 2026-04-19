@@ -570,11 +570,6 @@ export default function NewTripRoutePage() {
       return;
     }
 
-    if (selectedCabinIds.length === 0) {
-      setStatus({ type: "error", message: "Velg minst én hytte som skal inngå i ruten." });
-      return;
-    }
-
     const geometry = {
       type: "LineString",
       coordinates: routePoints.map((p) => [p.lon, p.lat]),
