@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 const CATEGORIES = ["Alle", "Utstyr", "Overnatting", "Guiding", "Kurs", "Annet"];
@@ -231,9 +232,12 @@ export default function Annonser() {
                   {newAd.image_url && (
                     <div style={{ position: "relative" }}>
                       {isImageUrl(newAd.image_url) ? (
-                        <img
+                        <Image
                           src={newAd.image_url}
                           alt="Forhåndsvisning"
+                          width={96}
+                          height={64}
+                          unoptimized
                           style={{ height: "64px", width: "96px", objectFit: "cover", borderRadius: "6px", border: "1px solid #d1d5db" }}
                         />
                       ) : (
@@ -385,7 +389,7 @@ export default function Annonser() {
               }}
             >
               <div style={{ margin: "-1.5rem -1.5rem 0", borderRadius: "12px 12px 0 0", overflow: "hidden", height: 160 }}>
-                <img src="/images/hytte.jpg" alt="Norlandia Hytter" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <Image src="/images/hytte.jpg" alt="Norlandia Hytter" width={1200} height={640} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ padding: "0.25rem 0.7rem", borderRadius: 999, background: "rgba(102,117,255,0.15)", color: "#a5b4fc", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", border: "1px solid rgba(102,117,255,0.3)" }}>
@@ -421,9 +425,12 @@ export default function Annonser() {
               >
                 {ad.image_url && isImageUrl(ad.image_url) && (
                   <div style={{ margin: "-1.5rem -1.5rem 0", borderRadius: "12px 12px 0 0", overflow: "hidden", height: "160px" }}>
-                    <img
+                    <Image
                       src={ad.image_url}
                       alt={ad.title}
+                      width={1200}
+                      height={640}
+                      unoptimized
                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     />
                   </div>
