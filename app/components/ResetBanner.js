@@ -67,6 +67,8 @@ export default function ResetBanner() {
       // Hvis serveren svarte med f.eks. 500 (feil), er res.ok false.
       if (res.ok) {
         setMessage("Testdata tilbakestilt!");
+        // Last siden på nytt etter 1 sekund så brukeren rekker å lese meldingen
+        setTimeout(() => window.location.reload(), 1000);
       } else {
         // data.error er feilmeldingen serveren sendte tilbake.
         // "|| " betyr: bruk data.error hvis den finnes, ellers bruk fallback-teksten.
