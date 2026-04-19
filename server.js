@@ -514,9 +514,9 @@ appNext.prepare().then(() => {
         `UPDATE users
          SET password = $1
          WHERE LOWER(BTRIM(email)) = $2
-         RETURNemail = $2
          RETURNING id`,
-        [await bcrypt.hash(nextPassword, 10), email.toLowerCase()
+        [await bcrypt.hash(nextPassword, 10), email.toLowerCase()]
+      );
 
       if (result.rowCount === 0) {
         return res.status(404).json({ error: "Fant ingen bruker med denne e-posten" });
