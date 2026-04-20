@@ -205,6 +205,7 @@ export async function POST(request, { params }) {
     const type = normalizeActivity(route.activity || route.type);
     const vanskelighetsgrad = normalizeDifficulty(route.difficulty || route.vanskelighetsgrad);
     const bilde_url = route.bilde_url ? String(route.bilde_url).trim() : null;
+    const bilde_urls = Array.isArray(route.bilde_urls) ? route.bilde_urls : [];
     const geometry = normalizeGeometry(route.geometry, route.points);
     const lengde_km = calculateLengthKm(geometry);
 
@@ -232,10 +233,11 @@ export async function POST(request, { params }) {
           type,
           vanskelighetsgrad,
           bilde_url,
+          bilde_urls,
           geometry
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, navn, beskrivelse, lengde_km, type, vanskelighetsgrad, opprettet, bilde_url, geometry
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, navn, beskrivelse, lengde_km, type, vanskelighetsgrad, opprettet, bilde_url, bilde_urls, geometry
       `,
       [
         navn,
@@ -244,6 +246,7 @@ export async function POST(request, { params }) {
         type,
         vanskelighetsgrad,
         bilde_url,
+        JSON.stringify(bilde_urls),
         geometry,
       ]
     );
