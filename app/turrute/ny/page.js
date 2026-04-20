@@ -124,6 +124,7 @@ export default function NewTripRoutePage() {
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState({ type: "idle", message: "" });
   const [gpxFileName, setGpxFileName] = useState("");
+  const [uploadPublicKey, setUploadPublicKey] = useState("");
 
   const mapInstanceRef = useRef(null);
   const markersLayerRef = useRef(null);
@@ -213,6 +214,35 @@ export default function NewTripRoutePage() {
     }
 
     loadCabins();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadUploadPublicKey() {
+      try {
+        const res = await fetch("/api/simple-file-upload/public-key", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        if (!res.ok || !alive) return;
+
+        const data = await res.json().catch(() => ({}));
+        const key = typeof data?.publicKey === "string" ? data.publicKey.trim() : "";
+        if (key && alive) {
+          setUploadPublicKey(key);
+        }
+      } catch {
+        if (alive) setUploadPublicKey("");
+      }
+    }
+
+    loadUploadPublicKey();
+
     return () => {
       alive = false;
     };
@@ -918,16 +948,16 @@ export default function NewTripRoutePage() {
 
             <div className={styles.field}>
               <label>Bilde (valgfritt)</label>
-              {process.env.NEXT_PUBLIC_SIMPLE_FILE_UPLOAD_PUBLIC_KEY ? (
+              {uploadPublicKey ? (
                 <SimpleFileUpload
-                  publicKey={process.env.NEXT_PUBLIC_SIMPLE_FILE_UPLOAD_PUBLIC_KEY}
+                  publicKey={uploadPublicKey}
                   multiple={false}
                   maxFileSize={5 * 1024 * 1024}
                   onChange={handleImageUploadChange}
                 />
               ) : (
                 <p className={styles.help}>
-                  Mangler NEXT_PUBLIC_SIMPLE_FILE_UPLOAD_PUBLIC_KEY i miljøvariabler.
+                  Mangler nøkkel for Simple File Upload i miljøvariabler.
                 </p>
               )}
 
