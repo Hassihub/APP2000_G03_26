@@ -102,7 +102,7 @@ export default function NewTripRoutePage() {
     type: "fottur",
     vanskelighetsgrad: "middels",
     turleder_navn: "",
-    bilde_url: "",
+    bilde_urls: [],
   });
   const [uploadStatus, setUploadStatus] = useState("");
 
@@ -579,14 +579,15 @@ export default function NewTripRoutePage() {
 
   function handleImageUploadChange(event) {
     const files = Array.isArray(event?.allFiles) ? event.allFiles : [];
-    const firstFile = files[0];
-
-    if (!firstFile?.cdnUrl) {
-      return;
-    }
-
-    setForm((prev) => ({ ...prev, bilde_url: firstFile.cdnUrl }));
-    setUploadStatus("Bilde lastet opp.");
+    const newUrls = files
+      .map((file) => file.cdnUrl)
+      .filter((url) => url && !form.bilde_urls.includes(url));
+    if (newUrls.length === 0) return;
+    setForm((prev) => ({
+      ...prev,
+      bilde_urls: [...prev.bilde_urls, ...newUrls],
+    }));
+    setUploadStatus("Bilde(r) lastet opp.");
   }
 
   function handleGpxUpload(event) {
@@ -736,7 +737,7 @@ export default function NewTripRoutePage() {
             end_time: option.end_time,
           })),
           cabin_ids: selectedCabinIds,
-          bilde_url: form.bilde_url?.trim() || null,
+          bilde_urls: form.bilde_urls,
         }
       : {
           navn: form.navn.trim(),
@@ -746,7 +747,7 @@ export default function NewTripRoutePage() {
           vanskelighetsgrad: form.vanskelighetsgrad,
           geometry,
           cabin_ids: selectedCabinIds,
-          bilde_url: form.bilde_url?.trim() || null,
+          bilde_urls: form.bilde_urls,
         };
 
     const endpoint = isTiu ? "/api/trips" : "/api/trips/custom-route";
@@ -779,7 +780,7 @@ export default function NewTripRoutePage() {
         navn: "",
         beskrivelse: "",
         turleder_navn: "",
-        bilde_url: "",
+        bilde_urls: [],
       }));
       setUploadStatus("");
       setSelectedCabinIds([]);
@@ -947,11 +948,11 @@ export default function NewTripRoutePage() {
             </div>
 
             <div className={styles.field}>
-              <label>Bilde (valgfritt)</label>
+              <label>Bilde(r) (valgfritt)</label>
               {uploadPublicKey ? (
                 <SimpleFileUpload
                   publicKey={uploadPublicKey}
-                  multiple={false}
+                  multiple={true}
                   maxFileSize={5 * 1024 * 1024}
                   onChange={handleImageUploadChange}
                 />
@@ -963,23 +964,29 @@ export default function NewTripRoutePage() {
 
               {uploadStatus && <p className={styles.help}>{uploadStatus}</p>}
 
-              {form.bilde_url && (
+              {form.bilde_urls && form.bilde_urls.length > 0 && (
                 <div className={styles.previewWrap}>
-                  <img
-                    src={form.bilde_url}
-                    alt="Forhåndsvisning av turbilde"
-                    className={styles.previewImage}
-                  />
-                  <button
-                    type="button"
-                    className={styles.btnAlt}
-                    onClick={() => {
-                      setForm((prev) => ({ ...prev, bilde_url: "" }));
-                      setUploadStatus("");
-                    }}
-                  >
-                    Fjern bilde
-                  </button>
+                  {form.bilde_urls.map((url, idx) => (
+                    <div key={url + idx} style={{ display: "inline-block", marginRight: 8 }}>
+                      <img
+                        src={url}
+                        alt={`Forhåndsvisning bilde ${idx + 1}`}
+                        className={styles.previewImage}
+                      />
+                      <button
+                        type="button"
+                        className={styles.btnAlt}
+                        onClick={() => {
+                          setForm((prev) => ({
+                            ...prev,
+                            bilde_urls: prev.bilde_urls.filter((_, i) => i !== idx),
+                          }));
+                        }}
+                      >
+                        Fjern
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
