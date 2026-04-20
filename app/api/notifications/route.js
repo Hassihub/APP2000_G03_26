@@ -352,7 +352,6 @@ export async function GET(req) {
 
     await createReservationCreatedNotifications(user);
     await createReservationReceivedNotifications(user);
-    await createReviewReminderNotifications(user);
 
     const hasTable = await ensureNotificationsTable();
     if (!hasTable) {
@@ -368,6 +367,7 @@ export async function GET(req) {
         SELECT id, user_id, type, reference_id, title, message, action_url, metadata, is_read, created_at, read_at
         FROM public.user_notifications
         WHERE user_id = $1
+          AND type <> 'review_reminder'
         ORDER BY created_at DESC
         LIMIT $2
       `,
@@ -378,7 +378,9 @@ export async function GET(req) {
       `
         SELECT COUNT(*)::int AS unread_count
         FROM public.user_notifications
-        WHERE user_id = $1 AND is_read = false
+        WHERE user_id = $1
+          AND is_read = false
+          AND type <> 'review_reminder'
       `,
       [String(user.id)]
     );
