@@ -230,11 +230,15 @@ function TripCard({ trip, onUpdated }) {
     router.push(`/explore/${trip.id}`);
   };
 
+  const previewUrl = Array.isArray(trip.bilde_urls) && trip.bilde_urls.length > 0
+    ? trip.bilde_urls[0]
+    : trip.bilde_url || null;
+
   return (
     <article className={styles.card}>
-      {trip.bilde_url ? (
+      {previewUrl ? (
         <Image
-          src={trip.bilde_url}
+          src={previewUrl}
           alt={trip.navn}
           className={styles.tripImage}
           width={480}

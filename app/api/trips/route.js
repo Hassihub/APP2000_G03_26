@@ -67,6 +67,7 @@ export async function GET(request) {
         t.type,
         t.vanskelighetsgrad,
         t.bilde_url,
+        t.bilde_urls,
         t.geometry,
         tt.id AS tiu_trip_id,
         tt.turleder_navn,
