@@ -163,8 +163,24 @@ export default function TripDetailsPage() {
         ← Tilbake til turer
       </button>
 
+
       <article className={styles.detailsCard}>
-        {trip.bilde_url ? (
+        {Array.isArray(trip.bilde_urls) && trip.bilde_urls.length > 0 ? (
+          <div className={styles.imageGallery}>
+            {trip.bilde_urls.map((url, idx) => (
+              <Image
+                key={url + idx}
+                src={url}
+                alt={trip.navn + ' bilde ' + (idx + 1)}
+                width={700}
+                height={350}
+                unoptimized
+                className={styles.heroImage}
+                style={{ marginBottom: 12, maxWidth: '100%', borderRadius: 8 }}
+              />
+            ))}
+          </div>
+        ) : trip.bilde_url ? (
           <Image
             src={trip.bilde_url}
             alt={trip.navn}
