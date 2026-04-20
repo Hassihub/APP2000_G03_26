@@ -153,6 +153,22 @@
   color: #56766b;
 }
 
+.previewWrap {
+  margin-top: 0.7rem;
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+}
+
+.previewImage {
+  width: min(100%, 320px);
+  max-height: 220px;
+  border-radius: 12px;
+  border: 1px solid #c6d8d0;
+  object-fit: cover;
+  background: #f3faf7;
+}
+
 .help {
   margin: 0;
   color: #4f6f64;

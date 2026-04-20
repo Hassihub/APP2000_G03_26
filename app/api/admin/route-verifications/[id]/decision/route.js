@@ -204,6 +204,7 @@ export async function POST(request, { params }) {
     const beskrivelse = route.description || route.beskrivelse || null;
     const type = normalizeActivity(route.activity || route.type);
     const vanskelighetsgrad = normalizeDifficulty(route.difficulty || route.vanskelighetsgrad);
+    const bilde_url = route.bilde_url ? String(route.bilde_url).trim() : null;
     const geometry = normalizeGeometry(route.geometry, route.points);
     const lengde_km = calculateLengthKm(geometry);
 
@@ -242,7 +243,7 @@ export async function POST(request, { params }) {
         lengde_km,
         type,
         vanskelighetsgrad,
-        null,
+        bilde_url,
         geometry,
       ]
     );

@@ -22,6 +22,11 @@ async function ensureCustomRouteTables() {
     ON public.route_verification_cabins (route_verification_id)
   `);
 
+  await pool.query(`
+    ALTER TABLE public.routes_to_verification
+    ADD COLUMN IF NOT EXISTS bilde_url TEXT
+  `);
+
   customRouteTablesReady = true;
 }
 
@@ -79,6 +84,7 @@ export async function POST(request) {
     const lengde_km = Number(body?.lengde_km);
     const type = String(body?.type || "").trim();
     const vanskelighetsgrad = String(body?.vanskelighetsgrad || "").trim();
+    const bilde_url = body?.bilde_url ? String(body.bilde_url).trim() : null;
     const geometry = body?.geometry ?? null;
     const cabinIdsRaw = Array.isArray(body?.cabin_ids) ? body.cabin_ids : [];
     const cabin_ids = [...new Set(cabinIdsRaw.map((id) => String(id).trim()).filter(Boolean))];
@@ -154,9 +160,10 @@ export async function POST(request) {
           duration_minutes,
           geometry,
           points,
+          bilde_url,
           created_by
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `,
       [
@@ -167,6 +174,7 @@ export async function POST(request) {
         duration_minutes,
         JSON.stringify(geometry),
         JSON.stringify(points),
+        bilde_url,
         String(user.id),
       ]
     );

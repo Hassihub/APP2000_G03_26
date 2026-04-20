@@ -191,6 +191,7 @@ export async function GET() {
         id: route.id,
         name: route.name || route.navn || "Uten navn",
         description: route.description || route.beskrivelse || "",
+        bilde_url: route.bilde_url || null,
         type: normalizeActivity(route.activity || route.type),
         difficulty: normalizeDifficulty(route.difficulty || route.vanskelighetsgrad),
         length_km,

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SimpleFileUpload } from "simple-file-upload-react";
 import styles from "./page.module.css";
 import { ROLE_ADMIN, ROLE_TURLEDER, ROLE_UTLEIER } from "../../../lib/roles";
 
@@ -101,7 +102,9 @@ export default function NewTripRoutePage() {
     type: "fottur",
     vanskelighetsgrad: "middels",
     turleder_navn: "",
+    bilde_url: "",
   });
+  const [uploadStatus, setUploadStatus] = useState("");
 
   const [dateOptions, setDateOptions] = useState(() => createInitialDateOptions());
 
@@ -544,6 +547,18 @@ export default function NewTripRoutePage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  function handleImageUploadChange(event) {
+    const files = Array.isArray(event?.allFiles) ? event.allFiles : [];
+    const firstFile = files[0];
+
+    if (!firstFile?.cdnUrl) {
+      return;
+    }
+
+    setForm((prev) => ({ ...prev, bilde_url: firstFile.cdnUrl }));
+    setUploadStatus("Bilde lastet opp.");
+  }
+
   function handleGpxUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -691,6 +706,7 @@ export default function NewTripRoutePage() {
             end_time: option.end_time,
           })),
           cabin_ids: selectedCabinIds,
+          bilde_url: form.bilde_url?.trim() || null,
         }
       : {
           navn: form.navn.trim(),
@@ -700,6 +716,7 @@ export default function NewTripRoutePage() {
           vanskelighetsgrad: form.vanskelighetsgrad,
           geometry,
           cabin_ids: selectedCabinIds,
+          bilde_url: form.bilde_url?.trim() || null,
         };
 
     const endpoint = isTiu ? "/api/trips" : "/api/trips/custom-route";
@@ -732,7 +749,9 @@ export default function NewTripRoutePage() {
         navn: "",
         beskrivelse: "",
         turleder_navn: "",
+        bilde_url: "",
       }));
+      setUploadStatus("");
       setSelectedCabinIds([]);
       setAnchorPoints([]);
       setSegmentModes([]);
@@ -895,6 +914,44 @@ export default function NewTripRoutePage() {
                 onChange={handleFieldChange}
                 placeholder="Beskriv turen, terreng, forslag til pauser eller sikkerhetstips."
               />
+            </div>
+
+            <div className={styles.field}>
+              <label>Bilde (valgfritt)</label>
+              {process.env.NEXT_PUBLIC_SIMPLE_FILE_UPLOAD_PUBLIC_KEY ? (
+                <SimpleFileUpload
+                  publicKey={process.env.NEXT_PUBLIC_SIMPLE_FILE_UPLOAD_PUBLIC_KEY}
+                  multiple={false}
+                  maxFileSize={5 * 1024 * 1024}
+                  onChange={handleImageUploadChange}
+                />
+              ) : (
+                <p className={styles.help}>
+                  Mangler NEXT_PUBLIC_SIMPLE_FILE_UPLOAD_PUBLIC_KEY i miljøvariabler.
+                </p>
+              )}
+
+              {uploadStatus && <p className={styles.help}>{uploadStatus}</p>}
+
+              {form.bilde_url && (
+                <div className={styles.previewWrap}>
+                  <img
+                    src={form.bilde_url}
+                    alt="Forhåndsvisning av turbilde"
+                    className={styles.previewImage}
+                  />
+                  <button
+                    type="button"
+                    className={styles.btnAlt}
+                    onClick={() => {
+                      setForm((prev) => ({ ...prev, bilde_url: "" }));
+                      setUploadStatus("");
+                    }}
+                  >
+                    Fjern bilde
+                  </button>
+                </div>
+              )}
             </div>
 
             <p className={styles.help}>
