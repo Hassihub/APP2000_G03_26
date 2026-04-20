@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import TripImageCarousel from "./TripImageCarousel";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "./tripDetails.module.css";
@@ -166,20 +167,7 @@ export default function TripDetailsPage() {
 
       <article className={styles.detailsCard}>
         {Array.isArray(trip.bilde_urls) && trip.bilde_urls.length > 0 ? (
-          <div className={styles.imageGallery}>
-            {trip.bilde_urls.map((url, idx) => (
-              <Image
-                key={url + idx}
-                src={url}
-                alt={trip.navn + ' bilde ' + (idx + 1)}
-                width={700}
-                height={350}
-                unoptimized
-                className={styles.heroImage}
-                style={{ marginBottom: 12, maxWidth: '100%', borderRadius: 8 }}
-              />
-            ))}
-          </div>
+          <TripImageCarousel images={trip.bilde_urls} altBase={trip.navn} />
         ) : trip.bilde_url ? (
           <Image
             src={trip.bilde_url}
