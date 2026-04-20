@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import TripImageCarousel from "./TripImageCarousel";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -169,14 +168,7 @@ export default function TripDetailsPage() {
         {Array.isArray(trip.bilde_urls) && trip.bilde_urls.length > 0 ? (
           <TripImageCarousel images={trip.bilde_urls} altBase={trip.navn} />
         ) : trip.bilde_url ? (
-          <Image
-            src={trip.bilde_url}
-            alt={trip.navn}
-            width={1400}
-            height={700}
-            unoptimized
-            className={styles.heroImage}
-          />
+          <TripImageCarousel images={[trip.bilde_url]} altBase={trip.navn} />
         ) : (
           <div className={styles.imagePlaceholder}>Ingen bilde</div>
         )}
