@@ -55,6 +55,8 @@ export async function GET(request) {
     const type = searchParams.get("type") || "alle";
     const difficulty = searchParams.get("difficulty") || "alle";
     const onlyTiu = (searchParams.get("onlyTiu") || "false") === "true";
+    const startDate = searchParams.get("start_date") || "";
+    const endDate = searchParams.get("end_date") || "";
 
     let query = `
       SELECT
@@ -115,6 +117,33 @@ export async function GET(request) {
 
     if (onlyTiu) {
       query += ` AND tt.id IS NOT NULL`;
+    }
+
+    if (startDate && endDate) {
+      const startDateParam = `$${values.length + 1}`;
+      values.push(startDate);
+      const endDateParam = `$${values.length + 1}`;
+      values.push(endDate);
+
+      query += `
+        AND (
+          EXISTS (
+            SELECT 1
+            FROM public.trip_departures td_filter
+            WHERE td_filter.trip_id = t.id
+              AND td_filter.status <> 'cancelled'
+              AND td_filter.start_time < (${endDateParam}::date + INTERVAL '1 day')
+              AND COALESCE(td_filter.end_time, td_filter.start_time) >= ${startDateParam}::date
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM public.trip_date_options tdo_filter
+            WHERE tdo_filter.trip_id = t.id
+              AND tdo_filter.start_time < (${endDateParam}::date + INTERVAL '1 day')
+              AND tdo_filter.end_time >= ${startDateParam}::date
+          )
+        )
+      `;
     }
 
     query += ` ORDER BY t.id`;

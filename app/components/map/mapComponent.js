@@ -23,6 +23,7 @@ export default function MapComponent() {
   const [selectedCabin, setSelectedCabin] = useState(null);
   const [showTrips, setShowTrips] = useState(false);
   const tripsLayerRef = useRef(null);
+  const selectedTripPointsLayerRef = useRef(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [hytterOpen, setHytterOpen] = useState(false);
   const [turforslagOpen, setTurforslagOpen] = useState(false);
@@ -36,6 +37,8 @@ export default function MapComponent() {
   const [tripTypeFilter, setTripTypeFilter] = useState("alle"); // fottur/skitur/sykkel/alle
   const [tripDifficultyFilter, setTripDifficultyFilter] = useState("alle"); // lett/middels/krevende/alle
   const [tripOnlyTiu, setTripOnlyTiu] = useState(false);
+  const [tripStartDateFilter, setTripStartDateFilter] = useState("");
+  const [tripEndDateFilter, setTripEndDateFilter] = useState("");
   const [panelVisible, setPanelVisible] = useState(true);
   const [routeToggles, setRouteToggles] = useState({
     annenrute: false,
@@ -131,6 +134,10 @@ export default function MapComponent() {
       if (tripsLayerRef.current) {
         map.removeLayer(tripsLayerRef.current);
         tripsLayerRef.current = null;
+      }
+      if (selectedTripPointsLayerRef.current) {
+        map.removeLayer(selectedTripPointsLayerRef.current);
+        selectedTripPointsLayerRef.current = null;
       }
       map.remove();
       mapRef.current = null;
@@ -322,6 +329,10 @@ export default function MapComponent() {
         if (tripDifficultyFilter !== "alle")
           params.set("difficulty", tripDifficultyFilter);
         if (tripOnlyTiu) params.set("onlyTiu", "true");
+        if (tripStartDateFilter && tripEndDateFilter) {
+          params.set("start_date", tripStartDateFilter);
+          params.set("end_date", tripEndDateFilter);
+        }
 
         const url = params.toString()
           ? `/api/trips?${params.toString()}`
@@ -354,6 +365,7 @@ export default function MapComponent() {
               id: trip.id,
               navn: trip.navn,
               beskrivelse: trip.beskrivelse,
+              geometry: trip.geometry,
               type: trip.type,
               vanskelighetsgrad: trip.vanskelighetsgrad,
               lengde_km: trip.lengde_km,
@@ -393,10 +405,6 @@ export default function MapComponent() {
               if (p.turleder_navn)
                 lines.push(`Turleder: ${p.turleder_navn}`);
 
-              if (lines.length) {
-                layer.bindPopup(lines.join("<br/>"));
-              }
-
               layer.on("mouseover", () => {
                 layer.setStyle({
                   ...baseStyle,
@@ -416,8 +424,20 @@ export default function MapComponent() {
                 });
               });
 
-              layer.on("click", () => {
-                setSelectedTrip(p);
+              layer.on("click", async () => {
+                try {
+                  const res = await fetch(`/api/trips/${encodeURIComponent(p.id)}`);
+                  const details = await res.json().catch(() => null);
+
+                  if (res.ok && details && typeof details === "object") {
+                    setSelectedTrip({ ...p, ...details });
+                  } else {
+                    setSelectedTrip(p);
+                  }
+                } catch {
+                  setSelectedTrip(p);
+                }
+
                 setSelectedCabin(null);
               });
             },
@@ -432,7 +452,125 @@ export default function MapComponent() {
     };
 
     fetchAndRenderTrips();
-  }, [showTrips, Leaflet, tripTypeFilter, tripDifficultyFilter, tripOnlyTiu]);
+  }, [
+    showTrips,
+    Leaflet,
+    tripTypeFilter,
+    tripDifficultyFilter,
+    tripOnlyTiu,
+    tripStartDateFilter,
+    tripEndDateFilter,
+  ]);
+
+  // Vis markorer for valgt tur: start, midtpunkt, slutt og hytter langs turen.
+  useEffect(() => {
+    if (!Leaflet || !mapRef.current) return;
+
+    const L = Leaflet;
+    const map = mapRef.current;
+
+    if (
+      selectedTripPointsLayerRef.current &&
+      map.hasLayer(selectedTripPointsLayerRef.current)
+    ) {
+      map.removeLayer(selectedTripPointsLayerRef.current);
+      selectedTripPointsLayerRef.current = null;
+    }
+
+    if (!showTrips || !selectedTrip) return;
+
+    const geometry = selectedTrip.geometry;
+    const coordsRaw = geometry?.type === "LineString"
+      ? geometry.coordinates
+      : geometry?.type === "MultiLineString"
+        ? geometry.coordinates.flat()
+        : [];
+
+    const routeCoords = Array.isArray(coordsRaw)
+      ? coordsRaw
+          .filter(
+            (point) =>
+              Array.isArray(point) &&
+              point.length >= 2 &&
+              Number.isFinite(Number(point[0])) &&
+              Number.isFinite(Number(point[1]))
+          )
+          .map((point) => [Number(point[1]), Number(point[0])])
+      : [];
+
+    const layer = L.layerGroup();
+
+    const createPointIcon = (label, color) =>
+      L.divIcon({
+        className: "",
+        html: `<div style="display:flex;align-items:center;gap:6px;"><span style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,0.35);"></span><span style="padding:2px 6px;border-radius:9999px;background:#fff;border:1px solid #d1d5db;font-size:11px;font-weight:700;color:#111827;white-space:nowrap;">${label}</span></div>`,
+        iconSize: [96, 22],
+        iconAnchor: [8, 11],
+      });
+
+    if (routeCoords.length >= 2) {
+      const startPoint = routeCoords[0];
+      const endPoint = routeCoords[routeCoords.length - 1];
+
+      L.marker(startPoint, { icon: createPointIcon("Start", "#16a34a") })
+        .bindPopup("Startpunkt")
+        .addTo(layer);
+
+      L.marker(endPoint, { icon: createPointIcon("Slutt", "#dc2626") })
+        .bindPopup("Sluttpunkt")
+        .addTo(layer);
+    }
+
+    const tripCabins = Array.isArray(selectedTrip.cabins) ? selectedTrip.cabins : [];
+    const cabinIcon = L.icon({
+      iconUrl: "/images/cabinPin.svg",
+      iconSize: [28, 28],
+      iconAnchor: [14, 28],
+      popupAnchor: [0, -26],
+    });
+
+    for (const cabin of tripCabins) {
+      const lat = Number(cabin?.latitude);
+      const lon = Number(cabin?.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+      const name = cabin?.name || "Hytte";
+      const location = cabin?.location ? `<br/>📍 ${cabin.location}` : "";
+      const cabinId = cabin?.id ? String(cabin.id) : "";
+      const cabinHref = cabinId
+        ? `/reserver/booking?cabinId=${encodeURIComponent(cabinId)}`
+        : "";
+
+      const marker = L.marker([lat, lon], { icon: cabinIcon, riseOnHover: true });
+      marker.bindPopup(`
+        <div style="min-width:170px;">
+          <strong>${name}</strong>${location}
+          ${
+            cabinHref
+              ? `<br/><a href="${cabinHref}" style="display:inline-block;margin-top:8px;padding:6px 10px;border-radius:9999px;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;font-size:12px;">Gå til hytteside</a>`
+              : ""
+          }
+        </div>
+      `);
+
+      marker.addTo(layer);
+    }
+
+    if (layer.getLayers().length > 0) {
+      layer.addTo(map);
+      selectedTripPointsLayerRef.current = layer;
+    }
+
+    return () => {
+      if (
+        selectedTripPointsLayerRef.current &&
+        map.hasLayer(selectedTripPointsLayerRef.current)
+      ) {
+        map.removeLayer(selectedTripPointsLayerRef.current);
+        selectedTripPointsLayerRef.current = null;
+      }
+    };
+  }, [Leaflet, showTrips, selectedTrip]);
 
 
   // 🔵 Plasser brukerens posisjon på kartet – profilbilde hvis tilgjengelig, ellers blå sirkel
@@ -905,6 +1043,41 @@ export default function MapComponent() {
                 </p>
               )}
 
+              {Array.isArray(selectedTrip.cabins) && selectedTrip.cabins.length > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      marginBottom: 6,
+                      color: "#4b5563",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Hytter på turen
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {selectedTrip.cabins.map((cabin) => (
+                      <Link
+                        key={cabin.id}
+                        href={`/reserver/booking?cabinId=${encodeURIComponent(cabin.id)}`}
+                        style={{
+                          padding: "0.25rem 0.6rem",
+                          borderRadius: 9999,
+                          backgroundColor: "#eff6ff",
+                          border: "1px solid #bfdbfe",
+                          color: "#1e3a8a",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          textDecoration: "none",
+                        }}
+                      >
+                        {cabin.name || "Hytte"}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div style={{ marginTop: 18, display: "flex", gap: 8 }}>
                 <Link
                   href={`/explore/${encodeURIComponent(selectedTrip.id)}`}
@@ -1212,6 +1385,53 @@ export default function MapComponent() {
                     />
                     <span>Bare TiU-turer</span>
                   </label>
+
+                  <label style={{ display: "block", marginTop: 8 }}>
+                    <span style={{ display: "block", fontSize: 12 }}>
+                      Fra dato
+                    </span>
+                    <input
+                      type="date"
+                      value={tripStartDateFilter}
+                      onChange={(e) => setTripStartDateFilter(e.target.value)}
+                      style={{ width: "100%", marginTop: 2 }}
+                    />
+                  </label>
+
+                  <label style={{ display: "block", marginTop: 6 }}>
+                    <span style={{ display: "block", fontSize: 12 }}>
+                      Til dato
+                    </span>
+                    <input
+                      type="date"
+                      value={tripEndDateFilter}
+                      onChange={(e) => setTripEndDateFilter(e.target.value)}
+                      style={{ width: "100%", marginTop: 2 }}
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTripTypeFilter("alle");
+                      setTripDifficultyFilter("alle");
+                      setTripOnlyTiu(false);
+                      setTripStartDateFilter("");
+                      setTripEndDateFilter("");
+                    }}
+                    style={{
+                      width: "100%",
+                      marginTop: 8,
+                      padding: "0.35rem 0.55rem",
+                      borderRadius: 6,
+                      border: "1px solid #d1d5db",
+                      backgroundColor: "#f9fafb",
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Nullstill turfilter
+                  </button>
                 </div>
               )}
 

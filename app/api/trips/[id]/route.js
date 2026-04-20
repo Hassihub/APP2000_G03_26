@@ -89,8 +89,36 @@ export async function GET(request, { params }) {
       [tripId]
     );
 
+    const tripCabinsTableResult = await pool.query(
+      "SELECT to_regclass('public.trip_cabins') IS NOT NULL AS exists"
+    );
+
+    let cabins = [];
+    if (tripCabinsTableResult.rows[0]?.exists === true) {
+      const cabinsResult = await pool.query(
+        `
+        SELECT
+          c.id::text AS id,
+          c.name,
+          c.location,
+          c.latitude,
+          c.longitude,
+          tc.sort_order
+        FROM public.trip_cabins tc
+        JOIN public.cabins c
+          ON c.id::text = tc.cabin_id::text
+        WHERE tc.trip_id = $1
+        ORDER BY tc.sort_order ASC
+        `,
+        [tripId]
+      );
+
+      cabins = cabinsResult.rows;
+    }
+
     trip.date_options = optionsResult.rows;
     trip.interested_count = interestCountResult.rows[0]?.interested_count ?? 0;
+    trip.cabins = cabins;
 
     return NextResponse.json(trip);
   } catch (error) {
