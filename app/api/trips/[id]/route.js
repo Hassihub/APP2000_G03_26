@@ -65,14 +65,24 @@ export async function GET(request, { params }) {
 
     const trip = result.rows[0];
 
-    // Hent bilde_urls fra routes_to_verification hvis trip.bilde_url mangler (custom-rute)
-    if (!trip.bilde_url) {
-      const customResult = await pool.query(
-        `SELECT bilde_urls FROM public.routes_to_verification WHERE name = $1 LIMIT 1`,
-        [trip.navn]
+    // Hent bilde_urls fra trips hvis den finnes, ellers fallback til routes_to_verification (for gamle data)
+    if (trip.bilde_urls === undefined) {
+      const tripResult = await pool.query(
+        `SELECT bilde_urls FROM public.trips WHERE id = $1 LIMIT 1`,
+        [tripId]
       );
-      if (customResult.rowCount > 0 && customResult.rows[0].bilde_urls) {
-        trip.bilde_urls = customResult.rows[0].bilde_urls;
+      if (tripResult.rowCount > 0 && tripResult.rows[0].bilde_urls) {
+        trip.bilde_urls = tripResult.rows[0].bilde_urls;
+      } else if (!trip.bilde_url) {
+        const customResult = await pool.query(
+          `SELECT bilde_urls FROM public.routes_to_verification WHERE name = $1 LIMIT 1`,
+          [trip.navn]
+        );
+        if (customResult.rowCount > 0 && customResult.rows[0].bilde_urls) {
+          trip.bilde_urls = customResult.rows[0].bilde_urls;
+        } else {
+          trip.bilde_urls = [];
+        }
       } else {
         trip.bilde_urls = [];
       }
