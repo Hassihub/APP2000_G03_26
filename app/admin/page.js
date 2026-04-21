@@ -114,6 +114,23 @@ export default function AdminPage() {
             Se ruter til verifisering i kart, og godkjenn både vanlige ruter og TiU-turer.
           </p>
         </Link>
+
+        <Link
+          href="/admin/hytter"
+          style={{
+            border: "1px solid var(--border)",
+            borderRadius: "12px",
+            padding: "1rem",
+            background: "var(--bg-panel)",
+            textDecoration: "none",
+            color: "var(--text)",
+          }}
+        >
+          <h2 style={{ marginTop: 0 }}>Hytter</h2>
+          <p style={{ marginBottom: 0, color: "var(--text-muted)" }}>
+            Se alle hytter, rediger detaljer og slett ved behov.
+          </p>
+        </Link>
       </div>
     </div>
   );
