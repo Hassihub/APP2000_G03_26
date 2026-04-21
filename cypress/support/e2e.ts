@@ -8,7 +8,12 @@ Cypress.on("uncaught:exception", (err) => {
     err.message.includes("Hydration") ||
     err.message.includes("hydration") ||
     err.message.includes("geolocation") ||
-    err.message.includes("ResizeObserver")
+    err.message.includes("ResizeObserver") ||
+    // NetworkError skjer når en fetch avbrytes under navigasjon –
+    // Cypress bytter side mens appen fortsatt laster, ikke en reell feil
+    err.message.includes("NetworkError") ||
+    err.message.includes("Failed to fetch") ||
+    err.message.includes("Load failed")
   ) {
     return false;
   }
