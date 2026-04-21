@@ -40,7 +40,9 @@ describe("Profilside – innlogget bruker", () => {
 
   beforeEach(() => {
     cy.loginByApi(testUser.email, testUser.password);
+    cy.intercept("GET", "/api/profile*").as("profile");
     cy.visit("/profile");
+    cy.wait("@profile", { timeout: 15000 });
   });
 
   it("viser profilsiden etter innlogging", () => {

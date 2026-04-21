@@ -3,7 +3,12 @@
 
 describe("Hytteliste – sidestruktur", () => {
   beforeEach(() => {
+    // cy.intercept() fanger opp API-kallet og gir det et alias (@cabins).
+    // cy.wait("@cabins") lenger nede venter til svaret er kommet tilbake
+    // før testen fortsetter — mye mer pålitelig enn å vente et fast antall ms.
+    cy.intercept("GET", "/api/cabins*").as("cabins");
     cy.visit("/reserver");
+    cy.wait("@cabins");
   });
 
   it("laster hyttesiden uten krasj", () => {
@@ -26,7 +31,9 @@ describe("Hytteliste – sidestruktur", () => {
 
 describe("Hytteliste – med hytter i databasen", () => {
   beforeEach(() => {
+    cy.intercept("GET", "/api/cabins*").as("cabins");
     cy.visit("/reserver");
+    cy.wait("@cabins");
   });
 
   it("hvis det finnes hytter vises de som klikkbare kort", () => {

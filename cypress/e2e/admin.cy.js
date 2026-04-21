@@ -20,9 +20,10 @@ describe("Admin – ikke innlogget", () => {
 
 describe("Admin – innlogget som vanlig bruker", () => {
   beforeEach(() => {
-    // Registrer en fersk USER-bruker
     cy.registerAndLogin();
+    cy.intercept("GET", "/api/auth/me*").as("authMe");
     cy.visit("/admin");
+    cy.wait("@authMe");
   });
 
   it("vanlig bruker (USER) blokkeres fra admin-panelet", () => {

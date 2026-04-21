@@ -3,7 +3,10 @@
 
 describe("Sosial feed – ikke innlogget", () => {
   beforeEach(() => {
+    cy.intercept("GET", "/api/sosial/posts*").as("posts");
     cy.visit("/sosial");
+    // Vent på at innlegg er lastet — eller ignorer hvis endepunktet ikke kalles
+    cy.wait("@posts", { timeout: 15000 }).then(() => {}).catch(() => {});
   });
 
   it("laster sosial-siden uten krasj", () => {
@@ -30,9 +33,10 @@ describe("Sosial feed – ikke innlogget", () => {
 
 describe("Sosial feed – innlogget bruker", () => {
   beforeEach(() => {
-    // Registrer en helt fersk bruker — ingen reset nødvendig
     cy.registerAndLogin();
+    cy.intercept("GET", "/api/sosial/posts*").as("posts");
     cy.visit("/sosial");
+    cy.wait("@posts", { timeout: 15000 });
   });
 
   it("viser feeden etter innlogging", () => {

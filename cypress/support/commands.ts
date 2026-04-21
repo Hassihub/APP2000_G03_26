@@ -12,7 +12,9 @@ Cypress.Commands.add("login", (email: string, password: string) => {
 });
 
 // cy.loginByApi(email, password)
-// Logger inn direkte via API – raskere, ingen UI
+// Logger inn direkte via API – raskere, ingen UI.
+// Venter etterpå til /api/auth/me bekrefter at sesjonen er aktiv,
+// så testen ikke starter før innloggingen faktisk er ferdig.
 Cypress.Commands.add("loginByApi", (email: string, password: string) => {
   cy.request({
     method: "POST",
@@ -22,6 +24,12 @@ Cypress.Commands.add("loginByApi", (email: string, password: string) => {
   }).then((res) => {
     expect(res.status).to.eq(200);
   });
+  // Bekreft at sesjonen er registrert før testen fortsetter
+  cy.request({
+    method: "GET",
+    url: "/api/auth/me",
+    retryOnStatusCodeFailure: true,
+  }).its("status").should("eq", 200);
 });
 
 // cy.registerAndLogin()

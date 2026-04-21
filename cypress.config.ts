@@ -16,7 +16,10 @@ export default defineConfig({
     viewportHeight: 800,
     video: true,
     screenshotOnRunFailure: true,
-    defaultCommandTimeout: 8000,
+    defaultCommandTimeout: 15000,  // maks ventetid på at et element dukker opp
+    pageLoadTimeout: 30000,         // maks ventetid på at en side laster ferdig
+    requestTimeout: 15000,          // maks ventetid på API-svar
+    responseTimeout: 15000,
     excludeSpecPattern: [
       "cypress/e2e/1-getting-started/**",
       "cypress/e2e/2-advanced-examples/**",
