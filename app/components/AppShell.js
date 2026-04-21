@@ -106,12 +106,12 @@ export default function AppShell({ children }) {
 
           {/* Brand */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
-              <svg viewBox="0 0 48 32" width="40" height="28" fill="none">
-                <path d="M2 30 L16 5 L24 17 L30 9 L46 30 Z" fill="#fff" />
-                <circle cx="36" cy="7" r="3.5" fill="#f59e0b" />
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+              <svg viewBox="0 0 48 32" width="56" height="40" fill="none">
+                <path d="M2 30 L16 5 L24 17 L30 9 L46 30 Z" fill="#f59e0b" />
+                <circle cx="36" cy="7" r="3.5" fill="#fff" />
               </svg>
-              <span style={{ fontWeight: 800, fontSize: "1.15rem", color: "#fff", letterSpacing: "-0.02em" }}>FrittFram</span>
+              <span style={{ fontWeight: 800, fontSize: "1.5rem", color: "#000", letterSpacing: "-0.02em" }}>FrittFram</span>
             </div>
             <p style={{ margin: "0 0 1.5rem", fontSize: "0.9rem", lineHeight: 1.7, color: "#9ca3af", maxWidth: "280px" }}>
               Norges møteplass for friluftsliv. Planlegg turer, finn hytter og del opplevelser med andre entusiaster.
@@ -127,7 +127,6 @@ export default function AppShell({ children }) {
                 { label: "Reserver hytte", href: "/reserver" },
                 { label: "Kart", href: "/map" },
                 { label: "Værvarsling", href: "/weather" },
-                { label: "Marked", href: "/annonser" },
               ].map(({ label, href }) => (
                 <Link key={href} href={href} style={{ color: "#9ca3af", textDecoration: "none", fontSize: "0.9rem", transition: "color 0.15s" }}
                   onMouseEnter={(e) => e.target.style.color = "#000"}
