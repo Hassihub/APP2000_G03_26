@@ -60,7 +60,7 @@ export default function MapComponent() {
     { label: "Utforsk", href: "/explore" },
     { label: "Reserver", href: "/reserver" },
     { label: "Kart", href: "/map" },
-    { label: "Vær", href: "/vaer" },
+    { label: "Vær", href: "/weather" },
     { label: "Sosial", href: "/sosial" },
     { label: "Logg inn", href: "/login" },
   ];

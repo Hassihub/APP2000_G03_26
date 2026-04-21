@@ -19,7 +19,7 @@ function symbolToEmoji(code) {
   return "🌡️";
 }
 
-export default function VaerPage() {
+export default function WeatherPage() {
   const t = useTranslations("weatherPage");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -33,7 +33,7 @@ export default function VaerPage() {
   // Les cookies etter hydration (ikke under SSR)
   useEffect(() => {
     try {
-      const match = document.cookie.match(/(?:^|; )vaer_recent=([^;]*)/);
+      const match = document.cookie.match(/(?:^|; )weather_recent=([^;]*)/);
       if (match) setRecentSearches(JSON.parse(decodeURIComponent(match[1])));
     } catch { /* ignorer korrupt cookie */ }
   }, []);
@@ -41,7 +41,7 @@ export default function VaerPage() {
   useEffect(() => {
     const value = encodeURIComponent(JSON.stringify(recentSearches));
     // 30 dager
-    document.cookie = `vaer_recent=${value}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+    document.cookie = `weather_recent=${value}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
   }, [recentSearches]);
 
   const search = async (e) => {
@@ -52,7 +52,7 @@ export default function VaerPage() {
   };
 
   const getWeather = async (loc) => {
-    const res = await fetch(`/api/vaer?lat=${loc.lat}&lon=${loc.lon}`);
+    const res = await fetch(`/api/weather?lat=${loc.lat}&lon=${loc.lon}`);
     setWeather(await res.json());
     if (loc.name) {
       setSelectedName(loc.name);
