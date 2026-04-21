@@ -12,6 +12,7 @@ export async function POST(req) {
     duration_minutes,
     geometry,
     points,
+    bilde_url,
     created_by
   } = body;
 
@@ -33,9 +34,10 @@ export async function POST(req) {
         duration_minutes,
         geometry,
         points,
+        bilde_url,
         created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       `,
       [
         name,
@@ -45,6 +47,7 @@ export async function POST(req) {
         duration_minutes,
         JSON.stringify(geometry),
         JSON.stringify(points),
+        bilde_url ? String(bilde_url).trim() : null,
         createdByValue
       ]
     );

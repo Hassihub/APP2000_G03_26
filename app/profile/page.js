@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ROLE_ADMIN } from "../../lib/roles";
 import { useTranslations } from "../components/LanguageProvider";
-import { FiUser, FiDollarSign, FiCreditCard, FiMapPin, FiMenu, FiUsers, FiCalendar } from "react-icons/fi";
+import { FiUser, FiDollarSign, FiCreditCard, FiMapPin, FiMenu, FiUsers, FiCalendar, FiHeart } from "react-icons/fi";
 
 const emptyProfile = {
   id: "",
@@ -62,6 +62,10 @@ export default function Profile() {
   const [reservationsLoading, setReservationsLoading] = useState(false);
   const [reservationsError, setReservationsError] = useState("");
   const [deletingReservationId, setDeletingReservationId] = useState(null);
+  const [favoriteCabins, setFavoriteCabins] = useState([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const [favoritesError, setFavoritesError] = useState("");
+  const [removingFavoriteCabinId, setRemovingFavoriteCabinId] = useState(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -708,6 +712,74 @@ async function handleSaveEdit() {
     };
   }, [userData.id, userData.email]);
 
+  async function removeFavorite(cabinId) {
+    if (!cabinId) return;
+
+    try {
+      setRemovingFavoriteCabinId(String(cabinId));
+      setFavoritesError("");
+
+      const res = await fetch("/api/cabins/favorites", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cabin_id: cabinId }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunne ikke fjerne fra ønskelisten.");
+      }
+
+      setFavoriteCabins((prev) => prev.filter((cabin) => String(cabin.id) !== String(cabinId)));
+    } catch (err) {
+      setFavoritesError(err.message || "Kunne ikke fjerne fra ønskelisten.");
+    } finally {
+      setRemovingFavoriteCabinId(null);
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFavorites() {
+      if (activeCategory !== "wishlist") return;
+      if (!userData?.id) return;
+
+      setFavoritesLoading(true);
+      setFavoritesError("");
+
+      try {
+        const res = await fetch("/api/cabins/favorites", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(json?.error || "Kunne ikke hente ønskeliste.");
+        }
+
+        if (cancelled) return;
+        setFavoriteCabins(Array.isArray(json.favorites) ? json.favorites : []);
+      } catch (err) {
+        if (!cancelled) {
+          setFavoriteCabins([]);
+          setFavoritesError(err.message || "Kunne ikke hente ønskeliste.");
+        }
+      } finally {
+        if (!cancelled) {
+          setFavoritesLoading(false);
+        }
+      }
+    }
+
+    loadFavorites();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCategory, userData?.id]);
+
   return (
     <main style={{ display: "flex", minHeight: "100vh", fontFamily: "Poppins, sans-serif", background: `linear-gradient(180deg, ${themeColors.bg} 0%, ${themeColors.panelBg} 100%)`, color: themeColors.text, transition: "background 0.3s ease, color 0.3s ease" }}>
 
@@ -731,6 +803,7 @@ async function handleSaveEdit() {
             {[
               { id: "account",      icon: <FiUser size={14} />,       label: t.account },
               { id: "reservations", icon: <FiCalendar size={14} />,  label: t.reservations },
+              { id: "wishlist", icon: <FiHeart size={14} />,  label: t.wishlist },
               { id: "transactions", icon: <FiDollarSign size={14} />,  label: t.transactions },
               { id: "payment",      icon: <FiCreditCard size={14} />,  label: t.payment },
               { id: "trips",        icon: <FiMapPin size={14} />,      label: t.trips },
@@ -1227,6 +1300,121 @@ async function handleSaveEdit() {
                             {deletingReservationId === String(reservation.id)
                               ? "Sletter..."
                               : "Slett reservasjon"}
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeCategory === "wishlist" && (
+          <div>
+            <h2 style={{ marginBottom: "1rem", fontSize: "1.8rem" }}>{t.wishlist}</h2>
+            <p style={{ margin: "0 0 1.5rem", color: themeColors.lightText }}>
+              {t.wishlistIntro}
+            </p>
+
+            {favoritesLoading ? (
+              <div style={{ background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "2rem", color: themeColors.lightText }}>
+                {t.loadingWishlist}
+              </div>
+            ) : favoritesError ? (
+              <div style={{ background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "1.25rem", color: "#b42318" }}>
+                {favoritesError}
+              </div>
+            ) : favoriteCabins.length === 0 ? (
+              <div style={{ background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "2rem", textAlign: "center", color: themeColors.lightText }}>
+                {t.noWishlistCabins}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: "1rem" }}>
+                {favoriteCabins.map((cabin) => {
+                  const coverImage = Array.isArray(cabin?.image_urls) && cabin.image_urls.length > 0 ? cabin.image_urls[0] : null;
+                  return (
+                    <article
+                      key={cabin.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "220px 1fr",
+                        gap: "1rem",
+                        background: themeColors.cardBg,
+                        border: `1px solid ${themeColors.border}`,
+                        borderRadius: 12,
+                        overflow: "hidden",
+                        boxShadow: themeColors.shadow,
+                      }}
+                    >
+                      <div style={{ minHeight: 180, background: "#eef2f6", position: "relative" }}>
+                        {coverImage ? (
+                          <Image
+                            src={coverImage}
+                            alt={cabin.name || t.cabinFallback}
+                            fill
+                            unoptimized
+                            style={{ objectFit: "cover" }}
+                          />
+                        ) : (
+                          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: themeColors.lightText, fontWeight: 700 }}>
+                            {t.noCabinImage}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ padding: "1.25rem", display: "grid", gap: "0.8rem" }}>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: "1.25rem" }}>{cabin.name || t.cabinFallback}</h3>
+                          <p style={{ margin: "0.35rem 0 0", color: themeColors.lightText }}>
+                            {cabin.location || t.locationUnavailable}
+                          </p>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.75rem" }}>
+                          <div style={{ background: themeColors.panelBg, border: `1px solid ${themeColors.border}`, borderRadius: 10, padding: "0.9rem" }}>
+                            <p style={statLabelStyle}>{t.pricePerNight}</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{Number(cabin.price_per_night || 0).toLocaleString("nb-NO")} kr</p>
+                          </div>
+                          <div style={{ background: themeColors.panelBg, border: `1px solid ${themeColors.border}`, borderRadius: 10, padding: "0.9rem" }}>
+                            <p style={statLabelStyle}>{t.capacity}</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{cabin.capacity || "-"} {t.people}</p>
+                          </div>
+                        </div>
+
+                        {cabin.description ? (
+                          <p style={{ margin: 0, color: themeColors.cardText, lineHeight: 1.6 }}>{cabin.description}</p>
+                        ) : null}
+
+                        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                          <a
+                            href={`/reserver/booking?cabinId=${encodeURIComponent(cabin.id)}`}
+                            style={{
+                              ...actionButtonStyle,
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {t.openCabin}
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => removeFavorite(cabin.id)}
+                            disabled={removingFavoriteCabinId === String(cabin.id)}
+                            style={{
+                              ...secondaryButtonStyle,
+                              borderColor: "#dc2626",
+                              color: "#dc2626",
+                              background: "transparent",
+                              minWidth: "180px",
+                            }}
+                          >
+                            {removingFavoriteCabinId === String(cabin.id)
+                              ? t.removingFromWishlist
+                              : t.removeFromWishlist}
                           </button>
                         </div>
                       </div>

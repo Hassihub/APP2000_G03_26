@@ -48,6 +48,9 @@ export default function BookingClient() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [canReview, setCanReview] = useState(false);
   const [reviewBlockReason, setReviewBlockReason] = useState("");
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [favoriteError, setFavoriteError] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -187,6 +190,53 @@ export default function BookingClient() {
       alive = false;
     };
   }, [cabinId]);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadFavoriteState() {
+      if (!cabinId || !authChecked || !isAuthenticated) {
+        setIsFavorite(false);
+        setFavoriteError("");
+        return;
+      }
+
+      try {
+        setFavoriteLoading(true);
+        setFavoriteError("");
+
+        const res = await fetch(
+          `/api/cabins/favorites?cabin_id=${encodeURIComponent(cabinId)}`,
+          {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+          }
+        );
+
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(json?.error || "Kunne ikke hente ønskeliste-status.");
+        }
+
+        if (!alive) return;
+        setIsFavorite(Boolean(json?.is_favorite));
+      } catch (e) {
+        if (!alive) return;
+        setIsFavorite(false);
+        setFavoriteError(e?.message || "Kunne ikke hente ønskeliste-status.");
+      } finally {
+        if (!alive) return;
+        setFavoriteLoading(false);
+      }
+    }
+
+    loadFavoriteState();
+
+    return () => {
+      alive = false;
+    };
+  }, [cabinId, authChecked, isAuthenticated]);
 
   useEffect(() => {
     if (!cabin?.location) return;
@@ -389,6 +439,38 @@ export default function BookingClient() {
       setError(e?.message || "Ukjent feil ved opprettelse.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function toggleFavorite() {
+    if (!cabinId) return;
+    if (!isAuthenticated) {
+      router.push(loginHref);
+      return;
+    }
+
+    try {
+      setFavoriteLoading(true);
+      setFavoriteError("");
+
+      const method = isFavorite ? "DELETE" : "POST";
+      const res = await fetch("/api/cabins/favorites", {
+        method,
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cabin_id: cabinId }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunne ikke oppdatere ønskeliste.");
+      }
+
+      setIsFavorite(Boolean(json?.is_favorite));
+    } catch (e) {
+      setFavoriteError(e?.message || "Kunne ikke oppdatere ønskeliste.");
+    } finally {
+      setFavoriteLoading(false);
     }
   }
 
@@ -647,10 +729,37 @@ export default function BookingClient() {
                               </span>
                             </p>
                           </div>
-                          <span className={styles.summaryCabinType}>
-                            {cabin.is_staffed ? "Betjent" : "Ubetjent"}
-                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                            <span className={styles.summaryCabinType}>
+                              {cabin.is_staffed ? "Betjent" : "Ubetjent"}
+                            </span>
+                            {isAuthenticated ? (
+                              <button
+                                type="button"
+                                className={styles.buttonSecondary}
+                                onClick={toggleFavorite}
+                                disabled={favoriteLoading}
+                                style={{ minWidth: 185 }}
+                              >
+                                {favoriteLoading
+                                  ? "Lagrer..."
+                                  : isFavorite
+                                    ? "💖 På ønskelisten"
+                                    : "🤍 Legg til ønskeliste"}
+                              </button>
+                            ) : (
+                              <Link className={styles.buttonSecondary} href={loginHref}>
+                                Logg inn for ønskeliste
+                              </Link>
+                            )}
+                          </div>
                         </div>
+
+                        {favoriteError ? (
+                          <div className={styles.errorBox} style={{ marginTop: 10 }}>
+                            ❌ {favoriteError}
+                          </div>
+                        ) : null}
 
                         <div className={styles.summaryWeatherRow}>
                           <span className={styles.summaryWeatherNow}>

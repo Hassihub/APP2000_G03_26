@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { SimpleFileUpload } from "simple-file-upload-react";
 import styles from "../Reserver.module.css";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
 import {
@@ -10,71 +11,6 @@ import {
   useTranslations,
 } from "../../components/LanguageProvider";
 import { COMMON_AMENITIES } from "../amenities";
-
-const STANDARD_IMAGE_WIDTH = 1200;
-const STANDARD_IMAGE_HEIGHT = 900;
-
-function loadImageFromFile(file) {
-  return new Promise((resolve, reject) => {
-    const imageUrl = URL.createObjectURL(file);
-    const img = new window.Image();
-
-    img.onload = () => {
-      URL.revokeObjectURL(imageUrl);
-      resolve(img);
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(imageUrl);
-      reject(new Error(`Kunne ikke lese bildet: ${file.name}`));
-    };
-
-    img.src = imageUrl;
-  });
-}
-
-async function normalizeImageFile(file, index) {
-  if (!file.type.startsWith("image/")) {
-    throw new Error(`Filen ${file.name} er ikke et bilde.`);
-  }
-
-  const img = await loadImageFromFile(file);
-  const canvas = document.createElement("canvas");
-  canvas.width = STANDARD_IMAGE_WIDTH;
-  canvas.height = STANDARD_IMAGE_HEIGHT;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Kunne ikke klargjore bildebehandling.");
-
-  const scale = Math.max(
-    STANDARD_IMAGE_WIDTH / img.width,
-    STANDARD_IMAGE_HEIGHT / img.height,
-  );
-  const drawWidth = img.width * scale;
-  const drawHeight = img.height * scale;
-  const dx = (STANDARD_IMAGE_WIDTH - drawWidth) / 2;
-  const dy = (STANDARD_IMAGE_HEIGHT - drawHeight) / 2;
-
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, STANDARD_IMAGE_WIDTH, STANDARD_IMAGE_HEIGHT);
-  ctx.drawImage(img, dx, dy, drawWidth, drawHeight);
-
-  const blob = await new Promise((resolve) => {
-    canvas.toBlob(resolve, "image/jpeg", 0.9);
-  });
-
-  if (!blob) throw new Error(`Kunne ikke konvertere bildet: ${file.name}`);
-
-  const baseName =
-    file.name
-      .replace(/\.[^.]+$/, "")
-      .replace(/[^a-zA-Z0-9-_]/g, "-")
-      .toLowerCase() || "hyttebilde";
-
-  return new File([blob], `${baseName}-${index + 1}.jpg`, {
-    type: "image/jpeg",
-  });
-}
 
 export default function NewCabinPage() {
   const t = useTranslations("newCabinPage");
@@ -98,9 +34,8 @@ export default function NewCabinPage() {
     type: "idle", // idle | loading | success | error
     message: "",
   });
-  const [imageFiles, setImageFiles] = useState([]);
-  const [isProcessingImages, setIsProcessingImages] = useState(false);
-  const fileInputRef = useRef(null);
+  const [imageUrls, setImageUrls] = useState([]);
+  const [uploadPublicKey, setUploadPublicKey] = useState("");
 
   const [userRole, setUserRole] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -137,6 +72,35 @@ export default function NewCabinPage() {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    async function loadUploadPublicKey() {
+      try {
+        const res = await fetch("/api/simple-file-upload/public-key", {
+          method: "GET",
+          cache: "no-store",
+        });
+        if (!res.ok || !alive) return;
+        const data = await res.json().catch(() => ({}));
+        const key = typeof data?.publicKey === "string" ? data.publicKey.trim() : "";
+        if (alive) setUploadPublicKey(key);
+      } catch {
+        // nøkkel ikke tilgjengelig
+      }
+    }
+    loadUploadPublicKey();
+    return () => { alive = false; };
+  }, []);
+
+  function handleImageUploadChange(event) {
+    const files = Array.isArray(event?.allFiles) ? event.allFiles : [];
+    const newUrls = files
+      .map((file) => file.cdnUrl)
+      .filter((url) => url && !imageUrls.includes(url));
+    if (newUrls.length === 0) return;
+    setImageUrls((prev) => [...prev, ...newUrls]);
+  }
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
@@ -233,53 +197,6 @@ export default function NewCabinPage() {
     };
   }, [Leaflet, authLoading]);
 
-  async function handleImageChange(e) {
-    const files = Array.from(e.target.files || []).slice(0, 8);
-    if (!files.length) {
-      setImageFiles([]);
-      return;
-    }
-
-    setIsProcessingImages(true);
-    try {
-      const normalizedFiles = await Promise.all(
-        files.map((file, index) => normalizeImageFile(file, index)),
-      );
-      setImageFiles(normalizedFiles);
-    } catch (err) {
-      setStatus({
-        type: "error",
-        message: err?.message || "Kunne ikke tilpasse bilder.",
-      });
-      setImageFiles([]);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } finally {
-      setIsProcessingImages(false);
-    }
-  }
-
-  async function uploadImages(files) {
-    if (!files.length) return [];
-
-    const formData = new FormData();
-    for (const file of files) {
-      formData.append("images", file);
-    }
-
-    const res = await fetch("/api/cabins/upload", {
-      method: "POST",
-      credentials: "include",
-      body: formData,
-    });
-
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(json?.error || "Kunne ikke laste opp bilder.");
-    }
-
-    return Array.isArray(json?.image_urls) ? json.image_urls : [];
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
 
@@ -291,8 +208,6 @@ export default function NewCabinPage() {
     setStatus({ type: "loading", message: t.saving });
 
     try {
-      const uploadedImageUrls = await uploadImages(imageFiles);
-
       const payload = {
         name: form.name.trim(),
         description: form.description.trim() ? form.description.trim() : null,
@@ -309,7 +224,7 @@ export default function NewCabinPage() {
         ],
         latitude: coords?.lat ?? null,
         longitude: coords?.lon ?? null,
-        image_urls: uploadedImageUrls,
+        image_urls: imageUrls,
       };
 
       const res = await fetch("/api/cabins", {
@@ -348,8 +263,7 @@ export default function NewCabinPage() {
       });
       setSelectedAmenities([]);
       setCoords(null);
-      setImageFiles([]);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setImageUrls([]);
       if (mapRef.current && markerRef.current) {
         mapRef.current.removeLayer(markerRef.current);
         markerRef.current = null;
@@ -632,31 +546,22 @@ export default function NewCabinPage() {
                         <label className={styles.label}>
                           Bilder (valgfritt)
                         </label>
-                        <input
-                          ref={fileInputRef}
-                          className={styles.input}
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp"
-                          multiple
-                          onChange={handleImageChange}
-                        />
-                        <div className={styles.helper}>
-                          Maks 8 bilder. JPG, PNG eller WEBP. Maks 5 MB per
-                          bilde.
-                        </div>
-                        <div className={styles.helper}>
-                          Bildene tilpasses automatisk til 1200x900 (4:3), en
-                          vanlig standard for kort- og bookingvisning.
-                        </div>
-                        {isProcessingImages ? (
+                        {uploadPublicKey ? (
+                          <SimpleFileUpload
+                            publicKey={uploadPublicKey}
+                            multiple={true}
+                            maxFileSize={5 * 1024 * 1024}
+                            onChange={handleImageUploadChange}
+                          />
+                        ) : (
+                          <p className={styles.helper}>
+                            Mangler nøkkel for Simple File Upload i miljøvariabler.
+                          </p>
+                        )}
+                        {imageUrls.length > 0 ? (
                           <div className={styles.helper}>
-                            Tilpasser bilder...
-                          </div>
-                        ) : null}
-                        {imageFiles.length > 0 ? (
-                          <div className={styles.helper}>
-                            Valgt: {imageFiles.length} bilde
-                            {imageFiles.length > 1 ? "r" : ""}
+                            Lastet opp: {imageUrls.length} bilde
+                            {imageUrls.length > 1 ? "r" : ""}
                           </div>
                         ) : null}
                       </div>
@@ -664,9 +569,7 @@ export default function NewCabinPage() {
                       <button
                         className={styles.button}
                         type="submit"
-                        disabled={
-                          status.type === "loading" || isProcessingImages
-                        }
+                        disabled={status.type === "loading"}
                       >
                         {status.type === "loading" ? t.saving : t.saveCabin}
                       </button>

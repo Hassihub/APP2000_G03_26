@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SimpleFileUpload } from "simple-file-upload-react";
 import styles from "./page.module.css";
 import { ROLE_ADMIN, ROLE_TURLEDER, ROLE_UTLEIER } from "../../../lib/roles";
 
@@ -101,7 +102,9 @@ export default function NewTripRoutePage() {
     type: "fottur",
     vanskelighetsgrad: "middels",
     turleder_navn: "",
+    bilde_urls: [],
   });
+  const [uploadStatus, setUploadStatus] = useState("");
 
   const [dateOptions, setDateOptions] = useState(() => createInitialDateOptions());
 
@@ -121,6 +124,7 @@ export default function NewTripRoutePage() {
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState({ type: "idle", message: "" });
   const [gpxFileName, setGpxFileName] = useState("");
+  const [uploadPublicKey, setUploadPublicKey] = useState("");
 
   const mapInstanceRef = useRef(null);
   const markersLayerRef = useRef(null);
@@ -210,6 +214,35 @@ export default function NewTripRoutePage() {
     }
 
     loadCabins();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadUploadPublicKey() {
+      try {
+        const res = await fetch("/api/simple-file-upload/public-key", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        if (!res.ok || !alive) return;
+
+        const data = await res.json().catch(() => ({}));
+        const key = typeof data?.publicKey === "string" ? data.publicKey.trim() : "";
+        if (key && alive) {
+          setUploadPublicKey(key);
+        }
+      } catch {
+        if (alive) setUploadPublicKey("");
+      }
+    }
+
+    loadUploadPublicKey();
+
     return () => {
       alive = false;
     };
@@ -544,6 +577,19 @@ export default function NewTripRoutePage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  function handleImageUploadChange(event) {
+    const files = Array.isArray(event?.allFiles) ? event.allFiles : [];
+    const newUrls = files
+      .map((file) => file.cdnUrl)
+      .filter((url) => url && !form.bilde_urls.includes(url));
+    if (newUrls.length === 0) return;
+    setForm((prev) => ({
+      ...prev,
+      bilde_urls: [...prev.bilde_urls, ...newUrls],
+    }));
+    setUploadStatus("Bilde(r) lastet opp.");
+  }
+
   function handleGpxUpload(event) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -690,6 +736,8 @@ export default function NewTripRoutePage() {
             start_time: option.start_time,
             end_time: option.end_time,
           })),
+          cabin_ids: selectedCabinIds,
+          bilde_urls: form.bilde_urls,
         }
       : {
           navn: form.navn.trim(),
@@ -699,6 +747,7 @@ export default function NewTripRoutePage() {
           vanskelighetsgrad: form.vanskelighetsgrad,
           geometry,
           cabin_ids: selectedCabinIds,
+          bilde_urls: form.bilde_urls,
         };
 
     const endpoint = isTiu ? "/api/trips" : "/api/trips/custom-route";
@@ -731,7 +780,9 @@ export default function NewTripRoutePage() {
         navn: "",
         beskrivelse: "",
         turleder_navn: "",
+        bilde_urls: [],
       }));
+      setUploadStatus("");
       setSelectedCabinIds([]);
       setAnchorPoints([]);
       setSegmentModes([]);
@@ -896,6 +947,50 @@ export default function NewTripRoutePage() {
               />
             </div>
 
+            <div className={styles.field}>
+              <label>Bilde(r) (valgfritt)</label>
+              {uploadPublicKey ? (
+                <SimpleFileUpload
+                  publicKey={uploadPublicKey}
+                  multiple={true}
+                  maxFileSize={5 * 1024 * 1024}
+                  onChange={handleImageUploadChange}
+                />
+              ) : (
+                <p className={styles.help}>
+                  Mangler nøkkel for Simple File Upload i miljøvariabler.
+                </p>
+              )}
+
+              {uploadStatus && <p className={styles.help}>{uploadStatus}</p>}
+
+              {form.bilde_urls && form.bilde_urls.length > 0 && (
+                <div className={styles.previewWrap}>
+                  {form.bilde_urls.map((url, idx) => (
+                    <div key={url + idx} style={{ display: "inline-block", marginRight: 8 }}>
+                      <img
+                        src={url}
+                        alt={`Forhåndsvisning bilde ${idx + 1}`}
+                        className={styles.previewImage}
+                      />
+                      <button
+                        type="button"
+                        className={styles.btnAlt}
+                        onClick={() => {
+                          setForm((prev) => ({
+                            ...prev,
+                            bilde_urls: prev.bilde_urls.filter((_, i) => i !== idx),
+                          }));
+                        }}
+                      >
+                        Fjern
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <p className={styles.help}>
               Kart: Venstreklikk for å legge til punkt, eller importer en GPX-rute. Du trenger minst to punkter.
             </p>
@@ -1028,59 +1123,57 @@ export default function NewTripRoutePage() {
           </section>
 
           <aside className={`${styles.card} ${styles.side}`}>
-            {isTiuMode ? (
+            {isTiuMode && (
               <>
                 <h2>TiU-oppsummering</h2>
                 <div className={`${styles.status} ${styles.warn}`}>
                   Ruten blir synlig i explore, men kan ikke brukes til interessemelding før godkjenning.
                 </div>
               </>
+            )}
+
+            <h2>Velg hytter i ruten</h2>
+
+            {canManageCabins && (
+              <div className={styles.ownerActions}>
+                <Link href="/reserver/ny?next=/turrute/ny" className={styles.btn}>
+                  Legg til egen hytte
+                </Link>
+                <p className={styles.ownerNote}>
+                  Etter at hytten er opprettet kan du lage adkomstrute hit fra denne siden.
+                </p>
+              </div>
+            )}
+
+            {loadingCabins ? (
+              <div className={`${styles.status} ${styles.warn}`}>Laster hytter...</div>
+            ) : cabins.length === 0 ? (
+              <div className={`${styles.status} ${styles.warn}`}>Fant ingen hytter.</div>
             ) : (
-              <>
-                <h2>Velg hytter i ruten</h2>
-
-                {canManageCabins && (
-                  <div className={styles.ownerActions}>
-                    <Link href="/reserver/ny?next=/turrute/ny" className={styles.btn}>
-                      Legg til egen hytte
-                    </Link>
-                    <p className={styles.ownerNote}>
-                      Etter at hytten er opprettet kan du lage adkomstrute hit fra denne siden.
-                    </p>
-                  </div>
-                )}
-
-                {loadingCabins ? (
-                  <div className={`${styles.status} ${styles.warn}`}>Laster hytter...</div>
-                ) : cabins.length === 0 ? (
-                  <div className={`${styles.status} ${styles.warn}`}>Fant ingen hytter.</div>
-                ) : (
-                  <div className={styles.cabinList}>
-                    {cabins.map((cabin) => {
-                      const cabinId = String(cabin.id);
-                      const checked = selectedCabinIds.includes(cabinId);
-                      return (
-                        <label key={cabinId} className={styles.cabinItem}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleCabin(cabinId)}
-                          />
-                          <div className={styles.cabinInfo}>
-                            <span className={styles.cabinName}>{cabin.name || "Uten navn"}</span>
-                            <span className={styles.cabinMeta}>
-                              {cabin.location || "Ukjent sted"}
-                              {Number.isFinite(Number(cabin.price_per_night))
-                                ? ` | ${cabin.price_per_night} kr/natt`
-                                : ""}
-                            </span>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
+              <div className={styles.cabinList}>
+                {cabins.map((cabin) => {
+                  const cabinId = String(cabin.id);
+                  const checked = selectedCabinIds.includes(cabinId);
+                  return (
+                    <label key={cabinId} className={styles.cabinItem}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleCabin(cabinId)}
+                      />
+                      <div className={styles.cabinInfo}>
+                        <span className={styles.cabinName}>{cabin.name || "Uten navn"}</span>
+                        <span className={styles.cabinMeta}>
+                          {cabin.location || "Ukjent sted"}
+                          {Number.isFinite(Number(cabin.price_per_night))
+                            ? ` | ${cabin.price_per_night} kr/natt`
+                            : ""}
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
             )}
           </aside>
         </form>
