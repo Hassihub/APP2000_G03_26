@@ -111,12 +111,15 @@ export function enableRouteDrawing(map, L, onRouteFinished, getPlacing) {
         return;
       }
 
-      const geometry = data.routes[0].geometry;
+      const route = data.routes[0];
+      const geometry = route.geometry;
+      const distanceKm = Math.round((route.distance / 1000) * 10) / 10;
+
       routeLine = L.geoJSON(geometry, {
         style: { color: "#ff4d4d", weight: 4 },
       }).addTo(map);
 
-      onRouteFinished({ points, geometry });
+      onRouteFinished({ points, geometry, distanceKm });
     } catch (err) {
       console.error("OSRM fetch error:", err);
     }

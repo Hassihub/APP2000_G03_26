@@ -131,7 +131,7 @@ export default function AppShell({ children }) {
                 { label: "Utforsk turer", href: "/explore" },
                 { label: "Reserver hytte", href: "/reserver" },
                 { label: "Kart", href: "/map" },
-                { label: "Værvarsling", href: "/vaer" },
+                { label: "Værvarsling", href: "/weather" },
                 { label: "Marked", href: "/annonser" },
               ].map(({ label, href }) => (
                 <Link key={href} href={href} style={{ color: "#9ca3af", textDecoration: "none", fontSize: "0.9rem", transition: "color 0.15s" }}

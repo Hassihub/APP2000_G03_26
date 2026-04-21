@@ -10,7 +10,7 @@ export default function DropDown() {
     { name: "Utforsk", href: "/explore" },
     { name: "Reserver", href: "/reserver" },
     { name: "Kart", href: "/map" },
-    { name: "Vær", href: "/vaer" },
+    { name: "Vær", href: "/weather" },
     { name: "Sosial", href: "/sosial" },
     { name: "Hjem", href: "/" },
   ];

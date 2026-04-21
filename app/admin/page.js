@@ -1,17 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ROLE_ADMIN, ROLE_UTLEIER, ROLE_USER } from "../../lib/roles";
+import { ROLE_ADMIN } from "../../lib/roles";
 import styles from "../reserver/Reserver.module.css";
 
 export default function AdminPage() {
   const router = useRouter();
-  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [saving, setSaving] = useState({});
-  const [role, setRole] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -21,7 +19,7 @@ export default function AdminPage() {
       setError("");
 
       try {
-        const res = await fetch("/api/auth/me", {
+        const meRes = await fetch("/api/auth/me", {
           method: "GET",
           credentials: "include",
           cache: "no-store",
@@ -29,38 +27,21 @@ export default function AdminPage() {
 
         if (!alive) return;
 
-        if (!res.ok) {
+        if (!meRes.ok) {
           router.push("/login");
           return;
         }
 
-        const data = await res.json().catch(() => ({}));
-        if (!data?.user) {
+        const meData = await meRes.json().catch(() => ({}));
+        if (!meData?.user) {
           router.push("/login");
           return;
         }
 
-        if (data.user.role !== ROLE_ADMIN) {
+        if (meData.user.role !== ROLE_ADMIN) {
           setError("Du har ikke tilgang til denne siden.");
           return;
         }
-
-        setRole(data.user.role);
-
-        const usersRes = await fetch("/api/auth/users", {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-        });
-
-        if (!alive) return;
-        if (!usersRes.ok) {
-          const json = await usersRes.json().catch(() => ({}));
-          throw new Error(json?.error || "Kunne ikke hente brukere");
-        }
-
-        const { users } = await usersRes.json();
-        if (alive) setUsers(users || []);
       } catch (err) {
         if (!alive) return;
         setError(err?.message || "Noe gikk galt");
@@ -70,36 +51,11 @@ export default function AdminPage() {
     }
 
     load();
+
     return () => {
       alive = false;
     };
   }, [router]);
-
-  async function updateRole(userId, newRole) {
-    setSaving((prev) => ({ ...prev, [userId]: true }));
-
-    try {
-      const res = await fetch(`/api/auth/users/${encodeURIComponent(userId)}/role`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ role: newRole }),
-      });
-
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(json?.error || "Kunne ikke oppdatere rolle");
-      }
-
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, role: json.user.role } : u))
-      );
-    } catch (err) {
-      setError(err?.message || "Noe gikk galt");
-    } finally {
-      setSaving((prev) => ({ ...prev, [userId]: false }));
-    }
-  }
 
   if (loading) {
     return (
@@ -111,52 +67,54 @@ export default function AdminPage() {
   }
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "960px", margin: "0 auto" }}>
+    <div style={{ padding: "2rem", maxWidth: "900px", margin: "0 auto" }}>
       <h1>Admin</h1>
       {error ? <div className={styles.errorBox}>❌ {error}</div> : null}
 
-      <p>Her kan du endre brukernes roller.</p>
+      <p>Velg hva du vil administrere.</p>
 
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: "left", padding: "8px" }}>Brukernavn</th>
-            <th style={{ textAlign: "left", padding: "8px" }}>E-post</th>
-            <th style={{ textAlign: "left", padding: "8px" }}>Rolle</th>
-            <th style={{ textAlign: "left", padding: "8px" }}>Opprettet</th>
-            <th style={{ textAlign: "left", padding: "8px" }}>Handling</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user.id}>
-              <td style={{ padding: "8px" }}>{user.username}</td>
-              <td style={{ padding: "8px" }}>{user.email}</td>
-              <td style={{ padding: "8px" }}>{user.role}</td>
-              <td style={{ padding: "8px" }}>{new Date(user.created_at).toLocaleString()}</td>
-              <td style={{ padding: "8px" }}>
-                <select
-                  value={user.role}
-                  onChange={(e) => updateRole(user.id, e.target.value)}
-                  disabled={saving[user.id]}
-                  style={{ marginRight: 8 }}
-                >
-                  <option value={ROLE_USER}>Bruker</option>
-                  <option value={ROLE_UTLEIER}>Utleier</option>
-                  <option value={ROLE_ADMIN}>Admin</option>
-                </select>
-                <button
-                  type="button"
-                  disabled={saving[user.id]}
-                  onClick={() => updateRole(user.id, user.role)}
-                >
-                  {saving[user.id] ? "Lagrer…" : "Lagre"}
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: "1rem",
+          marginTop: "1rem",
+        }}
+      >
+        <Link
+          href="/admin/brukere"
+          style={{
+            border: "1px solid var(--border)",
+            borderRadius: "12px",
+            padding: "1rem",
+            background: "var(--bg-panel)",
+            textDecoration: "none",
+            color: "var(--text)",
+          }}
+        >
+          <h2 style={{ marginTop: 0 }}>Brukere</h2>
+          <p style={{ marginBottom: 0, color: "var(--text-muted)" }}>
+            Endre roller og slett brukere.
+          </p>
+        </Link>
+
+        <Link
+          href="/admin/turer"
+          style={{
+            border: "1px solid var(--border)",
+            borderRadius: "12px",
+            padding: "1rem",
+            background: "var(--bg-panel)",
+            textDecoration: "none",
+            color: "var(--text)",
+          }}
+        >
+          <h2 style={{ marginTop: 0 }}>Turer</h2>
+          <p style={{ marginBottom: 0, color: "var(--text-muted)" }}>
+            Se ruter til verifisering i kart, og godkjenn både vanlige ruter og TiU-turer.
+          </p>
+        </Link>
+      </div>
     </div>
   );
 }

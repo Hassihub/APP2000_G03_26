@@ -3,11 +3,32 @@ import db from "../../../../lib/db";
 import { requireAuth, requireRole } from "../../../../lib/auth";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../../lib/roles";
 
+function isMissingColumn(err, columnName) {
+  return err?.code === "42703" || err?.message?.includes(`column \"${columnName}\"`);
+}
+
 function badRequest(message) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
 let cabinImagesTableReady = false;
+let cabinStaffedColumnReady = false;
+let cabinReviewsTableReady = false;
+
+async function ensureCabinStaffedColumn() {
+  if (cabinStaffedColumnReady) return true;
+
+  try {
+    await db.query(`
+      ALTER TABLE public.cabins
+      ADD COLUMN IF NOT EXISTS is_staffed BOOLEAN NOT NULL DEFAULT false
+    `);
+    cabinStaffedColumnReady = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function ensureCabinImagesTable() {
   if (cabinImagesTableReady) return true;
@@ -33,6 +54,70 @@ async function ensureCabinImagesTable() {
   } catch {
     return false;
   }
+}
+
+async function ensureCabinReviewsTable() {
+  if (cabinReviewsTableReady) return true;
+
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS public.cabin_reviews (
+        id BIGSERIAL PRIMARY KEY,
+        cabin_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        username TEXT NOT NULL,
+        rating SMALLINT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+        comment TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await db.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_cabin_reviews_cabin_user
+      ON public.cabin_reviews (cabin_id, user_id)
+    `);
+
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_cabin_reviews_cabin_id
+      ON public.cabin_reviews (cabin_id)
+    `);
+
+    cabinReviewsTableReady = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function getCabinReviewStats(cabinId) {
+  const hasTable = await ensureCabinReviewsTable();
+  if (!hasTable) {
+    return {
+      average_rating: null,
+      review_count: 0,
+    };
+  }
+
+  const result = await db.query(
+    `
+      SELECT
+        ROUND(AVG(rating)::numeric, 1) AS average_rating,
+        COUNT(*)::int AS review_count
+      FROM public.cabin_reviews
+      WHERE cabin_id = $1
+    `,
+    [String(cabinId)]
+  );
+
+  const row = result.rows[0] ?? {};
+  return {
+    average_rating:
+      row.average_rating === null || row.average_rating === undefined
+        ? null
+        : Number.parseFloat(String(row.average_rating)),
+    review_count: Number(row.review_count) || 0,
+  };
 }
 
 async function getCabinImages(cabinId) {
@@ -73,17 +158,48 @@ async function replaceCabinImages(cabinId, imageUrls) {
 
 export async function GET(_req, { params }) {
   try {
+    await ensureCabinStaffedColumn();
     // ✅ Next.js 15+: params er en Promise
     const { id } = await params;
     if (!id) return badRequest("Mangler id");
 
-    const sql = `
-      SELECT id, name, description, location, price_per_night, capacity, amenities, created_at
-      FROM public.cabins
-      WHERE id = $1
+    const sqlWithStaffed = `
+      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities, c.latitude, c.longitude, c.created_at, c.owner_id, u.username AS owner_name, COALESCE(c.is_staffed, false) AS is_staffed
+      FROM public.cabins c
+      LEFT JOIN public.users u ON u.id::text = c.owner_id::text
+      WHERE c.id = $1
       LIMIT 1
     `;
-    const result = await db.query(sql, [id]);
+    const sqlWithoutStaffed = `
+      SELECT c.id, c.name, c.description, c.location, c.price_per_night, c.capacity, c.amenities,
+             NULL::double precision AS latitude,
+             NULL::double precision AS longitude,
+             c.created_at,
+             NULL::text AS owner_id,
+             NULL::text AS owner_name,
+             false AS is_staffed
+      FROM public.cabins c
+      WHERE c.id = $1
+      LIMIT 1
+    `;
+
+    let result;
+    try {
+      result = await db.query(sqlWithStaffed, [id]);
+    } catch (err) {
+      const fallbackAllowed =
+        err?.code === "42703" ||
+        err?.code === "42P01" ||
+        err?.message?.includes("owner_id") ||
+        err?.message?.includes("latitude") ||
+        err?.message?.includes("longitude") ||
+        err?.message?.includes("public.users") ||
+        isMissingColumn(err, "is_staffed");
+
+      if (!fallbackAllowed) throw err;
+      const fallback = await db.query(sqlWithoutStaffed, [id]);
+      result = fallback;
+    }
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "Fant ikke hytta" }, { status: 404 });
@@ -91,7 +207,11 @@ export async function GET(_req, { params }) {
 
     const cabin = result.rows[0];
     const image_urls = await getCabinImages(cabin.id);
-    return NextResponse.json({ cabin: { ...cabin, image_urls } }, { status: 200 });
+    const reviewStats = await getCabinReviewStats(cabin.id);
+    return NextResponse.json(
+      { cabin: { ...cabin, image_urls, ...reviewStats } },
+      { status: 200 }
+    );
   } catch (e) {
     return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
   }
@@ -99,6 +219,7 @@ export async function GET(_req, { params }) {
 
 export async function PUT(req, { params }) {
   try {
+    await ensureCabinStaffedColumn();
     const { id } = await params;
     if (!id) return badRequest("Mangler id");
 
@@ -144,6 +265,7 @@ export async function PUT(req, { params }) {
 
     const price_per_night = Number(body.price_per_night);
     const capacity = Number(body.capacity);
+    const is_staffed = Boolean(body.is_staffed);
 
     if (!name) return badRequest("name er påkrevd");
     if (!location) return badRequest("location er påkrevd");
@@ -157,20 +279,42 @@ export async function PUT(req, { params }) {
       ? body.image_urls.map((x) => String(x).trim()).filter(Boolean)
       : [];
 
-    const sql = `
+    const sqlWithStaffed = `
       UPDATE public.cabins
       SET name = $1,
           description = $2,
           location = $3,
           price_per_night = $4,
           capacity = $5,
-          amenities = $6
-      WHERE id = $7
-      RETURNING id, name, description, location, price_per_night, capacity, amenities, created_at
+          amenities = $6,
+          is_staffed = $7
+      WHERE id = $8
+      RETURNING id, name, description, location, price_per_night, capacity, amenities, created_at, is_staffed
     `;
 
-    const values = [name, description, location, price_per_night, capacity, amenities, id];
-    const result = await db.query(sql, values);
+    const valuesWithStaffed = [name, description, location, price_per_night, capacity, amenities, is_staffed, id];
+
+    let result;
+    try {
+      result = await db.query(sqlWithStaffed, valuesWithStaffed);
+    } catch (err) {
+      if (!isMissingColumn(err, "is_staffed")) throw err;
+
+      const sqlWithoutStaffed = `
+        UPDATE public.cabins
+        SET name = $1,
+            description = $2,
+            location = $3,
+            price_per_night = $4,
+            capacity = $5,
+            amenities = $6
+        WHERE id = $7
+        RETURNING id, name, description, location, price_per_night, capacity, amenities, created_at, false AS is_staffed
+      `;
+
+      const valuesWithoutStaffed = [name, description, location, price_per_night, capacity, amenities, id];
+      result = await db.query(sqlWithoutStaffed, valuesWithoutStaffed);
+    }
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: "Fant ikke hytta" }, { status: 404 });

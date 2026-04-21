@@ -1,11 +1,233 @@
 import { NextResponse } from "next/server";
 import db from "../../../lib/db"; // default Pool
+import { requireAuth } from "../../../lib/auth";
+
+let reservationUserIdColumnReady = false;
+let notificationsTableReady = false;
+const autoDeleteCompletedReservations = String(process.env.AUTO_DELETE_COMPLETED_RESERVATIONS ?? "").toLowerCase() === "true";
+const parsedRetentionDays = Number.parseInt(String(process.env.RESERVATION_RETENTION_DAYS ?? "180"), 10);
+const reservationRetentionDays = Number.isFinite(parsedRetentionDays) ? Math.max(parsedRetentionDays, 7) : 180;
+
+async function ensureReservationUserIdColumn() {
+  if (reservationUserIdColumnReady) return true;
+
+  try {
+    await db.query(`
+      ALTER TABLE public.reservations
+      ADD COLUMN IF NOT EXISTS guest_user_id TEXT
+    `);
+    reservationUserIdColumnReady = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureNotificationsTable() {
+  if (notificationsTableReady) return true;
+
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS public.user_notifications (
+        id BIGSERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        reference_id TEXT,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        action_url TEXT,
+        metadata JSONB,
+        is_read BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        read_at TIMESTAMPTZ
+      )
+    `);
+
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created
+      ON public.user_notifications (user_id, created_at DESC)
+    `);
+
+    await db.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_user_notifications_reference
+      ON public.user_notifications (user_id, type, reference_id)
+      WHERE reference_id IS NOT NULL
+    `);
+
+    notificationsTableReady = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function markCompletedReservations() {
+  await db.query(
+    `
+      UPDATE public.reservations
+      SET status = 'completed'
+      WHERE status <> 'cancelled'
+        AND status <> 'completed'
+        AND end_date < CURRENT_DATE
+    `
+  );
+}
+
+async function purgeCompletedReservationsIfEnabled() {
+  if (!autoDeleteCompletedReservations) return;
+
+  const deleted = await db.query(
+    `
+      DELETE FROM public.reservations
+      WHERE status = 'completed'
+        AND end_date < (CURRENT_DATE - ($1::int * INTERVAL '1 day'))
+      RETURNING id::text AS id_text
+    `,
+    [reservationRetentionDays]
+  );
+
+  if (deleted.rowCount === 0) return;
+
+  const ids = deleted.rows.map((row) => String(row.id_text || "").trim()).filter(Boolean);
+  if (ids.length === 0) return;
+
+  try {
+    const hasNotifications = await ensureNotificationsTable();
+    if (hasNotifications) {
+      await db.query(
+        `
+          DELETE FROM public.user_notifications
+          WHERE reference_id = ANY($1::text[])
+        `,
+        [ids.map((id) => `reservation:${id}`)]
+      );
+    }
+  } catch {
+    // Opprydding i varslinger skal ikke stoppe hovedflyten.
+  }
+}
+
+async function runReservationLifecycleHousekeeping() {
+  await markCompletedReservations();
+  await purgeCompletedReservationsIfEnabled();
+}
+
+async function userAllowsNotifications(userId) {
+  try {
+    const result = await db.query(
+      `
+        SELECT COALESCE(notifications, true) AS notifications_enabled
+        FROM public.users
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [String(userId)]
+    );
+
+    if (result.rowCount === 0) return true;
+    return Boolean(result.rows[0]?.notifications_enabled);
+  } catch {
+    return true;
+  }
+}
+
+async function createReservationNotification(userId, reservation) {
+  try {
+    const hasTable = await ensureNotificationsTable();
+    if (!hasTable) return;
+
+    let cabinName = "hytta";
+    let cabinOwnerId = "";
+
+    try {
+      const cabinResult = await db.query(
+        `SELECT name, owner_id FROM public.cabins WHERE id = $1 LIMIT 1`,
+        [String(reservation.cabin_id)]
+      );
+      cabinName = String(cabinResult.rows[0]?.name || "hytta").trim();
+      cabinOwnerId = String(cabinResult.rows[0]?.owner_id ?? "").trim();
+    } catch {
+      const fallbackCabinResult = await db.query(
+        `SELECT name FROM public.cabins WHERE id = $1 LIMIT 1`,
+        [String(reservation.cabin_id)]
+      );
+      cabinName = String(fallbackCabinResult.rows[0]?.name || "hytta").trim();
+      cabinOwnerId = "";
+    }
+
+    const guestAllows = await userAllowsNotifications(userId);
+    if (guestAllows) {
+      await db.query(
+        `
+          INSERT INTO public.user_notifications
+            (user_id, type, reference_id, title, message, action_url, metadata)
+          VALUES
+            ($1, 'reservation_created', $2, $3, $4, $5, $6::jsonb)
+          ON CONFLICT DO NOTHING
+        `,
+        [
+          String(userId),
+          `reservation:${reservation.id}`,
+          "Reservasjon bekreftet",
+          `Du har reservert ${cabinName} fra ${String(reservation.start_date).slice(0, 10)} til ${String(reservation.end_date).slice(0, 10)}.`,
+          `/reserver/booking?cabinId=${encodeURIComponent(String(reservation.cabin_id))}`,
+          JSON.stringify({
+            reservation_id: reservation.id,
+            cabin_id: reservation.cabin_id,
+            start_date: reservation.start_date,
+            end_date: reservation.end_date,
+          }),
+        ]
+      );
+    }
+
+    if (cabinOwnerId && String(cabinOwnerId) !== String(userId)) {
+      const ownerAllows = await userAllowsNotifications(cabinOwnerId);
+      if (ownerAllows) {
+        const guestDisplayName =
+          String(reservation.guest_name || "").trim() ||
+          String(reservation.guest_email || "").trim() ||
+          "En gjest";
+
+        await db.query(
+          `
+            INSERT INTO public.user_notifications
+              (user_id, type, reference_id, title, message, action_url, metadata)
+            VALUES
+              ($1, 'reservation_received', $2, $3, $4, $5, $6::jsonb)
+            ON CONFLICT DO NOTHING
+          `,
+          [
+            cabinOwnerId,
+            `reservation:${reservation.id}`,
+            "Ny booking mottatt",
+            `${guestDisplayName} har booket ${cabinName} fra ${String(reservation.start_date).slice(0, 10)} til ${String(reservation.end_date).slice(0, 10)}.`,
+            `/profile`,
+            JSON.stringify({
+              reservation_id: reservation.id,
+              cabin_id: reservation.cabin_id,
+              guest_name: reservation.guest_name,
+              guest_email: reservation.guest_email,
+              start_date: reservation.start_date,
+              end_date: reservation.end_date,
+            }),
+          ]
+        );
+      }
+    }
+  } catch {
+    // Varsling skal aldri blokkere reservasjon.
+  }
+}
 
 export async function GET(req) {
   try {
+    await ensureReservationUserIdColumn();
+    await runReservationLifecycleHousekeeping();
     const { searchParams } = new URL(req.url);
     const cabin_id = searchParams.get("cabin_id"); // valgfri filter
     const guest_email = searchParams.get("guest_email"); // valgfri filter
+    const guest_user_id = searchParams.get("guest_user_id"); // valgfri filter
 
     const where = [];
     const values = [];
@@ -14,16 +236,37 @@ export async function GET(req) {
       values.push(cabin_id);
       where.push(`cabin_id = $${values.length}`);
     }
-    if (guest_email) {
+    if (guest_email && guest_user_id) {
+      values.push(guest_user_id);
+      values.push(guest_email);
+      where.push(`(guest_user_id = $${values.length - 1} OR guest_email = $${values.length})`);
+    } else if (guest_user_id) {
+      values.push(guest_user_id);
+      where.push(`guest_user_id = $${values.length}`);
+    } else if (guest_email) {
       values.push(guest_email);
       where.push(`guest_email = $${values.length}`);
     }
 
     const sql = `
-      SELECT id, cabin_id, guest_name, guest_email, start_date, end_date, guests_count, notes, status, created_at
-      FROM public.reservations
+      SELECT
+        r.id,
+        r.cabin_id,
+        r.guest_user_id,
+        r.guest_name,
+        r.guest_email,
+        r.start_date,
+        r.end_date,
+        r.guests_count,
+        r.notes,
+        r.status,
+        r.created_at,
+        c.name AS cabin_name,
+        c.location AS cabin_location
+      FROM public.reservations r
+      LEFT JOIN public.cabins c ON c.id = r.cabin_id
       ${where.length ? "WHERE " + where.join(" AND ") : ""}
-      ORDER BY created_at DESC
+      ORDER BY r.created_at DESC
     `;
 
     const result = await db.query(sql, values);
@@ -35,6 +278,11 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    await ensureReservationUserIdColumn();
+    await runReservationLifecycleHousekeeping();
+    const { user, response } = await requireAuth();
+    if (response) return response;
+
     const body = await req.json();
 
     const cabin_id = String(body.cabin_id ?? "").trim();
@@ -46,6 +294,7 @@ export async function POST(req) {
 
     const guests_count = Number(body.guests_count);
     const notes = body.notes ? String(body.notes).trim() : null;
+    const guest_user_id = String(user.id ?? "").trim();
 
     if (!cabin_id) return NextResponse.json({ error: "cabin_id er påkrevd" }, { status: 400 });
     if (!guest_name) return NextResponse.json({ error: "guest_name er påkrevd" }, { status: 400 });
@@ -75,19 +324,110 @@ export async function POST(req) {
       );
     }
 
+    const reservationName = guest_name || String(user.username ?? "").trim();
+    const reservationEmail = guest_email || String(user.email ?? "").trim();
+
+    if (!reservationName) {
+      return NextResponse.json({ error: "guest_name er påkrevd" }, { status: 400 });
+    }
+    if (!reservationEmail) {
+      return NextResponse.json({ error: "guest_email er påkrevd" }, { status: 400 });
+    }
+    if (!guest_user_id) {
+      return NextResponse.json({ error: "Mangler bruker-ID" }, { status: 400 });
+    }
+
     const insertSql = `
       INSERT INTO public.reservations
-        (cabin_id, guest_name, guest_email, start_date, end_date, guests_count, notes)
+        (cabin_id, guest_user_id, guest_name, guest_email, start_date, end_date, guests_count, notes)
       VALUES
-        ($1, $2, $3, $4::date, $5::date, $6, $7)
+        ($1, $2, $3, $4, $5::date, $6::date, $7, $8)
       RETURNING
-        id, cabin_id, guest_name, guest_email, start_date, end_date, guests_count, notes, status, created_at
+        id, cabin_id, guest_user_id, guest_name, guest_email, start_date, end_date, guests_count, notes, status, created_at
     `;
 
-    const values = [cabin_id, guest_name, guest_email, start_date, end_date, guests_count, notes];
+    const values = [cabin_id, guest_user_id, reservationName, reservationEmail, start_date, end_date, guests_count, notes];
     const result = await db.query(insertSql, values);
 
+    await createReservationNotification(user.id, result.rows[0]);
+
     return NextResponse.json({ reservation: result.rows[0] }, { status: 201 });
+  } catch (e) {
+    return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req) {
+  try {
+    await ensureReservationUserIdColumn();
+    const { user, response } = await requireAuth();
+    if (response) return response;
+
+    const { searchParams } = new URL(req.url);
+    const reservationId = String(searchParams.get("id") ?? "").trim();
+
+    if (!reservationId) {
+      return NextResponse.json({ error: "Mangler gyldig reservasjons-ID" }, { status: 400 });
+    }
+
+    const reservationRes = await db.query(
+      `
+        SELECT id, guest_user_id, guest_email
+        FROM public.reservations
+        WHERE id::text = $1
+        LIMIT 1
+      `,
+      [reservationId]
+    );
+
+    if (reservationRes.rowCount === 0) {
+      return NextResponse.json({ error: "Fant ikke reservasjonen" }, { status: 404 });
+    }
+
+    const reservation = reservationRes.rows[0];
+    const userId = String(user.id ?? "").trim();
+    const userEmail = String(user.email ?? "").trim().toLowerCase();
+    const ownerUserId = String(reservation.guest_user_id ?? "").trim();
+    const ownerEmail = String(reservation.guest_email ?? "").trim().toLowerCase();
+
+    const hasAccess =
+      (ownerUserId && ownerUserId === userId) ||
+      (!ownerUserId && ownerEmail && userEmail && ownerEmail === userEmail);
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Ingen tilgang" }, { status: 403 });
+    }
+
+    const deleteRes = await db.query(
+      `
+        DELETE FROM public.reservations
+        WHERE id::text = $1
+        RETURNING id
+      `,
+      [reservationId]
+    );
+
+    if (deleteRes.rowCount === 0) {
+      return NextResponse.json({ error: "Fant ikke reservasjonen" }, { status: 404 });
+    }
+
+    try {
+      const hasNotifications = await ensureNotificationsTable();
+      if (hasNotifications) {
+        await db.query(
+          `
+            DELETE FROM public.user_notifications
+            WHERE user_id = $1
+              AND reference_id = $2
+          `,
+          [userId, `reservation:${reservationId}`]
+        );
+      }
+    } catch {
+      // Feil i varsling-opprydding skal ikke blokkere sletting.
+    }
+
+    return NextResponse.json({ ok: true, id: reservationId }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
   }

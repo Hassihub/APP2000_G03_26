@@ -6,6 +6,8 @@ const LocalStrategy = require("passport-local").Strategy;
 const PgSession = require("connect-pg-simple")(session);
 const bcrypt = require("bcrypt");
 const { Pool } = require("pg");
+const fs = require("fs");
+const path = require("path");
 
 // Optional: load .env in development
 try {
@@ -25,6 +27,37 @@ const handle = appNext.getRequestHandler();
 const port = process.env.PORT || 3000;
 
 const pool = new Pool(getDatabaseConfig());
+const publicDir = path.join(process.cwd(), "public");
+const fallbackImagePath = path.join(publicDir, "images", "fjell.jpg");
+
+function servePublicAssetOrFallback(req, res, next) {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return next();
+  }
+
+  let requestPath = req.path;
+
+  try {
+    requestPath = decodeURIComponent(new URL(req.originalUrl, `http://${req.headers.host || "localhost"}`).pathname);
+  } catch {
+    // Keep the raw path if decoding fails.
+  }
+
+  if (requestPath === "/images/profilbilde.jpg") {
+    return res.sendFile(fallbackImagePath);
+  }
+
+  if (requestPath.startsWith("/uploads/")) {
+    const assetPath = path.join(publicDir, requestPath);
+    if (fs.existsSync(assetPath) && fs.statSync(assetPath).isFile()) {
+      return res.sendFile(assetPath);
+    }
+
+    return res.sendFile(fallbackImagePath);
+  }
+
+  return next();
+}
 
 let userColumnsPromise = null;
 
@@ -103,6 +136,11 @@ function toBoolean(value, fallback = false) {
   return fallback;
 }
 
+function normalizeEmailInput(value) {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, "").trim().toLowerCase();
+}
+
 function calculateAge(dob) {
   if (!dob) return "";
 
@@ -173,7 +211,7 @@ async function buildProfilePayload(user) {
   const profileImage = pickFirstValue(
     fullUser,
     ["profile_image", "avatar_url", "avatar", "image_url"],
-    "/images/profil.jpg"
+    "/images/fjell.jpg"
   );
   const bannerImage = pickFirstValue(
     fullUser,
@@ -183,6 +221,7 @@ async function buildProfilePayload(user) {
 
   return {
     id: fullUser.id,
+    role: fullUser.role || "",
     name: pickFirstValue(fullUser, ["username", "name", "full_name"], "Bruker"),
     dob,
     age,
@@ -251,9 +290,10 @@ async function buildProfilePayload(user) {
 }
 
 async function findUserByEmail(email) {
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-    email,
-  ]);
+  const result = await pool.query(
+    "SELECT * FROM users WHERE email = $1",
+    [email]
+  );
   return result.rows[0] || null;
 }
 
@@ -389,6 +429,8 @@ appNext.prepare().then(() => {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  app.use(servePublicAssetOrFallback);
+
   // Body parsers for selected Express endpoints (not global Next.js routes)
   const jsonParser = express.json();
   const urlencodedParser = express.urlencoded({ extended: true });
@@ -421,7 +463,7 @@ appNext.prepare().then(() => {
     try {
       const existing = await pool.query(
         "SELECT 1 FROM users WHERE email = $1 OR username = $2",
-        [email, username]
+        [email.toLowerCase(), username]
       );
 
       if (existing.rowCount > 0) {
@@ -434,7 +476,7 @@ appNext.prepare().then(() => {
 
       const insertResult = await pool.query(
         "INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4) RETURNING *",
-        [username, email, hash, roleValue]
+        [username, email.toLowerCase(), hash, roleValue]
       );
 
       const user = sanitizeUser(insertResult.rows[0]);
@@ -471,12 +513,11 @@ appNext.prepare().then(() => {
   app.post("/api/auth/forgot-password", async (req, res) => {
     const { email, password, confirmPassword } = req.body || {};
 
-    const normalizedEmail = typeof email === "string" ? email.trim() : "";
     const nextPassword = typeof password === "string" ? password : "";
     const confirmedPassword =
       typeof confirmPassword === "string" ? confirmPassword : "";
 
-    if (!normalizedEmail || !nextPassword || !confirmedPassword) {
+    if (!email || !nextPassword || !confirmedPassword) {
       return res.status(400).json({ error: "Alle felt må fylles ut" });
     }
 
@@ -494,9 +535,9 @@ appNext.prepare().then(() => {
       const result = await pool.query(
         `UPDATE users
          SET password = $1
-         WHERE LOWER(email) = LOWER($2)
+         WHERE LOWER(BTRIM(email)) = $2
          RETURNING id`,
-        [await bcrypt.hash(nextPassword, 10), normalizedEmail]
+        [await bcrypt.hash(nextPassword, 10), email.toLowerCase()]
       );
 
       if (result.rowCount === 0) {
@@ -638,11 +679,13 @@ appNext.prepare().then(() => {
       }
 
       if (typeof body.dob === "string" && dobColumn) {
-        addUpdate(dobColumn, body.dob.trim());
+        const trimmedDob = body.dob.trim();
+        addUpdate(dobColumn, trimmedDob === "" ? null : trimmedDob);
       }
 
       if (body.age !== undefined && ageColumn) {
-        const numericAge = Number(body.age);
+        const trimmedAge = typeof body.age === "string" ? body.age.trim() : body.age;
+        const numericAge = Number(trimmedAge);
         addUpdate(ageColumn, Number.isFinite(numericAge) ? numericAge : null);
       }
 

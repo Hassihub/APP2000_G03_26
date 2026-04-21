@@ -2,17 +2,20 @@
 import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { ROLE_ADMIN } from "../../lib/roles";
 import { useTranslations } from "../components/LanguageProvider";
-import { FiUser, FiDollarSign, FiCreditCard, FiMapPin, FiMenu, FiUsers } from "react-icons/fi";
+import { FiUser, FiDollarSign, FiCreditCard, FiMapPin, FiMenu, FiUsers, FiCalendar, FiHeart } from "react-icons/fi";
 
 const emptyProfile = {
+  id: "",
+  role: "",
   name: "",
   dob: "",
   age: "",
   phone: "",
   email: "",
   bio: "",
-  profileImage: "/images/profil.jpg",
+  profileImage: "/images/fjell.jpg",
   lastTrip: {
     title: "Ingen tur registrert",
     date: "",
@@ -54,6 +57,117 @@ export default function Profile() {
   const [myPosts,      setMyPosts]      = useState([]);
   const [followStats,  setFollowStats]  = useState({ following: 0, followers: 0 });
   const [socialLoaded, setSocialLoaded] = useState(false);
+  const [reservations, setReservations] = useState([]);
+  const [reservationCabins, setReservationCabins] = useState({});
+  const [reservationsLoading, setReservationsLoading] = useState(false);
+  const [reservationsError, setReservationsError] = useState("");
+  const [deletingReservationId, setDeletingReservationId] = useState(null);
+  const [favoriteCabins, setFavoriteCabins] = useState([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const [favoritesError, setFavoritesError] = useState("");
+  const [removingFavoriteCabinId, setRemovingFavoriteCabinId] = useState(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const pad2 = (num) => String(num).padStart(2, "0");
+
+  const toLocalYmd = (date) => {
+    const y = date.getFullYear();
+    const m = pad2(date.getMonth() + 1);
+    const d = pad2(date.getDate());
+    return `${y}-${m}-${d}`;
+  };
+
+  const normalizeDobForInput = (value) => {
+    if (!value) return "";
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed;
+      }
+
+      const parsed = new Date(trimmed);
+      if (!Number.isNaN(parsed.getTime())) {
+        return toLocalYmd(parsed);
+      }
+    }
+
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return toLocalYmd(value);
+    }
+
+    return "";
+  };
+
+  const formatDobForDisplay = (value) => {
+    const normalized = normalizeDobForInput(value);
+    if (!normalized) return "-";
+
+    const [year, month, day] = normalized.split("-");
+    return `${day}.${month}.${year}`;
+  };
+
+  const getDobParts = (value) => {
+    const normalized = normalizeDobForInput(value);
+    if (!normalized) {
+      return { year: "", month: "", day: "" };
+    }
+
+    const [year, month, day] = normalized.split("-");
+    return { year, month, day };
+  };
+
+  const buildDobFromParts = ({ year, month, day }) => {
+    if (!year || !month || !day) {
+      return "";
+    }
+    return `${year}-${month}-${day}`;
+  };
+
+  const setDobFromParts = (nextParts) => {
+    const currentParts = getDobParts(editFields.dob);
+    const merged = { ...currentParts, ...nextParts };
+    const yearNum = Number(merged.year);
+    const monthNum = Number(merged.month);
+    const dayNum = Number(merged.day);
+
+    if (yearNum && monthNum && dayNum) {
+      const maxDay = new Date(yearNum, monthNum, 0).getDate();
+      if (dayNum > maxDay) {
+        merged.day = pad2(maxDay);
+      }
+    }
+
+    setEditFields({ ...editFields, dob: buildDobFromParts(merged) });
+  };
+
+  const maxBirthDate = toLocalYmd(new Date());
+  const maxBirthYear = Number(maxBirthDate.slice(0, 4));
+  const dobParts = getDobParts(editFields.dob);
+  const selectedYearNum = Number(dobParts.year);
+  const selectedMonthNum = Number(dobParts.month);
+  const maxDayInMonth = selectedYearNum && selectedMonthNum
+    ? new Date(selectedYearNum, selectedMonthNum, 0).getDate()
+    : 31;
+  const monthOptions = [
+    { value: "01", label: "Januar" },
+    { value: "02", label: "Februar" },
+    { value: "03", label: "Mars" },
+    { value: "04", label: "April" },
+    { value: "05", label: "Mai" },
+    { value: "06", label: "Juni" },
+    { value: "07", label: "Juli" },
+    { value: "08", label: "August" },
+    { value: "09", label: "September" },
+    { value: "10", label: "Oktober" },
+    { value: "11", label: "November" },
+    { value: "12", label: "Desember" },
+  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +196,45 @@ export default function Profile() {
           return;
         }
 
-        syncProfileState(json.profile);
+        const nextProfile = json.profile || emptyProfile;
+        const normalizedDob = (() => {
+          const value = nextProfile.dob;
+          if (!value) return "";
+
+          if (typeof value === "string") {
+            const trimmed = value.trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+            const parsed = new Date(trimmed);
+            if (!Number.isNaN(parsed.getTime())) {
+              const y = parsed.getFullYear();
+              const m = String(parsed.getMonth() + 1).padStart(2, "0");
+              const d = String(parsed.getDate()).padStart(2, "0");
+              return `${y}-${m}-${d}`;
+            }
+          }
+
+          if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            const y = value.getFullYear();
+            const m = String(value.getMonth() + 1).padStart(2, "0");
+            const d = String(value.getDate()).padStart(2, "0");
+            return `${y}-${m}-${d}`;
+          }
+
+          return "";
+        })();
+        const normalizedProfile = {
+          ...nextProfile,
+          dob: normalizedDob,
+        };
+
+        setUserData(nextProfile);
+        setEditFields(normalizedProfile);
+        setProfileImage(nextProfile.profileImage || emptyProfile.profileImage);
+        setBannerImage(nextProfile.bannerImage || "/images/profilbakgrunn.jpg");
+        setTheme(nextProfile.settings?.theme || "Lys");
+        setInterests(Array.isArray(nextProfile.interests) ? nextProfile.interests : []);
+        setRadius(typeof nextProfile.radius_km === "number" ? nextProfile.radius_km : 50);
       } catch (err) {
         if (!cancelled) {
           setError(err.message || "Could not load profile.");
@@ -154,8 +306,14 @@ export default function Profile() {
 
   function syncProfileState(profile) {
     const nextProfile = profile || emptyProfile;
+    const normalizedDob = normalizeDobForInput(nextProfile.dob);
+    const normalizedProfile = {
+      ...nextProfile,
+      dob: normalizedDob,
+    };
+
     setUserData(nextProfile);
-    setEditFields(nextProfile);
+    setEditFields(normalizedProfile);
     setProfileImage(nextProfile.profileImage || emptyProfile.profileImage);
     setBannerImage(nextProfile.bannerImage || "/images/profilbakgrunn.jpg");
     setTheme(nextProfile.settings?.theme || "Lys");
@@ -206,21 +364,83 @@ export default function Profile() {
     }
   }
 
-  async function handleSaveEdit() {
-    try {
-      await updateProfile({
-        name: editFields.name,
-        dob: editFields.dob,
-        age: editFields.age,
-        phone: editFields.phone,
-        email: editFields.email,
-        bio: editFields.bio,
-      });
-      setIsEditing(false);
-    } catch (err) {
-      alert(err.message || "Could not save profile.");
+async function handleSaveEdit() {
+  setPasswordError("");
+  setPasswordSuccess("");
+
+  try {
+    const nextDob = typeof editFields.dob === "string" ? editFields.dob.trim() : "";
+    const nextAge = typeof editFields.age === "string" ? editFields.age.trim() : editFields.age;
+
+    // Lagre profil-endringer først
+    await updateProfile({
+      name: editFields.name,
+      dob: nextDob === "" ? null : nextDob,
+      age: nextAge === "" ? null : nextAge,
+      phone: editFields.phone,
+      email: editFields.email,
+      bio: editFields.bio,
+    });
+
+    // Sjekk om bruker vil endre passord
+    const wantsPasswordChange =
+      currentPassword || newPassword || confirmPassword;
+
+    if (wantsPasswordChange) {
+      // Validering
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        setPasswordError("Fyll inn alle passordfeltene.");
+        return;
+      }
+
+      if (newPassword.length < 8) {
+        setPasswordError("Nytt passord må være minst 8 tegn.");
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        setPasswordError("Nytt passord og bekreft passord må være like.");
+        return;
+      }
+
+      setPasswordLoading(true);
+
+      try {
+        const res = await fetch("/api/auth/change-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            currentPassword,
+            newPassword,
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          setPasswordError(data?.error || "Kunne ikke endre passord.");
+          setPasswordLoading(false);
+          return;
+        }
+
+        setPasswordSuccess("Passord oppdatert! ✓");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } catch (err) {
+        setPasswordError("Nettverksfeil: " + (err.message || "Prøv igjen."));
+      } finally {
+        setPasswordLoading(false);
+      }
     }
+
+    // Lukk redigeringsmodus kun hvis alt gikk bra
+    setIsEditing(false);
+  } catch (err) {
+    setPasswordError(err.message || "Kunne ikke lagre endringer.");
   }
+}
 
   // ✅ FUNGERENDE LOGOUT
   async function handleLogout() {
@@ -369,6 +589,197 @@ export default function Profile() {
 
   const ratingLabel = `${userData.lastTrip.rating || 0}/5`;
 
+  const formatReservationDate = (value) => {
+    if (!value) return "-";
+    const text = String(value).slice(0, 10);
+    const parts = text.split("-");
+    if (parts.length !== 3) return text;
+    return `${parts[2]}.${parts[1]}.${parts[0]}`;
+  };
+
+  const formatReservationStatus = (value) => {
+    const status = String(value || "").toLowerCase();
+    if (status === "cancelled" || status === "canceled") return t.statusCancelled;
+    if (status === "confirmed") return t.statusConfirmed;
+    if (status === "pending") return t.statusPending;
+    if (!status) return t.statusActive;
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  async function handleDeleteReservation(reservationId) {
+    if (!reservationId) return;
+
+    const confirmed = window.confirm("Er du sikker på at du vil slette denne reservasjonen?");
+    if (!confirmed) return;
+
+    try {
+      setDeletingReservationId(String(reservationId));
+      setReservationsError("");
+
+      const res = await fetch(`/api/reservations?id=${encodeURIComponent(reservationId)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunne ikke slette reservasjonen.");
+      }
+
+      setReservations((prev) => prev.filter((reservation) => String(reservation.id) !== String(reservationId)));
+      window.dispatchEvent(new Event("ff-notifications-updated"));
+    } catch (err) {
+      setReservationsError(err.message || "Kunne ikke slette reservasjonen.");
+    } finally {
+      setDeletingReservationId(null);
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadReservations() {
+      const guestUserId = String(userData?.id ?? "").trim();
+      const guestEmail = String(userData?.email ?? "").trim();
+
+      if (!guestUserId && !guestEmail) {
+        setReservations([]);
+        setReservationCabins({});
+        return;
+      }
+
+      setReservationsLoading(true);
+      setReservationsError("");
+
+      try {
+        const params = new URLSearchParams();
+        if (guestUserId) params.set("guest_user_id", guestUserId);
+        if (guestEmail) params.set("guest_email", guestEmail);
+
+        const res = await fetch(`/api/reservations?${params.toString()}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(json?.error || "Kunne ikke hente reservasjoner.");
+        }
+
+        const items = Array.isArray(json.reservations) ? json.reservations : [];
+        if (cancelled) return;
+
+        setReservations(items);
+
+        const uniqueCabinIds = [...new Set(items.map((reservation) => String(reservation.cabin_id || "").trim()).filter(Boolean))];
+        const cabinPairs = await Promise.all(
+          uniqueCabinIds.map(async (cabinId) => {
+            try {
+              const cabinRes = await fetch(`/api/cabins/${encodeURIComponent(cabinId)}`, {
+                credentials: "include",
+                cache: "no-store",
+              });
+              const cabinJson = await cabinRes.json().catch(() => ({}));
+              return [cabinId, cabinRes.ok ? cabinJson.cabin || null : null];
+            } catch {
+              return [cabinId, null];
+            }
+          })
+        );
+
+        if (!cancelled) {
+          setReservationCabins(Object.fromEntries(cabinPairs.filter(([, cabin]) => cabin)));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setReservations([]);
+          setReservationCabins({});
+          setReservationsError(err.message || "Kunne ikke hente reservasjoner.");
+        }
+      } finally {
+        if (!cancelled) {
+          setReservationsLoading(false);
+        }
+      }
+    }
+
+    if (userData?.id || userData?.email) {
+      loadReservations();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userData.id, userData.email]);
+
+  async function removeFavorite(cabinId) {
+    if (!cabinId) return;
+
+    try {
+      setRemovingFavoriteCabinId(String(cabinId));
+      setFavoritesError("");
+
+      const res = await fetch("/api/cabins/favorites", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cabin_id: cabinId }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || "Kunne ikke fjerne fra ønskelisten.");
+      }
+
+      setFavoriteCabins((prev) => prev.filter((cabin) => String(cabin.id) !== String(cabinId)));
+    } catch (err) {
+      setFavoritesError(err.message || "Kunne ikke fjerne fra ønskelisten.");
+    } finally {
+      setRemovingFavoriteCabinId(null);
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFavorites() {
+      if (activeCategory !== "wishlist") return;
+      if (!userData?.id) return;
+
+      setFavoritesLoading(true);
+      setFavoritesError("");
+
+      try {
+        const res = await fetch("/api/cabins/favorites", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(json?.error || "Kunne ikke hente ønskeliste.");
+        }
+
+        if (cancelled) return;
+        setFavoriteCabins(Array.isArray(json.favorites) ? json.favorites : []);
+      } catch (err) {
+        if (!cancelled) {
+          setFavoriteCabins([]);
+          setFavoritesError(err.message || "Kunne ikke hente ønskeliste.");
+        }
+      } finally {
+        if (!cancelled) {
+          setFavoritesLoading(false);
+        }
+      }
+    }
+
+    loadFavorites();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCategory, userData?.id]);
+
   return (
     <main style={{ display: "flex", minHeight: "100vh", fontFamily: "Poppins, sans-serif", background: `linear-gradient(180deg, ${themeColors.bg} 0%, ${themeColors.panelBg} 100%)`, color: themeColors.text, transition: "background 0.3s ease, color 0.3s ease" }}>
 
@@ -391,6 +802,8 @@ export default function Profile() {
             <h2 style={{ marginBottom: "2rem", color: themeColors.text, fontSize: "0.82rem", textTransform: "uppercase", letterSpacing: "0.12em" }}>{t.categories}</h2>
             {[
               { id: "account",      icon: <FiUser size={14} />,       label: t.account },
+              { id: "reservations", icon: <FiCalendar size={14} />,  label: t.reservations },
+              { id: "wishlist", icon: <FiHeart size={14} />,  label: t.wishlist },
               { id: "transactions", icon: <FiDollarSign size={14} />,  label: t.transactions },
               { id: "payment",      icon: <FiCreditCard size={14} />,  label: t.payment },
               { id: "trips",        icon: <FiMapPin size={14} />,      label: t.trips },
@@ -465,19 +878,29 @@ export default function Profile() {
                 cursor: "pointer"
               }}>{t.changeImage}</div>
             </div>
-
             {/* DETALJER */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <h2 style={{ margin: 0, fontSize: "2rem", letterSpacing: "-0.03em" }}>{userData.name}</h2>
 
                 {!isEditing && (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    style={secondaryButtonStyle}
-                  >
-                    {t.editProfile}
-                  </button>
+                  <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+                    {String(userData.role || "").toUpperCase() === ROLE_ADMIN && (
+                      <button
+                        type="button"
+                        onClick={() => router.push("/admin")}
+                        style={actionButtonStyle}
+                      >
+                        Admin panel
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      style={secondaryButtonStyle}
+                    >
+                      {t.editProfile}
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -492,13 +915,105 @@ export default function Profile() {
                 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                     <div><label style={statLabelStyle}>{t.name}</label><input type="text" value={editFields.name} onChange={e => setEditFields({ ...editFields, name: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
-                    <div><label style={statLabelStyle}>{t.birthDate}</label><input type="date" value={editFields.dob} onChange={e => setEditFields({ ...editFields, dob: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
+                    <div>
+                      <label style={statLabelStyle}>{t.birthDate}</label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 1fr auto", gap: "0.5rem", alignItems: "center" }}>
+                        <select
+                          value={dobParts.day}
+                          onChange={(e) => setDobFromParts({ day: e.target.value })}
+                          style={{ width: "100%", padding: "0.7rem 0.6rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }}
+                        >
+                          <option value="">Dag</option>
+                          {Array.from({ length: maxDayInMonth }, (_, i) => {
+                            const val = pad2(i + 1);
+                            return <option key={val} value={val}>{val}</option>;
+                          })}
+                        </select>
+                        <select
+                          value={dobParts.month}
+                          onChange={(e) => setDobFromParts({ month: e.target.value })}
+                          style={{ width: "100%", padding: "0.7rem 0.6rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }}
+                        >
+                          <option value="">Måned</option>
+                          {monthOptions.map((m) => (
+                            <option key={m.value} value={m.value}>{m.label}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={dobParts.year}
+                          onChange={(e) => setDobFromParts({ year: e.target.value })}
+                          style={{ width: "100%", padding: "0.7rem 0.6rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }}
+                        >
+                          <option value="">År</option>
+                          {Array.from({ length: maxBirthYear - 1899 }, (_, i) => {
+                            const year = String(maxBirthYear - i);
+                            return <option key={year} value={year}>{year}</option>;
+                          })}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => setDobFromParts({ year: "", month: "", day: "" })}
+                          style={{
+                            padding: "0.62rem 0.75rem",
+                            borderRadius: "4px",
+                            border: `1px solid ${themeColors.border}`,
+                            background: themeColors.cardBg,
+                            color: themeColors.text,
+                            cursor: "pointer",
+                            fontSize: "0.78rem",
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Tom
+                        </button>
+                      </div>
+                      <p style={{ margin: "0.45rem 0 0", color: themeColors.lightText, fontSize: "0.75rem" }}>
+                        Velg dag, måned og år.
+                      </p>
+                      <input type="hidden" value={editFields.dob || ""} max={maxBirthDate} readOnly />
+                    </div>
                     <div><label style={statLabelStyle}>{t.age}</label><input type="number" value={editFields.age} onChange={e => setEditFields({ ...editFields, age: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
                     <div><label style={statLabelStyle}>{t.phone}</label><input type="text" value={editFields.phone} onChange={e => setEditFields({ ...editFields, phone: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
                     <div style={{ gridColumn: "1 / -1" }}><label style={statLabelStyle}>{t.email}</label><input type="email" value={editFields.email} onChange={e => setEditFields({ ...editFields, email: e.target.value })} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
-                    <div style={{ gridColumn: "1 / -1" }}><label style={statLabelStyle}>{t.bio}</label><textarea value={editFields.bio} onChange={e => setEditFields({ ...editFields, bio: e.target.value })} rows={3} style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }} /></div>
+                    
+                    <div style={{ gridColumn: "1 / -1", marginTop: "0.5rem" }}>
+                      <strong style={{ display: "block", marginBottom: "0.75rem" }}>Endre passord</strong>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
+                        <input
+                          type="password"
+                          placeholder="Nåværende passord"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          autoComplete="current-password"
+                          style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }}
+                        />
+                        <input
+                          type="password"
+                          placeholder="Nytt passord"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          autoComplete="new-password"
+                          minLength={8}
+                          style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }}
+                        />
+                        <input
+                          type="password"
+                          placeholder="Bekreft nytt passord"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          autoComplete="new-password"
+                          minLength={8}
+                          style={{ width: "100%", padding: "0.7rem 0.85rem", borderRadius: "4px", border: `1px solid ${themeColors.border}`, background: themeColors.inputBg, color: themeColors.text, boxSizing: "border-box" }}
+                        />
+                      </div>
+
+                      {passwordError ? <p style={{ color: "#b42318", marginTop: "0.75rem" }}>{passwordError}</p> : null}
+                      {passwordSuccess ? <p style={{ color: "#067647", marginTop: "0.75rem" }}>{passwordSuccess}</p> : null}
+                    </div>
                   </div>
-                  <div style={{ marginTop: "0.5rem", display: "flex", gap: "1rem" }}>
+
+                  <div style={{ marginTop: "1rem", display: "flex", gap: "1rem" }}>
                     <button onClick={handleSaveEdit} style={actionButtonStyle}>{t.save}</button>
                     <button onClick={() => setIsEditing(false)} style={secondaryButtonStyle}>{t.cancel}</button>
                   </div>
@@ -525,7 +1040,7 @@ export default function Profile() {
                         </div>
                       )}
                     </div>
-                    <div style={cardStyle}><strong>{t.details}</strong><p>{t.age}: {userData.age}</p><p>{t.phone}: {userData.phone}</p><p>{t.email}: {userData.email}</p><p>{t.birthDate}: {userData.dob}</p></div>
+                    <div style={cardStyle}><strong>{t.details}</strong><p>{t.age}: {userData.age}</p><p>{t.phone}: {userData.phone}</p><p>{t.email}: {userData.email}</p><p>{t.birthDate}: {formatDobForDisplay(userData.dob)}</p></div>
                   </div>
 
                   {/* INTERESSETAGS */}
@@ -664,6 +1179,250 @@ export default function Profile() {
                 </>
               )}
             </div>
+          </div>
+        )}
+
+        {/* RESERVASJONER */}
+        {activeCategory === "reservations" && (
+          <div>
+            <h2 style={{ marginBottom: "1rem", fontSize: "1.8rem" }}>{t.reservations}</h2>
+            <p style={{ margin: "0 0 1.5rem", color: themeColors.lightText }}>
+              {t.reservationsIntro}
+            </p>
+
+            {reservationsLoading ? (
+              <div style={{ background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "2rem", color: themeColors.lightText }}>
+                {t.loadingReservations}
+              </div>
+            ) : reservationsError ? (
+              <div style={{ background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "1.25rem", color: "#b42318" }}>
+                {reservationsError}
+              </div>
+            ) : reservations.length === 0 ? (
+              <div style={{ background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "2rem", textAlign: "center", color: themeColors.lightText }}>
+                {t.noReservations}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: "1rem" }}>
+                {reservations.map((reservation) => {
+                  const cabin = reservationCabins[String(reservation.cabin_id)] || null;
+                  const cabinName = reservation.cabin_name || cabin?.name || `${t.cabinFallback} ${reservation.cabin_id}`;
+                  const cabinLocation = reservation.cabin_location || cabin?.location || t.locationUnavailable;
+                  const coverImage = Array.isArray(cabin?.image_urls) && cabin.image_urls.length > 0 ? cabin.image_urls[0] : null;
+
+                  return (
+                    <article
+                      key={reservation.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "220px 1fr",
+                        gap: "1rem",
+                        background: themeColors.cardBg,
+                        border: `1px solid ${themeColors.border}`,
+                        borderRadius: 12,
+                        overflow: "hidden",
+                        boxShadow: themeColors.shadow,
+                      }}
+                    >
+                      <div style={{ minHeight: 180, background: "#eef2f6", position: "relative" }}>
+                        {coverImage ? (
+                          <Image
+                            src={coverImage}
+                            alt={cabinName}
+                            fill
+                            unoptimized
+                            style={{ objectFit: "cover" }}
+                          />
+                        ) : (
+                          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: themeColors.lightText, fontWeight: 700 }}>
+                            {t.noCabinImage}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ padding: "1.25rem 1.25rem 1.1rem", display: "grid", gap: "0.9rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+                          <div>
+                            <h3 style={{ margin: 0, fontSize: "1.25rem" }}>{cabinName}</h3>
+                            <p style={{ margin: "0.35rem 0 0", color: themeColors.lightText }}>{cabinLocation}</p>
+                          </div>
+                          <span style={{ padding: "0.35rem 0.75rem", borderRadius: 999, background: themeColors.panelBg, border: `1px solid ${themeColors.border}`, fontSize: "0.78rem", fontWeight: 700 }}>
+                            {formatReservationStatus(reservation.status)}
+                          </span>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "0.75rem" }}>
+                          <div style={{ background: themeColors.panelBg, border: `1px solid ${themeColors.border}`, borderRadius: 10, padding: "0.9rem" }}>
+                            <p style={statLabelStyle}>{t.from}</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{formatReservationDate(reservation.start_date)}</p>
+                          </div>
+                          <div style={{ background: themeColors.panelBg, border: `1px solid ${themeColors.border}`, borderRadius: 10, padding: "0.9rem" }}>
+                            <p style={statLabelStyle}>{t.to}</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{formatReservationDate(reservation.end_date)}</p>
+                          </div>
+                          <div style={{ background: themeColors.panelBg, border: `1px solid ${themeColors.border}`, borderRadius: 10, padding: "0.9rem" }}>
+                            <p style={statLabelStyle}>{t.guests}</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{reservation.guests_count}</p>
+                          </div>
+                        </div>
+
+                        {reservation.notes ? (
+                          <p style={{ margin: 0, color: themeColors.cardText, lineHeight: 1.6 }}>
+                            {reservation.notes}
+                          </p>
+                        ) : null}
+
+                        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                          <a
+                            href={`/reserver/booking?cabinId=${encodeURIComponent(reservation.cabin_id)}`}
+                            style={{
+                              ...actionButtonStyle,
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {t.openCabin}
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteReservation(reservation.id)}
+                            disabled={deletingReservationId === String(reservation.id)}
+                            style={{
+                              ...secondaryButtonStyle,
+                              borderColor: "#dc2626",
+                              color: "#dc2626",
+                              background: "transparent",
+                              minWidth: "160px",
+                            }}
+                          >
+                            {deletingReservationId === String(reservation.id)
+                              ? "Sletter..."
+                              : "Slett reservasjon"}
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeCategory === "wishlist" && (
+          <div>
+            <h2 style={{ marginBottom: "1rem", fontSize: "1.8rem" }}>{t.wishlist}</h2>
+            <p style={{ margin: "0 0 1.5rem", color: themeColors.lightText }}>
+              {t.wishlistIntro}
+            </p>
+
+            {favoritesLoading ? (
+              <div style={{ background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "2rem", color: themeColors.lightText }}>
+                {t.loadingWishlist}
+              </div>
+            ) : favoritesError ? (
+              <div style={{ background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "1.25rem", color: "#b42318" }}>
+                {favoritesError}
+              </div>
+            ) : favoriteCabins.length === 0 ? (
+              <div style={{ background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, borderRadius: 8, padding: "2rem", textAlign: "center", color: themeColors.lightText }}>
+                {t.noWishlistCabins}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: "1rem" }}>
+                {favoriteCabins.map((cabin) => {
+                  const coverImage = Array.isArray(cabin?.image_urls) && cabin.image_urls.length > 0 ? cabin.image_urls[0] : null;
+                  return (
+                    <article
+                      key={cabin.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "220px 1fr",
+                        gap: "1rem",
+                        background: themeColors.cardBg,
+                        border: `1px solid ${themeColors.border}`,
+                        borderRadius: 12,
+                        overflow: "hidden",
+                        boxShadow: themeColors.shadow,
+                      }}
+                    >
+                      <div style={{ minHeight: 180, background: "#eef2f6", position: "relative" }}>
+                        {coverImage ? (
+                          <Image
+                            src={coverImage}
+                            alt={cabin.name || t.cabinFallback}
+                            fill
+                            unoptimized
+                            style={{ objectFit: "cover" }}
+                          />
+                        ) : (
+                          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: themeColors.lightText, fontWeight: 700 }}>
+                            {t.noCabinImage}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ padding: "1.25rem", display: "grid", gap: "0.8rem" }}>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: "1.25rem" }}>{cabin.name || t.cabinFallback}</h3>
+                          <p style={{ margin: "0.35rem 0 0", color: themeColors.lightText }}>
+                            {cabin.location || t.locationUnavailable}
+                          </p>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.75rem" }}>
+                          <div style={{ background: themeColors.panelBg, border: `1px solid ${themeColors.border}`, borderRadius: 10, padding: "0.9rem" }}>
+                            <p style={statLabelStyle}>{t.pricePerNight}</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{Number(cabin.price_per_night || 0).toLocaleString("nb-NO")} kr</p>
+                          </div>
+                          <div style={{ background: themeColors.panelBg, border: `1px solid ${themeColors.border}`, borderRadius: 10, padding: "0.9rem" }}>
+                            <p style={statLabelStyle}>{t.capacity}</p>
+                            <p style={{ margin: 0, fontWeight: 700 }}>{cabin.capacity || "-"} {t.people}</p>
+                          </div>
+                        </div>
+
+                        {cabin.description ? (
+                          <p style={{ margin: 0, color: themeColors.cardText, lineHeight: 1.6 }}>{cabin.description}</p>
+                        ) : null}
+
+                        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                          <a
+                            href={`/reserver/booking?cabinId=${encodeURIComponent(cabin.id)}`}
+                            style={{
+                              ...actionButtonStyle,
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {t.openCabin}
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => removeFavorite(cabin.id)}
+                            disabled={removingFavoriteCabinId === String(cabin.id)}
+                            style={{
+                              ...secondaryButtonStyle,
+                              borderColor: "#dc2626",
+                              color: "#dc2626",
+                              background: "transparent",
+                              minWidth: "180px",
+                            }}
+                          >
+                            {removingFavoriteCabinId === String(cabin.id)
+                              ? t.removingFromWishlist
+                              : t.removeFromWishlist}
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

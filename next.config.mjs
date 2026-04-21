@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+<<<<<<< HEAD
   poweredByHeader: false,
 
   async headers() {
@@ -27,6 +28,16 @@ const nextConfig = {
       },
     ];
   },
+=======
+	images: {
+		remotePatterns: [
+			{
+				protocol: "https",
+				hostname: "**.files-simplefileupload.com",
+			},
+		],
+	},
+>>>>>>> main2.69
 };
 
 export default nextConfig;
