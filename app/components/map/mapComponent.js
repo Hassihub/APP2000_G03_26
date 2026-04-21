@@ -25,6 +25,8 @@ export default function MapComponent() {
   const tripsLayerRef = useRef(null);
   const selectedTripPointsLayerRef = useRef(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
+  const [cabinImgIndex, setCabinImgIndex] = useState(0);
+  const [tripImgIndex, setTripImgIndex] = useState(0);
   const [hytterOpen, setHytterOpen] = useState(false);
   const [turforslagOpen, setTurforslagOpen] = useState(false);
   const [filterStartDate, setFilterStartDate] = useState("");
@@ -524,9 +526,9 @@ export default function MapComponent() {
     const tripCabins = Array.isArray(selectedTrip.cabins) ? selectedTrip.cabins : [];
     const cabinIcon = L.icon({
       iconUrl: "/images/cabinPin.svg",
-      iconSize: [28, 28],
-      iconAnchor: [14, 28],
-      popupAnchor: [0, -26],
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
     });
 
     for (const cabin of tripCabins) {
@@ -697,6 +699,9 @@ export default function MapComponent() {
     setIsTrackingUserLocation(true);
   };
 
+  useEffect(() => { setCabinImgIndex(0); }, [selectedCabin]);
+  useEffect(() => { setTripImgIndex(0); }, [selectedTrip]);
+
   return (
     <div
       style={{
@@ -745,16 +750,44 @@ export default function MapComponent() {
                     style={{
                       margin: "0 -16px 12px -16px",
                       overflow: "hidden",
+                      position: "relative",
                     }}
                   >
                     <Image
-                      src={selectedCabin.image_urls[0]}
+                      src={selectedCabin.image_urls[cabinImgIndex] ?? selectedCabin.image_urls[0]}
                       alt={selectedCabin.name || "Hyttebilde"}
                       width={1200}
                       height={180}
                       unoptimized
-                      style={{ width: "100%", height: 180, objectFit: "cover" }}
+                      style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }}
                     />
+                    {selectedCabin.image_urls.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setCabinImgIndex((i) => (i - 1 + selectedCabin.image_urls.length) % selectedCabin.image_urls.length)}
+                          style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "#fff", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", fontSize: 20, lineHeight: "28px", textAlign: "center", padding: 0 }}
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCabinImgIndex((i) => (i + 1) % selectedCabin.image_urls.length)}
+                          style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "#fff", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", fontSize: 20, lineHeight: "28px", textAlign: "center", padding: 0 }}
+                        >
+                          ›
+                        </button>
+                        <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 5 }}>
+                          {selectedCabin.image_urls.map((_, i) => (
+                            <span
+                              key={i}
+                              onClick={() => setCabinImgIndex(i)}
+                              style={{ width: 7, height: 7, borderRadius: "50%", background: i === cabinImgIndex ? "#fff" : "rgba(255,255,255,0.5)", cursor: "pointer", display: "inline-block" }}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -921,23 +954,51 @@ export default function MapComponent() {
                 ← Tilbake til kartverktøy
               </button>
 
-              {selectedTrip.bilde_url && (
-                <div
-                  style={{
-                    margin: "0 -16px 12px -16px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <Image
-                    src={selectedTrip.bilde_url}
-                    alt={selectedTrip.navn || "Turbilde"}
-                    width={1200}
-                    height={180}
-                    unoptimized
-                    style={{ width: "100%", height: 180, objectFit: "cover" }}
-                  />
-                </div>
-              )}
+              {(() => {
+                const tripImages = Array.isArray(selectedTrip.bilde_urls) && selectedTrip.bilde_urls.length > 0
+                  ? selectedTrip.bilde_urls
+                  : selectedTrip.bilde_url ? [selectedTrip.bilde_url] : [];
+                if (tripImages.length === 0) return null;
+                return (
+                  <div style={{ margin: "0 -16px 12px -16px", overflow: "hidden", position: "relative" }}>
+                    <Image
+                      src={tripImages[tripImgIndex] ?? tripImages[0]}
+                      alt={selectedTrip.navn || "Turbilde"}
+                      width={1200}
+                      height={180}
+                      unoptimized
+                      style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }}
+                    />
+                    {tripImages.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setTripImgIndex((i) => (i - 1 + tripImages.length) % tripImages.length)}
+                          style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "#fff", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", fontSize: 20, lineHeight: "28px", textAlign: "center", padding: 0 }}
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTripImgIndex((i) => (i + 1) % tripImages.length)}
+                          style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "#fff", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", fontSize: 20, lineHeight: "28px", textAlign: "center", padding: 0 }}
+                        >
+                          ›
+                        </button>
+                        <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 5 }}>
+                          {tripImages.map((_, i) => (
+                            <span
+                              key={i}
+                              onClick={() => setTripImgIndex(i)}
+                              style={{ width: 7, height: 7, borderRadius: "50%", background: i === tripImgIndex ? "#fff" : "rgba(255,255,255,0.5)", cursor: "pointer", display: "inline-block" }}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div
                 style={{
