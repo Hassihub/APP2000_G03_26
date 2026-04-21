@@ -1,0 +1,671 @@
+
+======================================================================================
+
+  (Run Starting)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Cypress:        15.13.1                                                                        │
+  │ Browser:        Electron 138 (headless)                                                        │
+  │ Node Version:   v22.18.0 (/Users/ch.h/.nvm/versions/node/v22.18.0/bin/node)                    │
+  │ Specs:          12 found (admin.cy.js, app.cy.js, cabins.cy.js, explore.cy.js, home.cy.js, log │
+  │                 in.cy.js, map.cy.js, navigation.cy.js, profile.cy.js, signup.cy.js, sosial.cy. │
+  │                 js, weather.cy.js)                                                             │
+  │ Searched:       cypress/e2e/**/*.cy.{js,jsx,ts,tsx}                                            │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+Remove output folder /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/reports/html
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  admin.cy.js                                                                    (1 of 12)
+
+
+  Admin – ikke innlogget
+    ✓ uinnlogget bruker blokkeres fra /admin (523ms)
+    ✓ uinnlogget bruker blokkeres fra /admin/brukere (157ms)
+    ✓ uinnlogget bruker blokkeres fra /admin/turer (124ms)
+
+  Admin – innlogget som vanlig bruker
+    ✓ vanlig bruker (USER) blokkeres fra admin-panelet (2277ms)
+    ✓ vanlig bruker (USER) blokkeres fra /admin/brukere (2140ms)
+    ✓ vanlig bruker (USER) blokkeres fra /admin/turer (2270ms)
+
+  Navigasjonslenker – synlighet for innlogget bruker
+    ✓ innlogget bruker ser ikke admin-lenke i navigasjonen (2110ms)
+
+  Reset-knapp – synlighet
+    ✓ reset-knappen vises IKKE for uinnlogget besøkende (150ms)
+    ✓ reset-knappen vises IKKE for vanlig bruker (USER) (3479ms)
+
+  Admin API – tilgangskontroll
+    ✓ GET /api/auth/users returnerer 401 for uinnlogget (21ms)
+    ✓ POST /api/admin/reset-test-data returnerer 403 for uinnlogget (28ms)
+    ✓ POST /api/admin/reset-test-data returnerer 403 for vanlig bruker (949ms)
+    ✓ GET /api/admin/route-verifications returnerer 401/403 for uinnlogget (20ms)
+    ✓ GET /api/admin/tiu-trips returnerer 401/403 for uinnlogget (14ms)
+
+
+  14 passing (14s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        14                                                                               │
+  │ Passing:      14                                                                               │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     14 seconds                                                                       │
+  │ Spec Ran:     admin.cy.js                                                                      │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/admin.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  app.cy.js                                                                      (2 of 12)
+
+
+  0 passing (1ms)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        0                                                                                │
+  │ Passing:      0                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     0 seconds                                                                        │
+  │ Spec Ran:     app.cy.js                                                                        │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/app.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  cabins.cy.js                                                                   (3 of 12)
+
+
+  Hytteliste – sidestruktur
+    ✓ laster hyttesiden uten krasj (585ms)
+    ✓ viser et søke- eller filtreringsfelt (252ms)
+    1) siden inneholder ikke en synlig feilmelding
+
+  Hytteliste – med hytter i databasen
+    ✓ hvis det finnes hytter vises de som klikkbare kort (536ms)
+    ✓ hvis det finnes hytter kan man åpne en detaljside (616ms)
+
+  Hyttebooking – tilgangskontroll
+    ✓ uinnlogget bruker kan se hytter men ikke booke (364ms)
+    ✓ innlogget bruker kan navigere til bookingsiden (2104ms)
+
+  Opprett ny hytte – tilgangskontroll
+    ✓ uinnlogget bruker blir redirectet fra /reserver/ny (383ms)
+    ✓ vanlig bruker (USER) får ikke opprette hytte (1640ms)
+
+
+  8 passing (8s)
+  1 failing
+
+  1) Hytteliste – sidestruktur
+       siden inneholder ikke en synlig feilmelding:
+     AssertionError: expected 'dette er et skoleprosjektfrittframfritt framreserver hyttefinn en base for neste tur.🏡 velg hyttefiltrer hytterfiltrer på pris, kapasitet, lokasjon og viktige fasiliteter.sted / navnmaks prismin. antall personertype hytteallebetjentubetjentfasilitetervelgwifibadstueparkeringkjøkkenpeisgrillkjæledyr tillattski-in/ski-out4 hytter funnetutsiktshytta notodden📍 bø i telemark • henter vær... • ubetjent💰 1250 kr / natt👥 5 personerdalhytta gvarv📍 bø i telemark • henter vær... • ubetjent💰 1100 kr / natt👥 8 personerskogshytta bø📍 bø i telemark • henter vær... • ubetjent💰 750 kr / natt👥 4 personerlifjellhytta📍 bø i telemark • henter vær... • ubetjent💰 950 kr / natt👥 6 personerfrittframnorges møteplass for friluftsliv. planlegg turer, finn hytter og del opplevelser med andre entusiaster.🌲🏔️⛷️tjenesterutforsk turerreserver hyttekartværvarslingmarkedselskapom osskontakt osskundeserviceannonseportalpersonvernkontakt📧 hei@frittfram.no📞 +47 900 00 000📍 notodden, norgeannonser?se pakker →© 2026 frittfram as · alle rettigheter forbeholdtbruksvilkårinformasjonskapsler🌙 mørktself.__next_r="fnafs3mgvm4jwhix0dfes"(self.__next_f=self.__next_f||[]).push([0])self.__next_f.push([1,"a:i[\\"[project]/documents/app2000/app2000_g03_26/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"segmentviewnode\\"]\\nc:\\"$sreact.fragment\\"\\n20:i[\\"[project]/documents/app2000/app2000_g03_26/app/components/resetbanner.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"default\\"]\\n22:i[\\"[project]/documents/app2000/app2000_g03_26/app/components/languageprovider.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"languageprovider\\"]\\n24:i[\\"[project]/documents/app2000/app2000_g03_26/app/components/appshell.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"default\\"]\\n26:i[\\"[project]/documents/app2000/app2000_g03_26/node_modules/next/dist/client/components/layout-router.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"default\\"]\\n28:i[\\"[project]/documents/app2000/app2000_g03_26/node_modules/next/dist/client/components/render-from-template-context.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"default\\"]\\n3a:i[\\"[project]/documents/app2000/app2000_g03_26/app/components/cookiebanner.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"default\\"]\\n41:i[\\"[project]/documents/app2000/app2000_g03_26/node_modules/next/dist/client/components/client-page.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"clientpageroot\\"]\\n42:i[\\"[project]/documents/app2000/app2000_g03_26/app/reserver/page.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_0utjneq._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_reserver_page_0ly7igr.js\\"],\\"default\\"]\\n4b:i[\\"[project]/documents/app2000/app2000_g03_26/node_modules/next/dist/lib/framework/boundary-components.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"outletboundary\\"]\\n4d:\\"$sreact.suspense\\"\\n5b:i[\\"[project]/documents/app2000/app2000_g03_26/node_modules/next/dist/lib/framework/boundary-components.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"viewportboundary\\"]\\n65:i[\\"[project]/documents/app2000/app2000_g03_26/node_modules/next/dist/lib/framework/boundary-components.js [app-client]"])self.__next_f.push([1," (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"metadataboundary\\"]\\n6c:i[\\"[project]/documents/app2000/app2000_g03_26/node_modules/next/dist/client/components/builtin/global-error.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\",\\"/_next/static/chunks/0mw9_next_dist_client_components_builtin_global-error_0ly7igr.js\\"],\\"default\\",1]\\n7a:i[\\"[project]/documents/app2000/app2000_g03_26/node_modules/next/dist/lib/metadata/generate/icon-mark.js [app-client] (ecmascript)\\",[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\"],\\"iconmark\\"]\\n:hl[\\"/_next/static/chunks/%5broot-of-the-server%5d__012oiza._.css\\",\\"style\\"]\\n:hl[\\"/_next/static/media/797e433ab948586e-s.p.0.q-h669a_dqa.woff2\\",\\"font\\",{\\"crossorigin\\":\\"\\",\\"type\\":\\"font/woff2\\"}]\\n:hl[\\"/_next/static/media/caa3a2e1cccd8315-s.p.16t1db8_9y2o~.woff2\\",\\"font\\",{\\"crossorigin\\":\\"\\",\\"type\\":\\"font/woff2\\"}]\\n:hl[\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_reserver_reserver_module_0qpfmq8.css\\",\\"style\\"]\\n1:d\\"$7\\"\\n1:d\\"$2\\"\\n1:d\\"$8\\"\\n1:null\\n11:d\\"$1b\\"\\n11:d\\"$12\\"\\n11:d\\"$1d\\"\\n2a:d\\"$2c\\"\\n2a:d\\"$2b\\"\\n2a:d\\"$2e\\"\\n2a:d\\"$2d\\"\\n2a:d\\"$2f\\"\\n2a:[[\\"$\\",\\"title\\",null,{\\"children\\":\\"404: this page could not be found.\\"},\\"$2d\\",\\"$30\\",1],[\\"$\\",\\"div\\",null,{\\"style\\":{\\"fontfamily\\":\\"system-ui,\\\\\\"segoe ui\\\\\\",roboto,helvetica,arial,sans-serif,\\\\\\"apple color emoji\\\\\\",\\\\\\"segoe ui emoji\\\\\\"\\",\\"height\\":\\"100vh\\",\\"textalign\\":\\"center\\",\\"display\\":\\"flex\\",\\"flexdirection\\":\\"column\\",\\"alignitems\\":\\"center\\",\\"justifycontent\\":\\"center\\"},\\"children\\":[\\"$\\",\\"div\\",null,{\\"children\\":[[\\"$\\",\\"style\\",null,{\\"dangerouslysetinnerhtml\\":{\\"__html\\":\\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\\"}},\\"$2d\\",\\"$33\\",1],[\\"$\\",\\"h1\\",null,{\\"classname\\":\\"next-error-h1\\",\\"style\\":{\\"display\\":\\"inline-block\\",\\"margin\\":\\"0 20px 0 0\\",\\"padding\\":\\"0 23px 0 0\\",\\"fontsize\\":24,\\"fontweight\\":500,\\"verticalalign\\":\\"top\\",\\"lineheight\\":\\"49px\\"},\\"children\\":404},\\"$2d\\",\\"$34\\",1],[\\"$\\",\\"div\\",null,{\\"style\\":{\\"display\\":\\"inline-block\\"},\\"children\\":[\\"$\\",\\"h2\\",null,{\\"style\\":{\\"fontsize\\":14,\\"fontweight\\":400,\\"lineheight\\":\\"49px\\",\\"margin\\":0},\\"children\\":\\"this page could not be found.\\"},\\"$2d\\",\\"$36\\",1]},\\"$2d\\",\\"$35\\",1]]},\\"$2d\\",\\"$32\\",1]},\\"$2d\\",\\"$31\\",1]]\\n11:[\\"$\\",\\"html\\",null,{\\"lang\\":\\"no\\",\\"children\\":[\\"$\\",\\"body\\",null,{\\"style\\":{\\"margin\\":0,\\"padding\\":0},\\"children\\":[[\\"$\\",\\"$l20\\",null,{},\\"$12\\",\\"$1f\\",1],[\\"$\\",\\"$l22\\",null,{\\"children\\":[[\\"$\\",\\"$l24\\",null,{\\"children\\":[\\"$\\",\\"$l26\\",null,{\\"parallelrouterkey\\":\\"children\\",\\"error\\":\\"$undefined\\",\\"errorstyles\\":\\"$undefined\\",\\"errorscripts\\":\\"$undefined\\",\\"template\\":[\\"$\\",\\"$l28\\",null,{},null,\\"$27\\",1],\\"templatestyles\\":\\"$undefined\\",\\"templatescripts\\":\\"$undefined\\",\\"notfound\\":[\\"$\\",\\"$la\\",\\"c-not-found\\",{\\"type\\":\\"not-found\\",\\"pagepath\\":\\"__next_builtin__not-found.js\\",\\"children\\":[\\"$2a\\",[]]},null,\\"$29\\",0],\\"forbidden\\":\\"$undefined\\",\\"unauthorized\\":\\"$undefined\\",\\"segmentviewboundaries\\":[[\\"$\\",\\"$la\\",null,{\\"type\\":\\"boundary:not-found\\",\\"pagepath\\":\\"__next_builtin__not-found.js@boundary\\"},null,\\"$37\\",1],\\"$undefined\\",\\"$undefined\\",[\\"$\\",\\"$la\\",null,{\\"type\\":\\"boundary:global-error\\",\\"pagepath\\":\\"__next_builtin__global-error.js\\"},null,\\"$38\\",1]]},null,\\"$25\\",1]},\\"$12\\",\\"$23\\",1],[\\"$\\",\\"$l3a\\",null,{},\\"$12\\",\\"$39\\",1]]},\\"$12\\",\\"$21\\",1]]},\\"$12\\",\\"$1e\\",1]},\\"$12\\",\\"$1c\\",1]\\n46:d\\"$48\\"\\n46:d\\"$47\\"\\n46:d\\"$4a\\"\\n46:[\\"$\\",\\"$l4b\\",null,{\\"children\\":[\\"$\\",\\"$4d\\",null,{\\"name\\":\\"next.metadataoutlet\\",\\"children\\":\\"$@4e\\"},\\"$47\\",\\"$4c\\",1]},\\"$47\\",\\"$49\\",1]\\n51:d\\"$54\\"\\n51:d\\"$52\\"\\n51:d\\"$55\\"\\n51:null\\n56:d\\"$58\\"\\n56:d\\"$57\\"\\n56:d\\"$5a\\"\\n5c:d\\"$5e\\"\\n5c:d\\"$5d\\"\\n56:[\\"$\\",\\"$l5b\\",null,{\\"children\\":\\"$l5c\\"},\\"$57\\",\\"$59\\",1]\\n5f:d\\"$61\\"\\n5f:d\\"$60\\"\\n5f:d\\"$63\\"\\n67:d\\"$69\\"\\n67:d\\"$"])self.__next_f.push([1,"68\\"\\n5f:[\\"$\\",\\"div\\",null,{\\"hidden\\":true,\\"children\\":[\\"$\\",\\"$l65\\",null,{\\"children\\":[\\"$\\",\\"$4d\\",null,{\\"name\\":\\"next.metadata\\",\\"children\\":\\"$l67\\"},\\"$60\\",\\"$66\\",1]},\\"$60\\",\\"$64\\",1]},\\"$60\\",\\"$62\\",1]\\n6b:[]\\n"])self.__next_f.push([1,"0:{\\"p\\":\\"$1\\",\\"c\\":[\\"\\",\\"reserver\\"],\\"q\\":\\"\\",\\"i\\":true,\\"f\\":[[[\\"\\",{\\"children\\":[\\"reserver\\",{\\"children\\":[\\"__page__\\",{}]}]},\\"$undefined\\",\\"$undefined\\",16],[[\\"$\\",\\"$la\\",\\"layout\\",{\\"type\\":\\"layout\\",\\"pagepath\\":\\"layout.js\\",\\"children\\":[\\"$\\",\\"$c\\",\\"c\\",{\\"children\\":[[[\\"$\\",\\"link\\",\\"0\\",{\\"rel\\":\\"stylesheet\\",\\"href\\":\\"/_next/static/chunks/%5broot-of-the-server%5d__012oiza._.css\\",\\"precedence\\":\\"next_static/chunks/[root-of-the-server]__012oiza._.css\\",\\"crossorigin\\":\\"$undefined\\",\\"nonce\\":\\"$undefined\\"},null,\\"$d\\",0],[\\"$\\",\\"script\\",\\"script-0\\",{\\"src\\":\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_components_0op_ylj._.js\\",\\"async\\":true,\\"nonce\\":\\"$undefined\\"},null,\\"$e\\",0],[\\"$\\",\\"script\\",\\"script-1\\",{\\"src\\":\\"/_next/static/chunks/0mw9_0d1.jzo._.js\\",\\"async\\":true,\\"nonce\\":\\"$undefined\\"},null,\\"$f\\",0],[\\"$\\",\\"script\\",\\"script-2\\",{\\"src\\":\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_layout_0ushnac.js\\",\\"async\\":true,\\"nonce\\":\\"$undefined\\"},null,\\"$10\\",0]],\\"$11\\"]},null,\\"$b\\",1]},null,\\"$9\\",0],{\\"children\\":[[\\"$\\",\\"$c\\",\\"c\\",{\\"children\\":[null,[\\"$\\",\\"$l26\\",null,{\\"parallelrouterkey\\":\\"children\\",\\"error\\":\\"$undefined\\",\\"errorstyles\\":\\"$undefined\\",\\"errorscripts\\":\\"$undefined\\",\\"template\\":[\\"$\\",\\"$l28\\",null,{},null,\\"$3d\\",1],\\"templatestyles\\":\\"$undefined\\",\\"templatescripts\\":\\"$undefined\\",\\"notfound\\":\\"$undefined\\",\\"forbidden\\":\\"$undefined\\",\\"unauthorized\\":\\"$undefined\\",\\"segmentviewboundaries\\":[\\"$undefined\\",\\"$undefined\\",\\"$undefined\\",\\"$undefined\\"]},null,\\"$3c\\",1]]},null,\\"$3b\\",0],{\\"children\\":[[\\"$\\",\\"$c\\",\\"c\\",{\\"children\\":[[\\"$\\",\\"$la\\",\\"c-page\\",{\\"type\\":\\"page\\",\\"pagepath\\":\\"reserver/page.js\\",\\"children\\":[\\"$\\",\\"$l41\\",null,{\\"component\\":\\"$42\\",\\"serverprovidedparams\\":{\\"searchparams\\":{},\\"params\\":{},\\"promises\\":null}},null,\\"$40\\",1]},null,\\"$3f\\",1],[[\\"$\\",\\"link\\",\\"0\\",{\\"rel\\":\\"stylesheet\\",\\"href\\":\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_reserver_reserver_module_0qpfmq8.css\\",\\"precedence\\":\\"next_static/chunks/documents_app2000_app2000_g03_26_app_reserver_reserver_module_0qpfmq8.css\\",\\"crossorigin\\":\\"$undefined\\",\\"nonce\\":\\"$undefined\\"},null,\\"$43\\",0],[\\"$\\",\\"script\\",\\"script-0\\",{\\"src\\":\\"/_next/static/chunks/documents_app2000_app2000_g03_26_0utjneq._.js\\",\\"async\\":true,\\"nonce\\":\\"$undefined\\"},null,\\"$44\\",0],[\\"$\\",\\"script\\",\\"script-1\\",{\\"src\\":\\"/_next/static/chunks/documents_app2000_app2000_g03_26_app_reserver_page_0ly7igr.js\\",\\"async\\":true,\\"nonce\\":\\"$undefined\\"},null,\\"$45\\",0]],\\"$46\\"]},null,\\"$3e\\",0],{},null,false,null]},null,false,\\"$@4f\\"]},null,false,null],[\\"$\\",\\"$c\\",\\"h\\",{\\"children\\":[\\"$51\\",\\"$56\\",\\"$5f\\",[\\"$\\",\\"meta\\",null,{\\"name\\":\\"next-size-adjust\\",\\"content\\":\\"\\"},null,\\"$6a\\",1]]},null,\\"$50\\",0],false]],\\"m\\":\\"$w6b\\",\\"g\\":[\\"$6c\\",[\\"$\\",\\"$la\\",\\"ge-svn\\",{\\"type\\":\\"global-error\\",\\"pagepath\\":\\"__next_builtin__global-error.js\\",\\"children\\":[[\\"$\\",\\"link\\",\\"0\\",{\\"rel\\":\\"stylesheet\\",\\"href\\":\\"/_next/static/chunks/%5broot-of-the-server%5d__012oiza._.css\\",\\"precedence\\":\\"next_static/chunks/[root-of-the-server]__012oiza._.css\\",\\"crossorigin\\":\\"$undefined\\",\\"nonce\\":\\"$undefined\\"},null,\\"$6e\\",0]]},null,\\"$6d\\",0]],\\"s\\":false,\\"h\\":null,\\"s\\":\\"$undefined\\",\\"l\\":\\"$undefined\\",\\"p\\":\\"$undefined\\",\\"d\\":\\"$undefined\\",\\"b\\":\\"development\\"}\\n"])self.__next_f.push([1,"6f:[]\\n4f:d\\"$70\\"\\n4f:\\"$w6f\\"\\n5c:d\\"$71\\"\\n5c:[[\\"$\\",\\"meta\\",\\"0\\",{\\"charset\\":\\"utf-8\\"},\\"$47\\",\\"$72\\",0],[\\"$\\",\\"meta\\",\\"1\\",{\\"name\\":\\"viewport\\",\\"content\\":\\"width=device-width, initial-scale=1\\"},\\"$47\\",\\"$73\\",0]]\\n4e:d\\"$74\\"\\n4e:null\\n67:d\\"$75\\"\\n67:[[\\"$\\",\\"title\\",\\"0\\",{\\"children\\":\\"create next app\\"},\\"$47\\",\\"$76\\",0],[\\"$\\",\\"meta\\",\\"1\\",{\\"name\\":\\"description\\",\\"content\\":\\"generated by create next app\\"},\\"$47\\",\\"$77\\",0],[\\"$\\",\\"link\\",\\"2\\",{\\"rel\\":\\"icon\\",\\"href\\":\\"/favicon.ico?favicon.12p5ou7xa3lmz.ico\\",\\"sizes\\":\\"2048x2048\\",\\"type\\":\\"image/x-icon\\"},\\"$47\\",\\"$78\\",0],[\\"$\\",\\"$l7a\\",\\"3\\",{},\\"$47\\",\\"$79\\",0]]\\n"])🍪 vi bruker informasjonskapsler (cookies) for å gi deg en bedre opplevelse på frittfram. ved å klikke aksepter godtar du bruk av cookies i henhold til vår personvernpolicy.aksepteravvis' to not include '500'
+      at Context.eval (webpack://appfrittfram/./cypress/e2e/cabins.cy.js:27:40)
+      at getRet (http://localhost:3000/__cypress/runner/cypress_runner.js:122798:20)
+      at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)
+      at Context.thenFn (http://localhost:3000/__cypress/runner/cypress_runner.js:122809:66)
+      at Context.then (http://localhost:3000/__cypress/runner/cypress_runner.js:123060:21)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        9                                                                                │
+  │ Passing:      8                                                                                │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     7 seconds                                                                        │
+  │ Spec Ran:     cabins.cy.js                                                                     │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/screenshots/cabins.cy.js/Hy     (1280x720)
+     tteliste – sidestruktur -- siden inneholder ikke en synlig feilmelding (failed).               
+     png                                                                                            
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/cabins.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  explore.cy.js                                                                  (4 of 12)
+
+
+  Utforsk-siden – sidestruktur
+    ✓ laster utforsk-siden uten krasj (568ms)
+    ✓ viser et søkefelt (351ms)
+    ✓ siden inneholder ikke en 500-feil (205ms)
+    ✓ hvis det finnes turer vises de som kort (280ms)
+
+  Utforsk-siden – innlogget bruker
+    ✓ viser siden etter innlogging (1667ms)
+    ✓ knapp for å opprette ny turrute finnes (1718ms)
+
+  Ny turrute (/turrute/ny) – tilgangskontroll
+    ✓ uinnlogget bruker kan ikke opprette turrute (105ms)
+    1) vanlig bruker (USER) blokkeres fra /turrute/ny
+
+  Turrute API – tilgangskontroll
+    2) POST /api/turrute/ny returnerer 401/403 for uinnlogget
+
+
+  7 passing (7s)
+  2 failing
+
+  1) Ny turrute (/turrute/ny) – tilgangskontroll
+       vanlig bruker (USER) blokkeres fra /turrute/ny:
+     AssertionError: expected false to be true
+      at Object.proxyGetter [as get] (http://localhost:3000/__cypress/runner/cypress_runner.js:81160:22)
+      at Context.eval (webpack://appfrittfram/./cypress/e2e/explore.cy.js:82:28)
+      at getRet (http://localhost:3000/__cypress/runner/cypress_runner.js:122798:20)
+      at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)
+
+  2) Turrute API – tilgangskontroll
+       POST /api/turrute/ny returnerer 401/403 for uinnlogget:
+
+      AssertionError: expected 400 to be one of [ 401, 403 ]
+      + expected - actual
+
+      -400
+      +[ 401, 403 ]
+      
+      at Context.eval (webpack://appfrittfram/./cypress/e2e/explore.cy.js:96:31)
+      at getRet (http://localhost:3000/__cypress/runner/cypress_runner.js:122798:20)
+      at tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise.attempt.Promise.try (http://localhost:3000/__cypress/runner/cypress_runner.js:4285:29)
+      at Context.thenFn (http://localhost:3000/__cypress/runner/cypress_runner.js:122809:66)
+      at Context.then (http://localhost:3000/__cypress/runner/cypress_runner.js:123060:21)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        9                                                                                │
+  │ Passing:      7                                                                                │
+  │ Failing:      2                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  2                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     7 seconds                                                                        │
+  │ Spec Ran:     explore.cy.js                                                                    │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/screenshots/explore.cy.js/N     (1280x720)
+     y turrute (turruteny) – tilgangskontroll -- vanlig bruker (USER) blokkeres fra t               
+     urruteny (failed).png                                                                          
+  -  /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/screenshots/explore.cy.js/T     (1280x720)
+     urrute API – tilgangskontroll -- POST apiturruteny returnerer 401403 for uinnlog               
+     get (failed).png                                                                               
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/explore.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  home.cy.js                                                                     (5 of 12)
+
+
+  Hjemmeside
+    ✓ laster hjemmesiden (419ms)
+    ✓ viser hero-seksjonen med søkefelt (139ms)
+    ✓ søk navigerer til /search (596ms)
+    1) kategorilenker er synlige
+
+
+  3 passing (16s)
+  1 failing
+
+  1) Hjemmeside
+       kategorilenker er synlige:
+     AssertionError: Timed out retrying after 15000ms: Expected to find element: `a[href="/vaer"]`, but never found it.
+      at Context.eval (webpack://appfrittfram/./cypress/e2e/home.cy.js:27:30)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        4                                                                                │
+  │ Passing:      3                                                                                │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     16 seconds                                                                       │
+  │ Spec Ran:     home.cy.js                                                                       │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/screenshots/home.cy.js/Hjem     (1280x720)
+     meside -- kategorilenker er synlige (failed).png                                               
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/home.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  login.cy.js                                                                    (6 of 12)
+
+
+  Innlogging
+    ✓ viser login-skjemaet (368ms)
+    ✓ viser feilmelding ved feil e-post eller passord (1117ms)
+    ✓ logger inn med riktig brukernavn og passord (1458ms)
+    ✓ har en lenke til signup-siden (219ms)
+
+
+  4 passing (3s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        4                                                                                │
+  │ Passing:      4                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     3 seconds                                                                        │
+  │ Spec Ran:     login.cy.js                                                                      │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/login.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  map.cy.js                                                                      (7 of 12)
+
+
+  Kart
+    ✓ laster kartsiden (343ms)
+    1) viser venstre kontrollpanel
+    ✓ viser Leaflet-kartbeholderen (259ms)
+    2) knappen Min posisjon er klikkbar
+    3) kan slå på og av Vis hytter
+
+
+  2 passing (47s)
+  3 failing
+
+  1) Kart
+       viser venstre kontrollpanel:
+     AssertionError: Timed out retrying after 15000ms: Expected to find content: 'Min posisjon' but never did.
+      at Context.eval (webpack://appfrittfram/./cypress/e2e/map.cy.js:27:32)
+
+  2) Kart
+       knappen Min posisjon er klikkbar:
+     AssertionError: Timed out retrying after 15000ms: Expected to find content: 'Min posisjon' but never did.
+      at Context.eval (webpack://appfrittfram/./cypress/e2e/map.cy.js:40:32)
+
+  3) Kart
+       kan slå på og av Vis hytter:
+     AssertionError: Timed out retrying after 15000ms: Expected to find content: 'Vis hytter' but never did.
+      at Context.eval (webpack://appfrittfram/./cypress/e2e/map.cy.js:46:7)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        5                                                                                │
+  │ Passing:      2                                                                                │
+  │ Failing:      3                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  3                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     46 seconds                                                                       │
+  │ Spec Ran:     map.cy.js                                                                        │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/screenshots/map.cy.js/Kart      (1280x720)
+     -- viser venstre kontrollpanel (failed).png                                                    
+  -  /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/screenshots/map.cy.js/Kart      (1280x720)
+     -- knappen Min posisjon er klikkbar (failed).png                                               
+  -  /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/screenshots/map.cy.js/Kart      (1280x720)
+     -- kan slå på og av Vis hytter (failed).png                                                    
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/map.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  navigation.cy.js                                                               (8 of 12)
+
+
+  Navigasjon
+    ✓ laster Hjem-siden (/) (351ms)
+    ✓ laster Utforsk-siden (/explore) (117ms)
+    ✓ laster Kart-siden (/map) (127ms)
+    ✓ laster Vær-siden (/weather) (269ms)
+    ✓ laster Hytter-siden (/reserver) (118ms)
+    ✓ laster Profil-siden (/profile) (150ms)
+    ✓ laster Sosial-siden (/sosial) (113ms)
+    ✓ laster Login-siden (/login) (143ms)
+    ✓ laster Signup-siden (/signup) (107ms)
+
+  Navigasjon – beskyttede sider (tilgangskontroll)
+    ✓ /admin er ikke tilgjengelig for uinnlogget (126ms)
+    ✓ /turrute/ny er ikke tilgjengelig for uinnlogget (106ms)
+    ✓ /reserver/ny er ikke tilgjengelig for uinnlogget (118ms)
+
+
+  12 passing (2s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        12                                                                               │
+  │ Passing:      12                                                                               │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     2 seconds                                                                        │
+  │ Spec Ran:     navigation.cy.js                                                                 │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/navigation.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  profile.cy.js                                                                  (9 of 12)
+
+
+  Profilside – ikke innlogget
+    ✓ uinnlogget bruker kommer ikke inn på /profile (322ms)
+
+  Profilside – innlogget bruker
+    ✓ viser profilsiden etter innlogging (2231ms)
+    ✓ viser brukerens brukernavn eller e-post (1301ms)
+    ✓ siden inneholder ikke en 500-feil (1301ms)
+
+  Innstillinger – innlogget bruker
+    ✓ laster innstillingssiden uten krasj (1682ms)
+    ✓ viser minst ett skjemaelement (1420ms)
+    ✓ siden inneholder ikke en 500-feil (1334ms)
+
+  Utlogging
+    ✓ bruker kan logge ut og blir sendt til forsiden eller login (1735ms)
+
+
+  8 passing (11s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        8                                                                                │
+  │ Passing:      8                                                                                │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     11 seconds                                                                       │
+  │ Spec Ran:     profile.cy.js                                                                    │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/profile.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  signup.cy.js                                                                  (10 of 12)
+
+
+  Registrering
+    ✓ viser signup-skjemaet (281ms)
+    1) viser feilmelding hvis passordene ikke matcher
+    ✓ har en lenke til login-siden (257ms)
+
+
+  2 passing (17s)
+  1 failing
+
+  1) Registrering
+       viser feilmelding hvis passordene ikke matcher:
+     AssertionError: Timed out retrying after 15000ms: Expected to find content: 'Passordene er ikke like' but never did.
+      at Context.eval (webpack://appfrittfram/./cypress/e2e/signup.cy.js:22:43)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        3                                                                                │
+  │ Passing:      2                                                                                │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     17 seconds                                                                       │
+  │ Spec Ran:     signup.cy.js                                                                     │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/screenshots/signup.cy.js/Re     (1280x720)
+     gistrering -- viser feilmelding hvis passordene ikke matcher (failed).png                      
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/signup.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  sosial.cy.js                                                                  (11 of 12)
+
+
+  Sosial feed – ikke innlogget
+    1) "before each" hook for "laster sosial-siden uten krasj"
+
+  Sosial feed – innlogget bruker
+    ✓ viser feeden etter innlogging (2729ms)
+    ✓ viser et felt for å skrive nytt innlegg (1797ms)
+    ✓ kan skrive og sende et nytt innlegg (4937ms)
+    ✓ kan like et innlegg hvis det finnes innlegg (1778ms)
+
+
+  4 passing (12s)
+  1 failing
+
+  1) Sosial feed – ikke innlogget
+       "before each" hook for "laster sosial-siden uten krasj":
+     TypeError: cy.wait(...).then(...).catch is not a function
+
+Because this error occurred during a `before each` hook we are skipping the remaining tests in the current suite: `Sosial feed – ikke innlogget`
+      at Context.eval (webpack://appfrittfram/./cypress/e2e/sosial.cy.js:9:63)
+      at runnable.fn (http://localhost:3000/__cypress/runner/cypress_runner.js:146581:19)
+      at callFn (http://localhost:3000/__cypress/runner/cypress_runner.js:165745:21)
+      at Runnable.run (http://localhost:3000/__cypress/runner/cypress_runner.js:165732:7)
+      at <unknown> (http://localhost:3000/__cypress/runner/cypress_runner.js:171830:30)
+      at PassThroughHandlerContext.finallyHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:4042:23)
+      at PassThroughHandlerContext.tryCatcher (http://localhost:3000/__cypress/runner/cypress_runner.js:1777:23)
+      at Promise._settlePromiseFromHandler (http://localhost:3000/__cypress/runner/cypress_runner.js:1489:31)
+      at Promise._settlePromise (http://localhost:3000/__cypress/runner/cypress_runner.js:1546:18)
+
+
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        7                                                                                │
+  │ Passing:      4                                                                                │
+  │ Failing:      1                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      2                                                                                │
+  │ Screenshots:  1                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     11 seconds                                                                       │
+  │ Spec Ran:     sosial.cy.js                                                                     │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Screenshots)
+
+  -  /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/screenshots/sosial.cy.js/So     (1280x720)
+     sial feed – ikke innlogget -- laster sosial-siden uten krasj -- before each hook               
+      (failed).png                                                                                  
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/sosial.cy.js.mp4
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+                                                                                                    
+  Running:  weather.cy.js                                                                 (12 of 12)
+
+
+  Værsiden – sidestruktur
+    ✓ laster værsiden uten krasj (320ms)
+    ✓ viser søkefeltet for stedsnavn (86ms)
+    ✓ søkefeltet har riktig placeholder-tekst (194ms)
+    ✓ siden har ingen synlig 500-feil (93ms)
+
+  Værsiden – søkefunksjonalitet
+    ✓ kan skrive i søkefeltet (310ms)
+    ✓ søk med Enter sender skjemaet uten å krasje siden (246ms)
+    ✓ send-knappen inne i skjemaet er klikkbar (486ms)
+    ✓ søk etter kjent sted viser resultatliste eller værmeldingskort (615ms)
+
+  Værsiden – kart
+    ✓ Leaflet-kartet laster på værsiden (121ms)
+
+  Værsiden – min-posisjon-knapp
+    ✓ posisjon-knappen finnes og er klikkbar (89ms)
+
+
+  10 passing (3s)
+
+
+  (Results)
+
+  ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Tests:        10                                                                               │
+  │ Passing:      10                                                                               │
+  │ Failing:      0                                                                                │
+  │ Pending:      0                                                                                │
+  │ Skipped:      0                                                                                │
+  │ Screenshots:  0                                                                                │
+  │ Video:        true                                                                             │
+  │ Duration:     2 seconds                                                                        │
+  │ Spec Ran:     weather.cy.js                                                                    │
+  └────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  (Video)
+
+  -  Video output: /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos/weather.cy.js.mp4
+
+Start generate report process
+Read and merge jsons from "/Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/reports/html/.jsons"
+Copy media folder from "/Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/videos" to "/Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/reports/html/videos"
+An error was thrown in your plugins file while executing the handler for the after:run event.
+
+The error we received was:
+
+Error: Pattern /Users/ch.h/Documents/APP2000/APP2000_G03_26/cypress/reports/html/.jsons/*.json matched no report files
+    at /Users/ch.h/Documents/APP2000/APP2000_G03_26/node_modules/mochawesome-merge/lib/index.js:14:11
+    at Array.map (<anonymous>)
+    at /Users/ch.h/Documents/APP2000/APP2000_G03_26/node_modules/mochawesome-merge/lib/utils.js:3:46
+    at merge (/Users/ch.h/Documents/APP2000/APP2000_G03_26/node_modules/mochawesome-merge/lib/index.js:84:17)
+    at mergeAndCreate (/Users/ch.h/Documents/APP2000/APP2000_G03_26/node_modules/cypress-mochawesome-reporter/lib/generateReport.js:12:24)
+    at generateReport (/Users/ch.h/Documents/APP2000/APP2000_G03_26/node_modules/cypress-mochawesome-reporter/lib/generateReport.js:55:20)
+    at afterRunHook (/Users/ch.h/Documents/APP2000/APP2000_G03_26/node_modules/cypress-mochawesome-reporter/lib/index.js:51:9)
+    at Object.handler (/Users/ch.h/Documents/APP2000/APP2000_G03_26/node_modules/cypress-mochawesome-reporter/plugin.js:9:11)
+    at invoke (/Users/ch.h/Library/Caches/Cypress/15.13.1/Cypress.app/Contents/Resources/app/packages/server/lib/plugins/child/run_plugins.js:181:18)
+    at /Users/ch.h/Library/Caches/Cypress/15.13.1/Cypress.app/Contents/Resources/app/packages/server/lib/plugins/util.js:77:14
+    at tryCatcher (/Users/ch.h/Library/Caches/Cypress/15.13.1/Cypress.app/Contents/Resources/app/node_modules/bluebird/js/release/util.js:16:23)
+    at Promise.attempt.Promise.try (/Users/ch.h/Library/Caches/Cypress/15.13.1/Cypress.app/Contents/Resources/app/node_modules/bluebird/js/release/method.js:39:29)
+    at Object.wrapChildPromise (/Users/ch.h/Library/Caches/Cypress/15.13.1/Cypress.app/Contents/Resources/app/packages/server/lib/plugins/util.js:76:23)
+    at RunPlugins.execute (/Users/ch.h/Library/Caches/Cypress/15.13.1/Cypress.app/Contents/Resources/app/packages/server/lib/plugins/child/run_plugins.js:160:21)
+    at EventEmitter.<anonymous> (/Users/ch.h/Library/Caches/Cypress/15.13.1/Cypress.app/Contents/Resources/app/packages/server/lib/plugins/child/run_plugins.js:56:12)
+    at EventEmitter.emit (node:events:518:28)
+    at process.<anonymous> (/Users/ch.h/Library/Caches/Cypress/15.13.1/Cypress.app/Contents/Resources/app/packages/server/lib/plugins/util.js:51:22)
+    at process.emit (node:events:518:28)
+    at emit (node:internal/child_process:949:14)
+    at process.processTicksAndRejections (node:internal/process/task_queues:91:21)

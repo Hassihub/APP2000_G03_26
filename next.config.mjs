@@ -1,8 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-<<<<<<< HEAD
   poweredByHeader: false,
-
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.files-simplefileupload.com",
+      },
+    ],
+  },
   async headers() {
     return [
       {
@@ -28,16 +34,6 @@ const nextConfig = {
       },
     ];
   },
-=======
-	images: {
-		remotePatterns: [
-			{
-				protocol: "https",
-				hostname: "**.files-simplefileupload.com",
-			},
-		],
-	},
->>>>>>> main2.69
 };
 
 export default nextConfig;
