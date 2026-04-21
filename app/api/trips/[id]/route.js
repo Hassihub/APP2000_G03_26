@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import pool from "../../../../lib/db";
+import { getCurrentUser } from "../../../../lib/auth";
 
 export async function GET(request, { params }) {
   try {
@@ -65,12 +66,12 @@ export async function GET(request, { params }) {
 
     const trip = result.rows[0];
 
-    // Hent bilde_urls fra trips hvis den finnes, ellers fallback til routes_to_verification (for gamle data)
     if (trip.bilde_urls === undefined) {
       const tripResult = await pool.query(
         `SELECT bilde_urls FROM public.trips WHERE id = $1 LIMIT 1`,
         [tripId]
       );
+
       if (tripResult.rowCount > 0 && tripResult.rows[0].bilde_urls) {
         trip.bilde_urls = tripResult.rows[0].bilde_urls;
       } else if (!trip.bilde_url) {
@@ -78,6 +79,7 @@ export async function GET(request, { params }) {
           `SELECT bilde_urls FROM public.routes_to_verification WHERE name = $1 LIMIT 1`,
           [trip.navn]
         );
+
         if (customResult.rowCount > 0 && customResult.rows[0].bilde_urls) {
           trip.bilde_urls = customResult.rows[0].bilde_urls;
         } else {
@@ -143,11 +145,49 @@ export async function GET(request, { params }) {
     trip.interested_count = interestCountResult.rows[0]?.interested_count ?? 0;
     trip.cabins = cabins;
 
+    const user = await getCurrentUser();
+
+    trip.is_interested = false;
+    trip.is_binding_registered = false;
+    trip.can_open_group = false;
+
+    if (user?.id) {
+      const interestResult = await pool.query(
+        `
+        SELECT 1
+        FROM public.trip_interest
+        WHERE trip_id = $1
+          AND user_id = $2
+          AND status = 'interested'
+        LIMIT 1
+        `,
+        [tripId, user.id]
+      );
+
+      const registrationResult = await pool.query(
+        `
+        SELECT 1
+        FROM public.trip_registrations tr
+        JOIN public.trip_departures td
+          ON td.id = tr.departure_id
+        WHERE td.trip_id = $1
+          AND tr.user_id = $2
+          AND tr.status = 'binding'
+        LIMIT 1
+        `,
+        [tripId, user.id]
+      );
+
+      trip.is_interested = interestResult.rowCount > 0;
+      trip.is_binding_registered = registrationResult.rowCount > 0;
+      trip.can_open_group = trip.is_interested || trip.is_binding_registered;
+    }
+
     return NextResponse.json(trip);
   } catch (error) {
     console.error("Trip details API GET error:", error);
     return NextResponse.json(
-      { error: "Kunne ikke hente tur" },
+      { error: "Kunne ikke hente tur", details: error?.message || "Ukjent feil" },
       { status: 500 }
     );
   }

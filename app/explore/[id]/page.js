@@ -32,7 +32,7 @@ export default function TripDetailsPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || "Kunne ikke hente tur");
+        throw new Error(data?.details || data?.error || "Kunne ikke hente tur");
       }
 
       setTrip(data);
@@ -121,20 +121,35 @@ export default function TripDetailsPage() {
     }
   };
 
+  const goToGroup = () => {
+    if (!trip?.id) return;
+    router.push(`/explore/${trip.id}/group`);
+  };
+
   const canRegisterBinding = Boolean(trip?.departure_id);
   const canExpressInterest =
     Boolean(trip?.tiu_trip_id) &&
     trip?.is_flexible === true &&
     trip?.planning_status === "interest_open";
 
+  const canShowGroupButton = trip?.can_open_group === true;
+
   if (loading) {
-    return <main className={styles.container}><p>Laster tur...</p></main>;
+    return (
+      <main className={styles.container}>
+        <p>Laster tur...</p>
+      </main>
+    );
   }
 
   if (error) {
     return (
       <main className={styles.container}>
-        <button className={styles.backButton} onClick={() => router.push("/explore")}>
+        <button
+          className={styles.backButton}
+          onClick={() => router.push("/explore")}
+          type="button"
+        >
           ← Tilbake
         </button>
         <p className={styles.error}>{error}</p>
@@ -145,7 +160,11 @@ export default function TripDetailsPage() {
   if (!trip) {
     return (
       <main className={styles.container}>
-        <button className={styles.backButton} onClick={() => router.push("/explore")}>
+        <button
+          className={styles.backButton}
+          onClick={() => router.push("/explore")}
+          type="button"
+        >
           ← Tilbake
         </button>
         <p>Fant ikke turen.</p>
@@ -162,7 +181,6 @@ export default function TripDetailsPage() {
       >
         ← Tilbake til turer
       </button>
-
 
       <article className={styles.detailsCard}>
         {Array.isArray(trip.bilde_urls) && trip.bilde_urls.length > 0 ? (
@@ -195,6 +213,7 @@ export default function TripDetailsPage() {
           <section className={styles.section}>
             <h2>Om turen</h2>
             <p>{trip.beskrivelse || "Ingen beskrivelse lagt til."}</p>
+
             <div style={{ marginTop: "1rem" }}>
               <strong style={{ fontSize: "0.85rem" }}>Vær ved turen:</strong>
               <div style={{ marginTop: "0.4rem" }}>
@@ -211,12 +230,18 @@ export default function TripDetailsPage() {
             <h2>Organisering</h2>
             {trip.tiu_trip_id ? (
               <div>
-                <p><strong>Organisert av:</strong> TiU</p>
+                <p>
+                  <strong>Organisert av:</strong> TiU
+                </p>
                 {trip.turleder_navn && (
-                  <p><strong>Turleder:</strong> {trip.turleder_navn}</p>
+                  <p>
+                    <strong>Turleder:</strong> {trip.turleder_navn}
+                  </p>
                 )}
                 {trip.planning_status && (
-                  <p><strong>Planstatus:</strong> {trip.planning_status}</p>
+                  <p>
+                    <strong>Planstatus:</strong> {trip.planning_status}
+                  </p>
                 )}
               </div>
             ) : (
@@ -236,7 +261,9 @@ export default function TripDetailsPage() {
                   </li>
                 ))}
               </ul>
-              <p><strong>Antall interesserte:</strong> {trip.interested_count ?? 0}</p>
+              <p>
+                <strong>Antall interesserte:</strong> {trip.interested_count ?? 0}
+              </p>
             </section>
           )}
 
@@ -294,7 +321,17 @@ export default function TripDetailsPage() {
               </button>
             )}
 
-            {!canExpressInterest && !canRegisterBinding && (
+            {canShowGroupButton && (
+              <button
+                className={styles.registerButton}
+                onClick={goToGroup}
+                type="button"
+              >
+                Åpne turgruppe
+              </button>
+            )}
+
+            {!canExpressInterest && !canRegisterBinding && !canShowGroupButton && (
               <p className={styles.noDeparture}>
                 Det finnes ingen aktiv avgang eller åpen interesserunde akkurat nå.
               </p>

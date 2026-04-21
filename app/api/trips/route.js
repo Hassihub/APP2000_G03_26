@@ -357,7 +357,7 @@ export async function POST(request) {
     const trip = tripResult.rows[0];
 
     if (isTiu) {
-      const planningStatus = "draft";
+      const planningStatus = "interest_open";
 
       const tiuResult = await client.query(
         `
