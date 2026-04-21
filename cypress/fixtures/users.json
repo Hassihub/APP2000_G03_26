@@ -1,10 +1,18 @@
 {
   "validUser": {
-    "email": "test@frittfram.no",
-    "password": "TestPassord123!"
+    "email": "bruker1@usn.no",
+    "password": "hemmelig"
+  },
+  "adminUser": {
+    "email": "admin@usn.no",
+    "password": "hemmelig"
+  },
+  "utleierUser": {
+    "email": "hytteeier@usn.no",
+    "password": "hemmelig"
   },
   "invalidUser": {
-    "email": "finnesikke@frittfram.no",
+    "email": "finnesikke@usn.no",
     "password": "FeilPassord999!"
   }
 }
