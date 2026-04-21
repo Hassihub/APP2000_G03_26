@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatTranslation, useTranslations } from "../components/LanguageProvider";
 import CabinWeather from "./CabinWeather";
+import TripImageCarousel from "../explore/[id]/TripImageCarousel";
 
 export default function CabinsPage() {
   const searchParams = useSearchParams();
@@ -163,20 +164,27 @@ export default function CabinsPage() {
         {selectedCabin ? (
           <div style={{ background: "var(--bg-panel)", border: "1px solid var(--border)", borderRadius: 4, overflow: "hidden" }}>
 
-            {/* Hero image */}
-            <div style={{ height: 260, position: "relative", background: "var(--bg)" }}>
-              <Image
-                src="/images/hytte.jpg"
-                alt={selectedCabin.name}
-                fill
-                sizes="(max-width: 1200px) 100vw, 900px"
-                style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.5 }}
+            {/* Hero image / carousel */}
+            {selectedCabin.image_urls?.length > 0 ? (
+              <TripImageCarousel
+                images={selectedCabin.image_urls}
+                altBase={selectedCabin.name}
               />
-              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, var(--bg-panel) 100%)" }} />
-              <div style={{ position: "absolute", bottom: "1.5rem", left: "1.75rem", right: "1.75rem" }}>
-                <p style={{ margin: "0 0 0.2rem", fontSize: "0.62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--text-muted)" }}>{t.location}: {selectedCabin.location}</p>
-                <h2 style={{ margin: 0, fontSize: "clamp(1.4rem,3vw,2rem)", fontWeight: 900, color: "var(--text)", letterSpacing: "-0.04em", lineHeight: 1.1 }}>{selectedCabin.name}</h2>
+            ) : (
+              <div style={{ height: 260, position: "relative", background: "var(--bg)" }}>
+                <Image
+                  src="/images/hytte.jpg"
+                  alt={selectedCabin.name}
+                  fill
+                  sizes="(max-width: 1200px) 100vw, 900px"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.5 }}
+                />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, var(--bg-panel) 100%)" }} />
               </div>
+            )}
+            <div style={{ padding: "0.75rem 1.75rem 0.5rem" }}>
+              <p style={{ margin: "0 0 0.2rem", fontSize: "0.62rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "var(--text-muted)" }}>{t.location}: {selectedCabin.location}</p>
+              <h2 style={{ margin: 0, fontSize: "clamp(1.4rem,3vw,2rem)", fontWeight: 900, color: "var(--text)", letterSpacing: "-0.04em", lineHeight: 1.1 }}>{selectedCabin.name}</h2>
             </div>
 
             {/* Info rows */}

@@ -177,7 +177,19 @@ export async function POST(request, { params }) {
     const route = routeResult.rows[0];
 
     const hasCabinTable = await hasRouteVerificationCabinsTable(client);
+    let verificationCabins = [];
     if (hasCabinTable) {
+      const cabinsResult = await client.query(
+        `
+          SELECT cabin_id, sort_order
+          FROM public.route_verification_cabins
+          WHERE route_verification_id::text = $1
+          ORDER BY sort_order ASC
+        `,
+        [routeId]
+      );
+      verificationCabins = cabinsResult.rows;
+
       await client.query(
         `
           DELETE FROM public.route_verification_cabins
@@ -250,6 +262,31 @@ export async function POST(request, { params }) {
         geometry,
       ]
     );
+
+    const newTripId = tripInsert.rows[0].id;
+
+    if (verificationCabins.length > 0) {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS public.trip_cabins (
+          trip_id BIGINT NOT NULL,
+          cabin_id UUID NOT NULL,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (trip_id, cabin_id)
+        )
+      `);
+
+      for (const { cabin_id, sort_order } of verificationCabins) {
+        await client.query(
+          `
+            INSERT INTO public.trip_cabins (trip_id, cabin_id, sort_order)
+            VALUES ($1, $2, $3)
+            ON CONFLICT DO NOTHING
+          `,
+          [newTripId, cabin_id, sort_order]
+        );
+      }
+    }
 
     await client.query(
       `

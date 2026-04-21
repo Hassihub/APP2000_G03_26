@@ -515,7 +515,7 @@ appNext.prepare().then(() => {
          SET password = $1
          WHERE LOWER(BTRIM(email)) = $2
          RETURNING id`,
-        [await bcrypt.hash(nextPassword, 10), email.toLowerCase()]
+        [await bcrypt.hash(nextPassword, 10), email.trim().toLowerCase()]
       );
 
       if (result.rowCount === 0) {

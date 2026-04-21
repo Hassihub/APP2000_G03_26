@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import TripImageCarousel from "../../explore/[id]/TripImageCarousel";
 import { useRouter, useSearchParams } from "next/navigation";
 import styles from "../Reserver.module.css";
 import CabinWeather from "../CabinWeather";
@@ -249,7 +250,7 @@ export default function BookingClient() {
       if (locations.length > 0) {
         const loc = locations[0];
         const weatherRes = await fetch(
-          `/api/vaer?lat=${loc.lat}&lon=${loc.lon}`,
+          `/api/weather?lat=${loc.lat}&lon=${loc.lon}`,
         );
         setWeather(await weatherRes.json());
       }
@@ -309,7 +310,9 @@ export default function BookingClient() {
 
     const ratingNum = Number(reviewRating);
     if (!canReview) {
-      setReviewsError(reviewBlockReason || "Du kan anmelde først når oppholdet er over.");
+      setReviewsError(
+        reviewBlockReason || "Du kan anmelde når du har en gyldig reservasjon på denne hytta."
+      );
       return;
     }
 
@@ -672,33 +675,10 @@ export default function BookingClient() {
                       <>
                         {Array.isArray(cabin.image_urls) &&
                         cabin.image_urls.length > 0 ? (
-                          <div className={styles.summaryImageGallery}>
-                            <div className={styles.summaryImageHero}>
-                              <Image
-                                src={cabin.image_urls[0]}
-                                alt={`Hovedbilde av ${cabin.name}`}
-                                className={styles.summaryImageHeroImg}
-                                width={1280}
-                                height={820}
-                              />
-                            </div>
-
-                            {cabin.image_urls.length > 1 ? (
-                              <div className={styles.summaryThumbGrid}>
-                                {cabin.image_urls.slice(1).map((url) => (
-                                  <div className={styles.summaryThumbCard} key={url}>
-                                    <Image
-                                      src={url}
-                                      alt={`Bilde av ${cabin.name}`}
-                                      className={styles.summaryThumbImage}
-                                      width={420}
-                                      height={300}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            ) : null}
-                          </div>
+                          <TripImageCarousel
+                            images={cabin.image_urls}
+                            altBase={cabin.name}
+                          />
                         ) : (
                           <div
                             className={styles.helper}
@@ -907,7 +887,7 @@ export default function BookingClient() {
                               </form>
                             ) : (
                               <div className={styles.helper}>
-                                {reviewBlockReason || "Du kan anmelde først når oppholdet er over."}
+                                {reviewBlockReason || "Du kan anmelde når du har en gyldig reservasjon på denne hytta."}
                               </div>
                             )
                           ) : (

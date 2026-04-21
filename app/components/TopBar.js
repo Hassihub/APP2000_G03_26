@@ -40,7 +40,7 @@ export default function TopBar() {
       { nameKey: "explore", href: "/explore" },
       { nameKey: "reserve", href: "/reserver" },
       { nameKey: "map", href: "/map" },
-      { nameKey: "weather", href: "/vaer" },
+      { nameKey: "weather", href: "/weather" },
       { nameKey: "social", href: "/sosial" },
       { nameKey: "ads", href: "/annonser" },
     ],

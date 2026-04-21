@@ -25,6 +25,8 @@ export default function MapComponent() {
   const tripsLayerRef = useRef(null);
   const selectedTripPointsLayerRef = useRef(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
+  const [cabinImgIndex, setCabinImgIndex] = useState(0);
+  const [tripImgIndex, setTripImgIndex] = useState(0);
   const [hytterOpen, setHytterOpen] = useState(false);
   const [turforslagOpen, setTurforslagOpen] = useState(false);
   const [filterStartDate, setFilterStartDate] = useState("");
@@ -60,7 +62,7 @@ export default function MapComponent() {
     { label: "Utforsk", href: "/explore" },
     { label: "Reserver", href: "/reserver" },
     { label: "Kart", href: "/map" },
-    { label: "Vær", href: "/vaer" },
+    { label: "Vær", href: "/weather" },
     { label: "Sosial", href: "/sosial" },
     { label: "Logg inn", href: "/login" },
   ];
@@ -429,6 +431,9 @@ export default function MapComponent() {
                   const res = await fetch(`/api/trips/${encodeURIComponent(p.id)}`);
                   const details = await res.json().catch(() => null);
 
+                  console.log("Trip details fra API:", details);
+                  console.log("Hytter på turen:", details?.cabins);
+
                   if (res.ok && details && typeof details === "object") {
                     setSelectedTrip({ ...p, ...details });
                   } else {
@@ -524,9 +529,9 @@ export default function MapComponent() {
     const tripCabins = Array.isArray(selectedTrip.cabins) ? selectedTrip.cabins : [];
     const cabinIcon = L.icon({
       iconUrl: "/images/cabinPin.svg",
-      iconSize: [28, 28],
-      iconAnchor: [14, 28],
-      popupAnchor: [0, -26],
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32],
     });
 
     for (const cabin of tripCabins) {
@@ -574,7 +579,7 @@ export default function MapComponent() {
 
 
   // 🔵 Plasser brukerens posisjon på kartet – profilbilde hvis tilgjengelig, ellers blå sirkel
-  const placeUserMarker = (L, map, latitude, longitude, accuracy, shouldCenterMap = true) => {
+  const placeUserMarker = (L, map, latitude, longitude, accuracy, shouldCenterMap = true, heading = null) => {
     if (userLocationLayerRef.current) {
       map.removeLayer(userLocationLayerRef.current);
       userLocationLayerRef.current = null;
@@ -594,31 +599,62 @@ export default function MapComponent() {
     const popup = `Din posisjon<br/>Lat: ${latitude.toFixed(5)}<br/>Lon: ${longitude.toFixed(5)}`;
     const avatar = avatarUrlRef.current;
 
+    const headingArrow = (heading !== null && !isNaN(heading))
+      ? `<div style="
+          position:absolute;
+          top:-18px;
+          left:50%;
+          transform:translateX(-50%) rotate(${heading}deg);
+          transform-origin:50% 100%;
+          width:0;
+          height:0;
+          border-left:7px solid transparent;
+          border-right:7px solid transparent;
+          border-bottom:18px solid #1d4ed8;
+          opacity:0.9;
+        "></div>`
+      : "";
+
     if (avatar) {
       const size = 36;
       const icon = L.divIcon({
         className: "",
-        html: `<div style="
-          width:${size}px;
-          height:${size}px;
-          border-radius:50%;
-          border:3px solid #1d4ed8;
-          overflow:hidden;
-          box-shadow:0 2px 6px rgba(0,0,0,0.35);
-        "><img src="${avatar}" style="width:100%;height:100%;object-fit:cover;" /></div>`,
+        html: `<div style="position:relative;width:${size}px;height:${size}px;">
+          ${headingArrow}
+          <div style="
+            width:${size}px;
+            height:${size}px;
+            border-radius:50%;
+            border:3px solid #1d4ed8;
+            overflow:hidden;
+            box-shadow:0 2px 6px rgba(0,0,0,0.35);
+          "><img src="${avatar}" style="width:100%;height:100%;object-fit:cover;" /></div>
+        </div>`,
         iconSize: [size, size],
         iconAnchor: [size / 2, size / 2],
         popupAnchor: [0, -(size / 2)],
       });
       L.marker([latitude, longitude], { icon }).bindPopup(popup).addTo(group);
     } else {
-      L.circleMarker([latitude, longitude], {
-        radius: 10,
-        color: "#1d4ed8",
-        fillColor: "#3b82f6",
-        fillOpacity: 1,
-        weight: 2,
-      }).bindPopup(popup).addTo(group);
+      const size = 24;
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="position:relative;width:${size}px;height:${size}px;">
+          ${headingArrow}
+          <div style="
+            width:${size}px;
+            height:${size}px;
+            border-radius:50%;
+            background:#3b82f6;
+            border:2px solid #1d4ed8;
+            box-shadow:0 2px 6px rgba(0,0,0,0.35);
+          "></div>
+        </div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        popupAnchor: [0, -(size / 2)],
+      });
+      L.marker([latitude, longitude], { icon }).bindPopup(popup).addTo(group);
     }
 
     group.addTo(map);
@@ -659,43 +695,45 @@ export default function MapComponent() {
     }
 
     if (geolocationWatchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(geolocationWatchIdRef.current);
+      clearInterval(geolocationWatchIdRef.current);
       geolocationWatchIdRef.current = null;
       setIsTrackingUserLocation(false);
       return;
     }
 
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        placeUserMarker(
-          Leaflet,
-          mapRef.current,
-          latitude,
-          longitude,
-          accuracy,
-          autoFollowUserLocationRef.current
-        );
-      },
-      (error) => {
-        console.error("Geolokasjonsfeil (live):", error);
-        alert("Live-sporing stoppet: " + error.message);
-        if (geolocationWatchIdRef.current !== null) {
-          navigator.geolocation.clearWatch(geolocationWatchIdRef.current);
-          geolocationWatchIdRef.current = null;
-        }
-        setIsTrackingUserLocation(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      }
-    );
+    const UPDATE_INTERVAL_MS = 1000;
 
-    geolocationWatchIdRef.current = watchId;
+    let isFirstUpdate = true;
+    const fetchPosition = () => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude, accuracy, heading } = position.coords;
+          placeUserMarker(
+            Leaflet,
+            mapRef.current,
+            latitude,
+            longitude,
+            accuracy,
+            isFirstUpdate,
+            heading
+          );
+          isFirstUpdate = false;
+        },
+        (error) => {
+          console.error("Geolokasjonsfeil (live):", error);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    };
+
+    fetchPosition();
+    const intervalId = setInterval(fetchPosition, UPDATE_INTERVAL_MS);
+    geolocationWatchIdRef.current = intervalId;
     setIsTrackingUserLocation(true);
   };
+
+  useEffect(() => { setCabinImgIndex(0); }, [selectedCabin]);
+  useEffect(() => { setTripImgIndex(0); }, [selectedTrip]);
 
   return (
     <div
@@ -745,16 +783,44 @@ export default function MapComponent() {
                     style={{
                       margin: "0 -16px 12px -16px",
                       overflow: "hidden",
+                      position: "relative",
                     }}
                   >
                     <Image
-                      src={selectedCabin.image_urls[0]}
+                      src={selectedCabin.image_urls[cabinImgIndex] ?? selectedCabin.image_urls[0]}
                       alt={selectedCabin.name || "Hyttebilde"}
                       width={1200}
                       height={180}
                       unoptimized
-                      style={{ width: "100%", height: 180, objectFit: "cover" }}
+                      style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }}
                     />
+                    {selectedCabin.image_urls.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setCabinImgIndex((i) => (i - 1 + selectedCabin.image_urls.length) % selectedCabin.image_urls.length)}
+                          style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "#fff", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", fontSize: 20, lineHeight: "28px", textAlign: "center", padding: 0 }}
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCabinImgIndex((i) => (i + 1) % selectedCabin.image_urls.length)}
+                          style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "#fff", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", fontSize: 20, lineHeight: "28px", textAlign: "center", padding: 0 }}
+                        >
+                          ›
+                        </button>
+                        <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 5 }}>
+                          {selectedCabin.image_urls.map((_, i) => (
+                            <span
+                              key={i}
+                              onClick={() => setCabinImgIndex(i)}
+                              style={{ width: 7, height: 7, borderRadius: "50%", background: i === cabinImgIndex ? "#fff" : "rgba(255,255,255,0.5)", cursor: "pointer", display: "inline-block" }}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -921,23 +987,51 @@ export default function MapComponent() {
                 ← Tilbake til kartverktøy
               </button>
 
-              {selectedTrip.bilde_url && (
-                <div
-                  style={{
-                    margin: "0 -16px 12px -16px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <Image
-                    src={selectedTrip.bilde_url}
-                    alt={selectedTrip.navn || "Turbilde"}
-                    width={1200}
-                    height={180}
-                    unoptimized
-                    style={{ width: "100%", height: 180, objectFit: "cover" }}
-                  />
-                </div>
-              )}
+              {(() => {
+                const tripImages = Array.isArray(selectedTrip.bilde_urls) && selectedTrip.bilde_urls.length > 0
+                  ? selectedTrip.bilde_urls
+                  : selectedTrip.bilde_url ? [selectedTrip.bilde_url] : [];
+                if (tripImages.length === 0) return null;
+                return (
+                  <div style={{ margin: "0 -16px 12px -16px", overflow: "hidden", position: "relative" }}>
+                    <Image
+                      src={tripImages[tripImgIndex] ?? tripImages[0]}
+                      alt={selectedTrip.navn || "Turbilde"}
+                      width={1200}
+                      height={180}
+                      unoptimized
+                      style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }}
+                    />
+                    {tripImages.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setTripImgIndex((i) => (i - 1 + tripImages.length) % tripImages.length)}
+                          style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "#fff", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", fontSize: 20, lineHeight: "28px", textAlign: "center", padding: 0 }}
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTripImgIndex((i) => (i + 1) % tripImages.length)}
+                          style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.45)", color: "#fff", border: "none", borderRadius: "50%", width: 30, height: 30, cursor: "pointer", fontSize: 20, lineHeight: "28px", textAlign: "center", padding: 0 }}
+                        >
+                          ›
+                        </button>
+                        <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 5 }}>
+                          {tripImages.map((_, i) => (
+                            <span
+                              key={i}
+                              onClick={() => setTripImgIndex(i)}
+                              style={{ width: 7, height: 7, borderRadius: "50%", background: i === tripImgIndex ? "#fff" : "rgba(255,255,255,0.5)", cursor: "pointer", display: "inline-block" }}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div
                 style={{

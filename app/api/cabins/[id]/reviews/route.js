@@ -67,7 +67,6 @@ async function getReviewEligibility({ userId, cabinId }) {
       FROM public.reservations r
       WHERE r.cabin_id::text = $1
         AND r.status <> 'cancelled'
-        AND r.end_date <= CURRENT_DATE
         AND r.guest_user_id = $2
       LIMIT 1
     `,
@@ -77,7 +76,9 @@ async function getReviewEligibility({ userId, cabinId }) {
   const canReview = result.rowCount > 0;
   return {
     can_review: canReview,
-    review_block_reason: canReview ? null : "Du kan anmelde først når oppholdet er over.",
+    review_block_reason: canReview
+      ? null
+      : "Du kan anmelde når du har en gyldig reservasjon på denne hytta.",
   };
 }
 
