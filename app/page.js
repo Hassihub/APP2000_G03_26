@@ -22,8 +22,13 @@ export default function Home() {
   const [trips, setTrips] = useState([]);
   const [cabins, setCabins] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  const [bgImageIndex, setBgImageIndex] = useState(0);
+  const [displayedIndex, setDisplayedIndex] = useState(0);
   const { language } = useLanguage();
   const t = useTranslations("home");
+
+  const backgroundImages = ["/images/Gif1.gif", "/images/Gif2.gif", "/images/Gif3.jpg", "/images/Gif4.jpg"];
+  const totalImages = 4;
 
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +152,21 @@ export default function Home() {
     document.body.style.overflowX = "hidden";
   }, [theme]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBgImageIndex((prev) => (prev + 1) % totalImages);
+    }, 8000); // 8 sekunder per bilde
+    return () => clearInterval(interval);
+  }, [totalImages]);
+
+  // Når bgImageIndex endres, oppdater displayedIndex etter fade
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDisplayedIndex(bgImageIndex);
+    }, 5000); // Vent 5 sekunder før du viser neste bilde
+    return () => clearTimeout(timer);
+  }, [bgImageIndex]);
+
   const locations = buildLocationSuggestions(trips, cabins);
 
   const filteredResults = locations.filter((item) =>
@@ -176,23 +196,37 @@ export default function Home() {
         overflowX: "hidden",
       }}
     >
-      {/* HERO VIDEO */}
+      {/* HERO BACKGROUND */}
       <div style={{ position: "relative", height: "100vh" }}>
-        <video
-          autoPlay
-          loop
-          muted
+        {/* Bakgrunnsbilde - Neste (under) */}
+        <div
           style={{
             position: "absolute",
             inset: 0,
             width: "100%",
             height: "100%",
-            objectFit: "cover",
+            backgroundImage: `url(${backgroundImages[bgImageIndex]})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            zIndex: -2,
+          }}
+        />
+
+        {/* Bakgrunnsbilde - Gjeldende (over, fader ut) */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            backgroundImage: `url(${backgroundImages[displayedIndex]})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            opacity: displayedIndex === bgImageIndex ? 1 : 0,
+            transition: "opacity 3s ease-in-out",
             zIndex: -1,
           }}
-        >
-          <source src="/videos/natur.mp4" type="video/mp4" />
-        </video>
+        />
 
         <div
           style={{

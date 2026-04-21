@@ -1,17 +1,17 @@
-ï»¿"use client";
+"use client";
 
 import { useState } from "react";
 
 const PRICING_MODELS = [
-  { id: "cpc", label: "Pay-Per-Click (PPC)", desc: "Du betaler kun for faktiske klikk pÃ¥ annonsen din" },
+  { id: "cpc", label: "Pay-Per-Click (PPC)", desc: "Du betaler kun for faktiske klikk på annonsen din" },
   { id: "cpm", label: "Pay-Per-Thousand Impressions (CPM)", desc: "Du betaler for hver 1000 visninger av annonsen" },
 ];
 
 const PLACEMENTS = [
-  { label: "HÃ¸yre sidebar", icon: "â–¶", desc: "Vises pÃ¥ alle sider, synlig for alle besÃ¸kende" },
-  { label: "Venstre sidebar", icon: "â—€", desc: "Fremtredende posisjon, hÃ¸y klikk-rate" },
-  { label: "Toppbanner", icon: "â–²", desc: "FÃ¸rste ting brukeren ser â€“ maks synlighet" },
-  { label: "Midtside-banner", icon: "â—†", desc: "Vises mellom innhold, naturlig integrert" },
+  { label: "Høyre sidebar", icon: "?", desc: "Vises på alle sider, synlig for alle besøkende" },
+  { label: "Venstre sidebar", icon: "?", desc: "Fremtredende posisjon, høy klikk-rate" },
+  { label: "Toppbanner", icon: "?", desc: "Første ting brukeren ser – maks synlighet" },
+  { label: "Midtside-banner", icon: "?", desc: "Vises mellom innhold, naturlig integrert" },
 ];
 
 export default function Annonseportal() {
@@ -45,7 +45,7 @@ export default function Annonseportal() {
       ? `Modell: Pay-Per-Click\nKost per klikk: ${form.costPerClick} kr`
       : `Modell: CPM (Per tusen visninger)\nKost per 1000 visninger: ${form.costPerThousandImpressions} kr`;
 
-    const subject = encodeURIComponent(`AnnonseforespÃ¸rsel - ${form.company}`);
+    const subject = encodeURIComponent(`Annonseforespørsel - ${form.company}`);
     const body = encodeURIComponent(
       `Bedrift: ${form.company}\nKontaktperson: ${form.contact}\nE-post: ${form.email}\nTelefon: ${form.phone}\n\nAnnonseinformasjon:\nTittel: ${form.adTitle}\nURL: ${form.adUrl}\nPlassering: ${form.placement}\nBudsjett: ${form.budget} kr\n\n${pricingDetails}\n\nMelding:\n${form.message}`
     );
@@ -67,7 +67,7 @@ export default function Annonseportal() {
             Betale kun for resultater
           </h1>
           <p style={{ margin: "0 auto", fontSize: "1.15rem", color: "#e5e7eb", maxWidth: "580px", lineHeight: 1.65 }}>
-            Med FrittFrams fleksible annonsesystem betaler du kun for klikk eller visninger. Ingen faste mÃ¥nedlige gebyrer - 100% resultatbasert.
+            Med FrittFrams fleksible annonsesystem betaler du kun for klikk eller visninger. Ingen faste månedlige gebyrer - 100% resultatbasert.
           </p>
         </div>
       </div>
@@ -79,7 +79,7 @@ export default function Annonseportal() {
             Tilgjengelige plasseringer
           </h2>
           <p style={{ margin: "0 0 2.5rem", color: "#667085", textAlign: "center", fontSize: "0.95rem" }}>
-            Velg posisjon basert pÃ¥ synlighetsmÃ¥l - du betaler kun for resultater
+            Velg posisjon basert på synlighetsmål - du betaler kun for resultater
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1.25rem" }}>
             {PLACEMENTS.map((p) => (
@@ -129,7 +129,7 @@ export default function Annonseportal() {
                     alignItems: "center",
                     justifyContent: "center",
                   }}>
-                    {form.pricingModel === model.id && <span style={{ color: "#fff", fontSize: "0.7rem" }}>âœ“</span>}
+                    {form.pricingModel === model.id && <span style={{ color: "#fff", fontSize: "0.7rem" }}>?</span>}
                   </div>
                   <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#111827" }}>{model.label}</h3>
                 </div>
@@ -147,13 +147,13 @@ export default function Annonseportal() {
             Opprett annonse
           </h2>
           <p style={{ margin: "0 0 2rem", color: "#667085", fontSize: "0.95rem" }}>
-            Fyll ut skjemaet, sÃ¥ setter vi opp annonsen din og begynner Ã¥ drive trafikk basert pÃ¥ ditt budget.
+            Fyll ut skjemaet, så setter vi opp annonsen din og begynner å drive trafikk basert på ditt budget.
           </p>
           {sent ? (
             <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "12px", padding: "2rem", textAlign: "center" }}>
-              <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>âœ“</div>
-              <p style={{ margin: 0, fontWeight: 700, color: "#166534", fontSize: "1.05rem" }}>ForespÃ¸rselen er sendt!</p>
-              <p style={{ margin: "0.5rem 0 0", color: "#15803d", fontSize: "0.9rem" }}>Vi svarer pÃ¥ e-post innen 1-2 virkedager.</p>
+              <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>?</div>
+              <p style={{ margin: 0, fontWeight: 700, color: "#166534", fontSize: "1.05rem" }}>Forespørselen er sendt!</p>
+              <p style={{ margin: "0.5rem 0 0", color: "#15803d", fontSize: "0.9rem" }}>Vi svarer på e-post innen 1-2 virkedager.</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -213,7 +213,7 @@ export default function Annonseportal() {
                   <div>
                     <label style={labelStyle}>Total budsjett (kr) *</label>
                     <input name="budget" type="number" min="0" step="100" required value={form.budget} onChange={handleChange} style={inputStyle} placeholder="5000" />
-                    <p style={{ margin: "0.4rem 0 0", fontSize: "0.8rem", color: "#667085" }}>Hvor mye Ã¸nsker du Ã¥ investere totalt?</p>
+                    <p style={{ margin: "0.4rem 0 0", fontSize: "0.8rem", color: "#667085" }}>Hvor mye ønsker du å investere totalt?</p>
                   </div>
 
                   {form.pricingModel === "cpc" && (
@@ -241,7 +241,7 @@ export default function Annonseportal() {
               {/* Melding */}
               <div>
                 <label style={labelStyle}>Tilleggsinformasjon</label>
-                <textarea name="message" value={form.message} onChange={handleChange} rows={3} style={{ ...inputStyle, resize: "vertical" }} placeholder="MÃ¥lgruppe, tidsrom, spesielle Ã¸nsker, osv." />
+                <textarea name="message" value={form.message} onChange={handleChange} rows={3} style={{ ...inputStyle, resize: "vertical" }} placeholder="Målgruppe, tidsrom, spesielle ønsker, osv." />
               </div>
 
               <button
@@ -249,7 +249,7 @@ export default function Annonseportal() {
                 disabled={sending}
                 style={{ padding: "0.9rem", background: "#111827", color: "#fff", border: "none", borderRadius: "8px", fontWeight: 700, fontSize: "0.95rem", cursor: sending ? "not-allowed" : "pointer", letterSpacing: "0.04em", textTransform: "uppercase" }}
               >
-                {sending ? "Sender..." : "Send forespÃ¸rsel"}
+                {sending ? "Sender..." : "Send forespørsel"}
               </button>
             </form>
           )}
