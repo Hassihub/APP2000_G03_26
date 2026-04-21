@@ -392,6 +392,8 @@ export default function AdminTripsPage() {
         <Link href="/admin">Admin oversikt</Link>
         <span>|</span>
         <Link href="/admin/brukere">Brukere</Link>
+        <span>|</span>
+        <Link href="/admin/hytter">Hytter</Link>
       </div>
 
       <h1>Admin - Turer til verifisering</h1>

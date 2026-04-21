@@ -310,7 +310,9 @@ export default function BookingClient() {
 
     const ratingNum = Number(reviewRating);
     if (!canReview) {
-      setReviewsError(reviewBlockReason || "Du kan anmelde først når oppholdet er over.");
+      setReviewsError(
+        reviewBlockReason || "Du kan anmelde når du har en gyldig reservasjon på denne hytta."
+      );
       return;
     }
 
@@ -885,7 +887,7 @@ export default function BookingClient() {
                               </form>
                             ) : (
                               <div className={styles.helper}>
-                                {reviewBlockReason || "Du kan anmelde først når oppholdet er over."}
+                                {reviewBlockReason || "Du kan anmelde når du har en gyldig reservasjon på denne hytta."}
                               </div>
                             )
                           ) : (
