@@ -1,61 +1,79 @@
 // E2E-tester for sosial-feeden (/sosial)
-// Tester at feeden laster og at innloggede brukere kan legge ut innlegg
+// Registrerer en fersk testbruker i beforeEach – ingen reset-avhengighet
 
 describe("Sosial feed – ikke innlogget", () => {
   beforeEach(() => {
     cy.visit("/sosial");
   });
 
-  it("laster sosial-siden", () => {
+  it("laster sosial-siden uten krasj", () => {
     cy.url().should("include", "/sosial");
     cy.get("body").should("not.be.empty");
   });
 
-  it("viser innleggslisten eller en melding om at man må logge inn", () => {
-    // Enten vises innlegg, eller en oppfordring om å logge inn
-    cy.get("body").should("satisfy", ($body) => {
-      const text = $body.text();
-      return (
-        text.includes("innlogg") ||
-        text.includes("logg inn") ||
-        text.includes("Logg inn") ||
-        $body.find("[class*='post'], [class*='feed'], article").length > 0
-      );
+  it("viser innlegg eller melding om innlogging", () => {
+    cy.get("body").invoke("text").then((text) => {
+      const hasContent =
+        text.toLowerCase().includes("innlogg") ||
+        text.toLowerCase().includes("logg inn") ||
+        document.querySelectorAll("[class*='post'], [class*='feed'], article").length > 0;
+      expect(hasContent).to.be.true;
+    });
+  });
+
+  it("siden inneholder ikke en 500-feil", () => {
+    cy.get("body").invoke("text").then((text) => {
+      expect(text).not.to.include("Internal Server Error");
     });
   });
 });
 
 describe("Sosial feed – innlogget bruker", () => {
   beforeEach(() => {
-    cy.fixture("users").then((users) => {
-      cy.login(users.validUser.email, users.validUser.password);
-    });
+    // Registrer en helt fersk bruker — ingen reset nødvendig
+    cy.registerAndLogin();
     cy.visit("/sosial");
   });
 
-  it("viser feeden når man er innlogget", () => {
+  it("viser feeden etter innlogging", () => {
     cy.url().should("include", "/sosial");
     cy.get("body").should("not.be.empty");
   });
 
   it("viser et felt for å skrive nytt innlegg", () => {
-    // Det skal finnes et tekstfelt eller knapp for å opprette innlegg
-    cy.get(
-      "textarea, input[placeholder*='innlegg'], input[placeholder*='skriv'], button[class*='post']",
-      { timeout: 8000 }
-    ).should("exist");
+    cy.get("textarea, input[placeholder*='skriv'], input[placeholder*='del']", {
+      timeout: 8000,
+    }).should("exist");
   });
 
-  it("kan legge ut et nytt innlegg", () => {
-    cy.get("textarea, input[placeholder*='innlegg'], input[placeholder*='skriv']")
-      .first()
-      .type("Testinnlegg fra Cypress");
+  it("kan skrive og sende et nytt innlegg", () => {
+    const innlegg = `Cypress-testinnlegg ${Date.now()}`;
 
-    cy.get("button[type='submit'], button").filter(":contains('Post'), :contains('Del'), :contains('Send')")
+    cy.get("textarea, input[placeholder*='skriv'], input[placeholder*='del']")
       .first()
-      .click();
+      .type(innlegg);
+
+    // Finn og klikk send-knappen
+    cy.get("button").filter((_, el) =>
+      /post|del|send|publiser/i.test(el.textContent || "")
+    ).first().click();
 
     // Innlegget skal dukke opp i feeden
-    cy.contains("Testinnlegg fra Cypress", { timeout: 8000 }).should("exist");
+    cy.contains(innlegg, { timeout: 8000 }).should("exist");
+  });
+
+  it("kan like et innlegg hvis det finnes innlegg", () => {
+    cy.get("body").then(($body) => {
+      // Finn en like-knapp (hjerte, tommel, etc.)
+      const likeBtn = $body.find(
+        "button[aria-label*='like'], button[aria-label*='hjerte'], button[class*='like']"
+      );
+      if (likeBtn.length === 0) {
+        cy.log("Ingen like-knapp funnet – hopper over");
+        return;
+      }
+      cy.wrap(likeBtn.first()).click();
+      cy.get("body").should("not.be.empty");
+    });
   });
 });

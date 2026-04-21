@@ -24,11 +24,34 @@ Cypress.Commands.add("loginByApi", (email: string, password: string) => {
   });
 });
 
+// cy.registerAndLogin()
+// Registrerer en fersk testbruker via API og logger deretter inn.
+// Returnerer { email, password } så testen kan bruke dem videre.
+// Bruker timestamp i e-posten for å unngå konflikter mellom testkjøringer.
+Cypress.Commands.add("registerAndLogin", () => {
+  const ts = Date.now();
+  const email = `cypress_${ts}@test.no`;
+  const password = "Cypress123!";
+  const username = `cypress_${ts}`;
+
+  cy.request({
+    method: "POST",
+    url: "/api/auth/register",
+    body: { username, email, password, role: "USER" },
+    failOnStatusCode: false,
+  }).then(() => {
+    cy.loginByApi(email, password);
+  });
+
+  return cy.wrap({ email, password, username });
+});
+
 declare global {
   namespace Cypress {
     interface Chainable {
       login(email: string, password: string): Chainable<void>;
       loginByApi(email: string, password: string): Chainable<void>;
+      registerAndLogin(): Chainable<{ email: string; password: string; username: string }>;
     }
   }
 }
