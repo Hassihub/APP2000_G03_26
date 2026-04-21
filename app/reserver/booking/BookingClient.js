@@ -199,7 +199,7 @@ export default function BookingClient() {
       if (locations.length > 0) {
         const loc = locations[0];
         const weatherRes = await fetch(
-          `/api/vaer?lat=${loc.lat}&lon=${loc.lon}`,
+          `/api/weather?lat=${loc.lat}&lon=${loc.lon}`,
         );
         setWeather(await weatherRes.json());
       }

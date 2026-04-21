@@ -250,7 +250,7 @@ export default function Home() {
               marginBottom: "2rem",
             }}
           >
-            <Category icon={<FiSun size={42} />} label={t.weather} link="/vaer" />
+            <Category icon={<FiSun size={42} />} label={t.weather} link="/weather" />
             <Category icon={<FiGlobe size={42} />} label={t.explore} link="/explore" />
             <Category icon={<FiMap size={42} />} label={t.map} link="/map" />
             <Category icon={<FiUsers size={42} />} label={t.social} link="/sosial" />
@@ -458,7 +458,7 @@ const CARD_DATA = [
   { img: "/images/Reserve.jpg",      href: "/reserver", tag: "rorbu"   },
   { img: "/images/Map.jpg",          href: "/explore",  tag: "bike"    },
   { img: "/images/Social.jpg",       href: "/sosial",   tag: "forum"   },
-  { img: "/images/Weather.jpg",      href: "/vaer",     tag: "weather" },
+  { img: "/images/Weather.jpg",      href: "/weather",     tag: "weather" },
   { img: "/images/Galdhopiggen.jpg", href: "/explore",  tag: "climb"   },
   { img: "/images/hytte.jpg",        href: "/reserver", tag: "cabin"   },
 ];

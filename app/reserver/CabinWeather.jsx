@@ -59,7 +59,7 @@ export default function CabinWeather({ location, lat, lon }) {
         }
 
         const weatherRes = await fetch(
-          `/api/vaer?lat=${resolvedLat}&lon=${resolvedLon}`,
+          `/api/weather?lat=${resolvedLat}&lon=${resolvedLon}`,
         );
         const data = await weatherRes.json();
         if (data?.current) setWeather(data);
