@@ -431,6 +431,9 @@ export default function MapComponent() {
                   const res = await fetch(`/api/trips/${encodeURIComponent(p.id)}`);
                   const details = await res.json().catch(() => null);
 
+                  console.log("Trip details fra API:", details);
+                  console.log("Hytter på turen:", details?.cabins);
+
                   if (res.ok && details && typeof details === "object") {
                     setSelectedTrip({ ...p, ...details });
                   } else {
