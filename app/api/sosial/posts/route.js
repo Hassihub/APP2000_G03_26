@@ -31,12 +31,12 @@ export async function GET() {
       p.timestamp,
       COUNT(l.likeid) AS likes,
       BOOL_OR(l.userid = $1) AS liked,
-      MAX(pic.picture) AS picture
-    FROM posts p
-    LEFT JOIN post_liked l ON p.postid = l.postid
-    LEFT JOIN post_pictures pic ON p.postid = pic.postid
-    GROUP BY p.postid, p.caption, p.timestamp
-    ORDER BY p.timestamp DESC
+      MAX(pic.picture) AS image
+      FROM posts p
+      LEFT JOIN post_liked l ON p.postid = l.postid
+      LEFT JOIN post_pictures pic ON p.postid = pic.postid
+      GROUP BY p.postid, p.caption, p.timestamp
+      ORDER BY p.timestamp DESC
       `,
       [userid]
     )
@@ -104,13 +104,13 @@ export async function POST(req) {
 
 const postid = result.rows[0].postid
 
-if (imageBuffer) {
+if (imageUrl) {
   await pool.query(
     `
-    INSERT INTO post_pictures (postid, picture)
+    INSERT INTO post_pictures (postid, picture_url)
     VALUES ($1, $2)
     `,
-    [postid, imageBuffer]
+    [postid, imageUrl]
   )
 }
 

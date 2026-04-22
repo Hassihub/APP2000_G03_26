@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { SimpleFileUpload } from "simple-file-upload-react"
 import Image from "next/image"
 import DelKnapp from "./post_buttons/DelKnapp.png"
 import KommentarKnapp from "./post_buttons/KommentarKnapp.png"
@@ -14,11 +15,21 @@ export default function SosialPage() {
   const [comments, setComments] = useState({})
   const [showComments, setShowComments] = useState({})
   const [newComment, setNewComment] = useState({})
-  const [image, setImage] = useState(null)
+  const [imageUrl, setImageUrl] = useState("")
+  const [uploadPublicKey, setUploadPublicKey] = useState("")
+  const [uploadStatus, setUploadStatus] = useState("")
 
   async function loadPosts() {
-    const res = await fetch("/api/sosial/posts")
-    setPosts(await res.json())
+  const res = await fetch("/api/sosial/posts")
+
+  if (!res.ok) {
+    const text = await res.text()
+    console.error("Failed to load posts:", text)
+    return
+  }
+
+  const data = await res.json()
+  setPosts(data)
   }
 
   async function loadComments(postid) {
@@ -52,20 +63,57 @@ async function submitComment(postid) {
     loadPosts()
   }, [])
 
-  async function submitPost() {
+  useEffect(() => {
+  let alive = true
+
+  async function loadUploadPublicKey() {
+    try {
+      const res = await fetch("/api/simple-file-upload/public-key", {
+        method: "GET",
+        cache: "no-store",
+      })
+
+      if (!res.ok || !alive) return
+
+      const data = await res.json().catch(() => ({}))
+      const key = typeof data?.publicKey === "string" ? data.publicKey.trim() : ""
+
+      if (key && alive) {
+        setUploadPublicKey(key)
+      }
+    } catch {
+      if (alive) setUploadPublicKey("")
+    }
+  }
+
+  loadUploadPublicKey()
+
+  return () => {
+    alive = false
+  }
+}, [])
+
+async function submitPost() {
   if (!caption.trim()) return
 
-  const formData = new FormData()
-  formData.append("caption", caption)
-  formData.append("image", image)
-
-  await fetch("/api/sosial/posts", {
+  const res = await fetch("/api/sosial/posts", {
     method: "POST",
-    body: formData
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      caption,
+      imageUrl
+    })
   })
 
+  if (!res.ok) {
+    const text = await res.text()
+    console.error("Post creation failed:", text)
+    return
+  }
+
   setCaption("")
-  setImage(null)
+  setImageUrl("")
+  setUploadStatus("")
   loadPosts()
 }
 
@@ -93,6 +141,16 @@ async function submitComment(postid) {
     }
   }
 
+  function handleImageUploadChange(event) {
+  const files = Array.isArray(event?.allFiles) ? event.allFiles : []
+  const firstUrl = files[0]?.cdnUrl || ""
+
+  if (!firstUrl) return
+
+  setImageUrl(firstUrl)
+  setUploadStatus("Bilde lastet opp.")
+  }
+
   return (
     <div className="sosial-container">
       <h1>sosial</h1>
@@ -105,11 +163,16 @@ async function submitComment(postid) {
       />
       
 
-      <input
-      type="file"
-      accept="image/*"
-      onChange={e => setImage(e.target.files[0])}
-      />
+      {uploadPublicKey ? (
+        <SimpleFileUpload
+          publicKey={uploadPublicKey}
+          multiple={false}
+          maxFileSize={5 * 1024 * 1024}
+          onChange={handleImageUploadChange}
+        />
+        ) : (
+          <p>Mangler nøkkel for Simple File Upload.</p>
+        )}
 
       <button onClick={submitPost} className="buttonPost">post</button>
       </div>
