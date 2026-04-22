@@ -23,13 +23,13 @@ async function loadPosts() {
   try {
     const res = await fetch("/api/sosial/posts")
 
+    const data = await res.json()
+
     if (!res.ok) {
-      const text = await res.text()
-      console.error("Failed to load posts:", text)
+      console.error("Failed to load posts:", data.error)
       return
     }
 
-    const data = await res.json()
     setPosts(data)
   } catch (err) {
     console.error("loadPosts crashed:", err)
@@ -123,25 +123,30 @@ async function submitComment(postid) {
 async function submitPost() {
   if (!caption.trim()) return
 
-  const res = await fetch("/api/sosial/posts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      caption,
-      imageUrl
+  try {
+    const res = await fetch("/api/sosial/posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        caption,
+        imageUrl
+      })
     })
-  })
 
-  if (!res.ok) {
-    const text = await res.text()
-    console.error("Post creation failed:", text)
-    return
+    const data = await res.json()
+
+    if (!res.ok) {
+      console.error("Post creation failed:", data.error)
+      return
+    }
+
+    setCaption("")
+    setImageUrl("")
+    setUploadStatus("")
+    loadPosts()
+  } catch (err) {
+    console.error("submitPost crashed:", err)
   }
-
-  setCaption("")
-  setImageUrl("")
-  setUploadStatus("")
-  loadPosts()
 }
 
 async function toggleLike(postid) {
@@ -166,24 +171,27 @@ async function toggleLike(postid) {
 }
 
   function sharePost(postid) {
-    const url = `${window.location.origin}/sosial#post-${postid}`
+    if (typeof window !== "undefined") {
+      const url = `${window.location.origin}/sosial#post-${postid}`
 
-    if (navigator.share) {
-      navigator.share({ url })
+      if (navigator.share) {
+        navigator.share({ url })
+      } else {
+        navigator.clipboard.writeText(url)
+        alert("link copied")
+      }
     } else {
-      navigator.clipboard.writeText(url)
-      alert("link copied")
+      console.warn("sharePost called on server-side; window is not defined.")
     }
   }
 
   function handleImageUploadChange(event) {
-  const files = Array.isArray(event?.allFiles) ? event.allFiles : []
-  const firstUrl = files[0]?.cdnUrl || ""
+    // SimpleFileUpload returns an object with cdnUrl for single file uploads
+    const url = event?.cdnUrl || ""
+    if (!url) return
 
-  if (!firstUrl) return
-
-  setImageUrl(firstUrl)
-  setUploadStatus("Bilde lastet opp.")
+    setImageUrl(url)
+    setUploadStatus("Bilde lastet opp.")
   }
 
   return (
@@ -206,14 +214,13 @@ async function toggleLike(postid) {
           onChange={handleImageUploadChange}
         />
         ) : (
-          <p>Mangler nøkkel for Simple File Upload.</p>
+          <p>Missing key for SimpleFileUpload</p>
         )}
 
       <button onClick={submitPost} className="buttonPost">post</button>
       </div>
 
       {posts.map(p => {
-        console.log(p)
         const liked = p.liked
         
 
