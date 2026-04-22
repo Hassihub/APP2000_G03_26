@@ -150,6 +150,9 @@ export async function GET(request, { params }) {
     trip.is_interested = false;
     trip.is_binding_registered = false;
     trip.can_open_group = false;
+    trip.can_withdraw_interest = false;
+    trip.can_withdraw_binding = false;
+    trip.is_trip_admin = false;
 
     if (user?.id) {
       const interestResult = await pool.query(
@@ -178,9 +181,14 @@ export async function GET(request, { params }) {
         [tripId, user.id]
       );
 
+      const role = String(user.role || "").toUpperCase();
+      trip.is_trip_admin = role === "ADMIN" || role === "TURLEDER";
+
       trip.is_interested = interestResult.rowCount > 0;
       trip.is_binding_registered = registrationResult.rowCount > 0;
       trip.can_open_group = trip.is_interested || trip.is_binding_registered;
+      trip.can_withdraw_interest = trip.is_interested;
+      trip.can_withdraw_binding = trip.is_binding_registered;
     }
 
     return NextResponse.json(trip);

@@ -31,6 +31,26 @@ async function ensureTripCabinsTable(client) {
   tripCabinsTableReady = true;
 }
 
+async function ensureTurlederUserIdColumn(client) {
+  await client.query(`
+    ALTER TABLE public.tiu_trips
+    ADD COLUMN IF NOT EXISTS turleder_user_id UUID NULL
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_tiu_trips_turleder_user_id
+    ON public.tiu_trips (turleder_user_id)
+  `);
+
+  await client.query(`
+    UPDATE public.tiu_trips tt
+    SET turleder_user_id = u.id
+    FROM public.users u
+    WHERE tt.turleder_user_id IS NULL
+      AND u.username = tt.turleder_navn
+  `);
+}
+
 async function hasTripCabinsNightNumberColumn(client) {
   const result = await client.query(
     `
@@ -71,6 +91,7 @@ export async function GET(request) {
         t.geometry,
         tt.id AS tiu_trip_id,
         tt.turleder_navn,
+        tt.turleder_user_id,
         tt.is_flexible,
         tt.planning_status,
         (
@@ -182,11 +203,15 @@ export async function POST(request) {
     const cabinIdsRaw = Array.isArray(body.cabin_ids) ? body.cabin_ids : [];
     const cabin_ids = [...new Set(cabinIdsRaw.map((id) => String(id).trim()).filter(Boolean))];
 
+    let user = null;
+
     if (isTiu) {
-      const { user, response } = await requireAuth();
-      if (response) {
-        return response;
+      const auth = await requireAuth();
+      if (auth.response) {
+        return auth.response;
       }
+
+      user = auth.user;
 
       const roleError = requireRole(user, [ROLE_ADMIN, ROLE_TURLEDER]);
       if (roleError) {
@@ -316,6 +341,7 @@ export async function POST(request) {
 
     await client.query("BEGIN");
     await ensureTripCabinsTable(client);
+    await ensureTurlederUserIdColumn(client);
     const hasNightNumberColumn = await hasTripCabinsNightNumberColumn(client);
 
     const insertTripQuery = `
@@ -364,22 +390,25 @@ export async function POST(request) {
         INSERT INTO public.tiu_trips (
           trip_id,
           turleder_navn,
+          turleder_user_id,
           is_flexible,
           planning_status
         )
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, turleder_navn, is_flexible, planning_status
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, turleder_navn, turleder_user_id, is_flexible, planning_status
         `,
-        [trip.id, turleder_navn, isFlexible, planningStatus]
+        [trip.id, turleder_navn, user.id, isFlexible, planningStatus]
       );
 
       trip.tiu_trip_id = tiuResult.rows[0].id;
       trip.turleder_navn = tiuResult.rows[0].turleder_navn;
+      trip.turleder_user_id = tiuResult.rows[0].turleder_user_id;
       trip.is_flexible = tiuResult.rows[0].is_flexible;
       trip.planning_status = tiuResult.rows[0].planning_status;
     } else {
       trip.tiu_trip_id = null;
       trip.turleder_navn = null;
+      trip.turleder_user_id = null;
       trip.is_flexible = false;
       trip.planning_status = null;
     }

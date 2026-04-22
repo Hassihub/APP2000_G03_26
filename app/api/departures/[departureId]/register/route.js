@@ -213,3 +213,129 @@ export async function POST(request, { params }) {
     client.release();
   }
 }
+
+export async function DELETE(request, { params }) {
+  const client = await pool.connect();
+
+  try {
+    const { user, response } = await requireAuth();
+    if (response) {
+      return response;
+    }
+
+    const departureId = Number(params.departureId);
+
+    if (!Number.isFinite(departureId)) {
+      return NextResponse.json(
+        { error: "Ugyldig avgang" },
+        { status: 400 }
+      );
+    }
+
+    await client.query("BEGIN");
+
+    const registrationResult = await client.query(
+      `
+      SELECT
+        tr.id,
+        tr.status,
+        td.id AS departure_id,
+        td.trip_id
+      FROM public.trip_registrations tr
+      JOIN public.trip_departures td
+        ON td.id = tr.departure_id
+      WHERE tr.departure_id = $1
+        AND tr.user_id = $2
+      LIMIT 1
+      FOR UPDATE
+      `,
+      [departureId, user.id]
+    );
+
+    if (registrationResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return NextResponse.json(
+        { error: "Fant ingen bindende påmelding å melde av" },
+        { status: 404 }
+      );
+    }
+
+    await client.query(
+      `
+      UPDATE public.trip_registrations
+      SET status = 'cancelled'
+      WHERE departure_id = $1
+        AND user_id = $2
+      `,
+      [departureId, user.id]
+    );
+
+    const departureResult = await client.query(
+      `
+      SELECT
+        id,
+        min_participants,
+        status
+      FROM public.trip_departures
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [departureId]
+    );
+
+    if (departureResult.rowCount > 0) {
+      const departure = departureResult.rows[0];
+
+      const countResult = await client.query(
+        `
+        SELECT COUNT(*)::int AS binding_count
+        FROM public.trip_registrations
+        WHERE departure_id = $1
+          AND status = 'binding'
+        `,
+        [departureId]
+      );
+
+      const bindingCount = countResult.rows[0].binding_count;
+
+      if (
+        departure.status === "confirmed" &&
+        bindingCount < departure.min_participants
+      ) {
+        await client.query(
+          `
+          UPDATE public.trip_departures
+          SET status = 'open'
+          WHERE id = $1
+          `,
+          [departureId]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Du er meldt av turen",
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackError) {
+      console.error("Rollback error:", rollbackError);
+    }
+
+    console.error("Unregister API error:", error);
+
+    return NextResponse.json(
+      { error: "Kunne ikke melde deg av turen" },
+      { status: 500 }
+    );
+  } finally {
+    client.release();
+  }
+}

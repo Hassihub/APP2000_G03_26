@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import styles from "./group.module.css";
+import styles from "./privateChat.module.css";
 
-export default function TripGroupPage() {
+export default function TripPrivateChatPage() {
   const params = useParams();
   const router = useRouter();
 
-  const [groupData, setGroupData] = useState(null);
+  const [chatData, setChatData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -22,25 +22,23 @@ export default function TripGroupPage() {
   const eventSourceRef = useRef(null);
 
   const lastMessageId = useMemo(() => {
-    if (!groupData?.messages?.length) return 0;
-    return Number(groupData.messages[groupData.messages.length - 1]?.id || 0);
-  }, [groupData?.messages]);
+    if (!chatData?.messages?.length) return 0;
+    return Number(chatData.messages[chatData.messages.length - 1]?.id || 0);
+  }, [chatData?.messages]);
 
   const scrollToBottom = useCallback((behavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
   const appendMessageIfMissing = useCallback((incomingMessage) => {
-    setGroupData((prev) => {
+    setChatData((prev) => {
       if (!prev) return prev;
 
       const exists = (prev.messages || []).some(
         (msg) => String(msg.id) === String(incomingMessage.id)
       );
 
-      if (exists) {
-        return prev;
-      }
+      if (exists) return prev;
 
       return {
         ...prev,
@@ -49,49 +47,52 @@ export default function TripGroupPage() {
     });
   }, []);
 
-  const fetchGroup = useCallback(async () => {
+  const fetchChat = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
-      const res = await fetch(`/api/trips/${params.id}/group`, {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `/api/trips/${params.id}/private-chat/${params.otherUserId}`,
+        {
+          credentials: "include",
+        }
+      );
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.details || data?.error || "Kunne ikke hente turgruppen");
+        throw new Error(data?.details || data?.error || "Kunne ikke hente privat chat");
       }
 
-      setGroupData(data);
+      setChatData(data);
     } catch (err) {
       setError(err.message || "Noe gikk galt");
     } finally {
       setLoading(false);
     }
-  }, [params?.id]);
+  }, [params?.id, params?.otherUserId]);
 
   useEffect(() => {
-    if (params?.id) {
-      fetchGroup();
+    if (params?.id && params?.otherUserId) {
+      fetchChat();
     }
-  }, [params?.id, fetchGroup]);
+  }, [params?.id, params?.otherUserId, fetchChat]);
 
   useEffect(() => {
-    if (!groupData) return;
+    if (!chatData) return;
     scrollToBottom("auto");
-  }, [groupData, scrollToBottom]);
+  }, [chatData, scrollToBottom]);
 
   useEffect(() => {
-    if (!params?.id || !groupData) return;
+    if (!params?.id || !params?.otherUserId || !chatData) return;
 
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
 
     const es = new EventSource(
-      `/api/trips/${params.id}/group/stream?lastMessageId=${lastMessageId}`
+      `/api/trips/${params.id}/private-chat/${params.otherUserId}/stream?lastMessageId=${lastMessageId}`
     );
 
     eventSourceRef.current = es;
@@ -107,7 +108,14 @@ export default function TripGroupPage() {
     return () => {
       es.close();
     };
-  }, [params?.id, groupData, lastMessageId, appendMessageIfMissing, scrollToBottom]);
+  }, [
+    params?.id,
+    params?.otherUserId,
+    chatData,
+    lastMessageId,
+    appendMessageIfMissing,
+    scrollToBottom,
+  ]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -167,16 +175,19 @@ export default function TripGroupPage() {
         formData.append("image", selectedFile);
       }
 
-      const res = await fetch(`/api/trips/${params.id}/group/messages`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
+      const res = await fetch(
+        `/api/trips/${params.id}/private-chat/${params.otherUserId}/messages`,
+        {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        }
+      );
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.details || data?.error || "Kunne ikke sende melding");
+        throw new Error(data?.details || data?.error || "Kunne ikke sende privat melding");
       }
 
       appendMessageIfMissing(data.message);
@@ -190,45 +201,40 @@ export default function TripGroupPage() {
     }
   };
 
-  const openPrivateChat = (otherUserId) => {
-    if (!otherUserId || otherUserId === groupData?.currentUserId) return;
-    router.push(`/explore/${params.id}/chat/${otherUserId}`);
-  };
-
   if (loading) {
     return (
       <main className={styles.container}>
-        <p>Laster turgruppe...</p>
+        <p>Laster privat chat...</p>
       </main>
     );
   }
 
-  if (error && !groupData) {
+  if (error && !chatData) {
     return (
       <main className={styles.container}>
         <button
           className={styles.backButton}
-          onClick={() => router.push(`/explore/${params.id}`)}
+          onClick={() => router.push(`/explore/${params.id}/group`)}
           type="button"
         >
-          ← Tilbake til turen
+          ← Tilbake til turgruppen
         </button>
         <p className={styles.error}>{error}</p>
       </main>
     );
   }
 
-  if (!groupData) {
+  if (!chatData) {
     return (
       <main className={styles.container}>
         <button
           className={styles.backButton}
-          onClick={() => router.push(`/explore/${params.id}`)}
+          onClick={() => router.push(`/explore/${params.id}/group`)}
           type="button"
         >
-          ← Tilbake til turen
+          ← Tilbake til turgruppen
         </button>
-        <p>Fant ikke turgruppen.</p>
+        <p>Fant ikke privat chat.</p>
       </main>
     );
   }
@@ -238,79 +244,33 @@ export default function TripGroupPage() {
       <main className={styles.container}>
         <button
           className={styles.backButton}
-          onClick={() => router.push(`/explore/${params.id}`)}
+          onClick={() => router.push(`/explore/${params.id}/group`)}
           type="button"
         >
-          ← Tilbake til turen
+          ← Tilbake til turgruppen
         </button>
 
         <div className={styles.header}>
           <div>
-            <h1 className={styles.title}>Turgruppe</h1>
-            <p className={styles.subtitle}>{groupData.trip?.navn}</p>
+            <h1 className={styles.title}>Privat chat</h1>
+            <p className={styles.subtitle}>
+              {chatData.trip?.navn} • {chatData.otherUser?.username}
+            </p>
           </div>
         </div>
 
         {error && <p className={styles.error}>{error}</p>}
 
-        <section className={styles.membersSection}>
-          <h2>Deltakere</h2>
-          <div className={styles.membersList}>
-            {groupData.members?.length > 0 ? (
-              groupData.members.map((member) => {
-                const isLeader =
-                  groupData.trip?.turleder_user_id &&
-                  member.id === groupData.trip.turleder_user_id;
-
-                const isCurrentUser = member.id === groupData.currentUserId;
-
-                return (
-                  <div
-                    key={member.id}
-                    className={`${styles.member} ${
-                      isLeader ? styles.turleder : ""
-                    }`}
-                  >
-                    <img
-                      src={member.avatar || "/images/profilbilde.jpg"}
-                      alt={member.username}
-                      className={styles.avatar}
-                    />
-
-                    <span>
-                      {member.username}
-                      {isCurrentUser ? " (deg)" : ""}
-                    </span>
-
-                    {isLeader && (
-                      <span className={styles.leaderBadge}>Turleder</span>
-                    )}
-
-                    {!isCurrentUser && (
-                      <button
-                        type="button"
-                        className={styles.privateChatButton}
-                        onClick={() => openPrivateChat(member.id)}
-                      >
-                        Privat chat
-                      </button>
-                    )}
-                  </div>
-                );
-              })
-            ) : (
-              <p>Ingen deltakere enda.</p>
-            )}
-          </div>
-        </section>
-
         <section className={styles.chatSection}>
-          <h2>Chat</h2>
-
           <div className={styles.messages}>
-            {groupData.messages?.length > 0 ? (
-              groupData.messages.map((msg) => (
-                <div key={msg.id} className={styles.messageCard}>
+            {chatData.messages?.length > 0 ? (
+              chatData.messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`${styles.messageCard} ${
+                    msg.user_id === chatData.currentUserId ? styles.ownMessage : ""
+                  }`}
+                >
                   <div className={styles.messageHeader}>
                     <div className={styles.messageUser}>
                       <img
@@ -320,7 +280,7 @@ export default function TripGroupPage() {
                       />
                       <strong>
                         {msg.username}
-                        {msg.user_id === groupData.currentUserId ? " (deg)" : ""}
+                        {msg.user_id === chatData.currentUserId ? " (deg)" : ""}
                       </strong>
                     </div>
                     <span>{new Date(msg.created_at).toLocaleString("no-NO")}</span>
@@ -352,7 +312,7 @@ export default function TripGroupPage() {
           <form onSubmit={handleSend} className={styles.form}>
             <textarea
               className={styles.textarea}
-              placeholder="Skriv en melding til gruppa..."
+              placeholder="Skriv en privat melding..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={4}

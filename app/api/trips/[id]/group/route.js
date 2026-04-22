@@ -37,6 +37,16 @@ async function ensureTripGroupTables(client) {
   `);
 
   await client.query(`
+    ALTER TABLE public.trip_group_messages
+    ADD COLUMN IF NOT EXISTS message_type STRING NOT NULL DEFAULT 'text'
+  `);
+
+  await client.query(`
+    ALTER TABLE public.trip_group_messages
+    ADD COLUMN IF NOT EXISTS image_url STRING NULL
+  `);
+
+  await client.query(`
     CREATE INDEX IF NOT EXISTS idx_trip_group_messages_chat_id
     ON public.trip_group_messages (chat_id ASC)
   `);
@@ -44,6 +54,26 @@ async function ensureTripGroupTables(client) {
   await client.query(`
     CREATE INDEX IF NOT EXISTS idx_trip_group_messages_created_at
     ON public.trip_group_messages (created_at ASC)
+  `);
+}
+
+async function ensureTripLeaderColumn(client) {
+  await client.query(`
+    ALTER TABLE public.tiu_trips
+    ADD COLUMN IF NOT EXISTS turleder_user_id UUID NULL
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_tiu_trips_turleder_user_id
+    ON public.tiu_trips (turleder_user_id ASC)
+  `);
+
+  await client.query(`
+    UPDATE public.tiu_trips tt
+    SET turleder_user_id = u.id
+    FROM public.users u
+    WHERE tt.turleder_user_id IS NULL
+      AND u.username = tt.turleder_navn
   `);
 }
 
@@ -79,6 +109,7 @@ export async function GET(request, { params }) {
 
   try {
     await ensureTripGroupTables(client);
+    await ensureTripLeaderColumn(client);
 
     const { user, response } = await requireAuth();
     if (response) {
@@ -97,9 +128,15 @@ export async function GET(request, { params }) {
 
     const tripResult = await client.query(
       `
-      SELECT id, navn
-      FROM public.trips
-      WHERE id = $1
+      SELECT
+        t.id,
+        t.navn,
+        tt.turleder_navn,
+        tt.turleder_user_id
+      FROM public.trips t
+      LEFT JOIN public.tiu_trips tt
+        ON tt.trip_id = t.id
+      WHERE t.id = $1
       LIMIT 1
       `,
       [tripId]
@@ -168,7 +205,7 @@ export async function GET(request, { params }) {
         WHERE td.trip_id = $1
           AND tr.status = 'binding'
       )
-      ORDER BY username ASC
+      ORDER BY u.username ASC
       `,
       [tripId]
     );
@@ -178,6 +215,8 @@ export async function GET(request, { params }) {
       SELECT
         m.id,
         m.message,
+        COALESCE(m.message_type, 'text') AS message_type,
+        m.image_url,
         m.created_at,
         u.id AS user_id,
         u.username,
