@@ -193,6 +193,14 @@ export default function ReserverPage() {
           <div className={styles.container}>
             <div className={styles.notice}>🏡 Velg hytte</div>
 
+            {userRole && (
+              <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
+                <Link href="/reserver/foresporsler" className={styles.buttonSecondary}>
+                  Overnattingsforespørsler
+                </Link>
+              </div>
+            )}
+
             <div className={styles.cabinBrowseLayout}>
               <aside className={styles.filtersCard}>
                 <div className={styles.filtersHeader}>
