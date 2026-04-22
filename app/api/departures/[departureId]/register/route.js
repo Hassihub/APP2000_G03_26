@@ -2,7 +2,67 @@ import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
 
-export async function POST(request, { params }) {
+async function ensureTurlederUserIdColumn(client) {
+  await client.query(`
+    ALTER TABLE public.tiu_trips
+    ADD COLUMN IF NOT EXISTS turleder_user_id UUID NULL
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_tiu_trips_turleder_user_id
+    ON public.tiu_trips (turleder_user_id)
+  `);
+
+  await client.query(`
+    UPDATE public.tiu_trips tt
+    SET turleder_user_id = u.id
+    FROM public.users u
+    WHERE tt.turleder_user_id IS NULL
+      AND u.username = tt.turleder_navn
+  `);
+}
+
+async function ensureTripAdminNotificationsTable(client) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS public.trip_admin_notifications (
+      id INT8 NOT NULL GENERATED ALWAYS AS IDENTITY,
+      trip_id INT8 NOT NULL,
+      departure_id INT8 NULL,
+      recipient_user_id UUID NOT NULL,
+      actor_user_id UUID NULL,
+      type STRING NOT NULL DEFAULT 'binding_signup',
+      message STRING NOT NULL,
+      is_read BOOL NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT trip_admin_notifications_pkey PRIMARY KEY (id ASC),
+      CONSTRAINT fk_trip_admin_notifications_trip
+        FOREIGN KEY (trip_id) REFERENCES public.trips(id) ON DELETE CASCADE,
+      CONSTRAINT fk_trip_admin_notifications_departure
+        FOREIGN KEY (departure_id) REFERENCES public.trip_departures(id) ON DELETE SET NULL,
+      CONSTRAINT fk_trip_admin_notifications_recipient
+        FOREIGN KEY (recipient_user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+      CONSTRAINT fk_trip_admin_notifications_actor
+        FOREIGN KEY (actor_user_id) REFERENCES public.users(id) ON DELETE SET NULL
+    )
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_trip_admin_notifications_recipient
+    ON public.trip_admin_notifications (recipient_user_id ASC)
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_trip_admin_notifications_trip
+    ON public.trip_admin_notifications (trip_id ASC)
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_trip_admin_notifications_created_at
+    ON public.trip_admin_notifications (created_at DESC)
+  `);
+}
+
+export async function POST(request, context) {
   const client = await pool.connect();
 
   try {
@@ -11,8 +71,12 @@ export async function POST(request, { params }) {
       return response;
     }
 
+    await ensureTurlederUserIdColumn(client);
+    await ensureTripAdminNotificationsTable(client);
+
+    const { departureId: departureIdParam } = await context.params;
     const userId = user.id;
-    const departureId = Number(params.departureId);
+    const departureId = Number(departureIdParam);
 
     if (!Number.isFinite(departureId)) {
       return NextResponse.json(
@@ -26,15 +90,18 @@ export async function POST(request, { params }) {
     const departureResult = await client.query(
       `
       SELECT
-        id,
-        trip_id,
-        start_time,
-        end_time,
-        min_participants,
-        max_participants,
-        status
-      FROM public.trip_departures
-      WHERE id = $1
+        d.id,
+        d.trip_id,
+        d.start_time,
+        d.end_time,
+        d.min_participants,
+        d.max_participants,
+        d.status,
+        tt.turleder_user_id
+      FROM public.trip_departures d
+      LEFT JOIN public.tiu_trips tt
+        ON tt.trip_id = d.trip_id
+      WHERE d.id = $1
       FOR UPDATE
       `,
       [departureId]
@@ -176,6 +243,33 @@ export async function POST(request, { params }) {
       );
     }
 
+    if (
+      departure.turleder_user_id &&
+      String(departure.turleder_user_id) !== String(userId)
+    ) {
+      await client.query(
+        `
+        INSERT INTO public.trip_admin_notifications (
+          trip_id,
+          departure_id,
+          recipient_user_id,
+          actor_user_id,
+          type,
+          message,
+          is_read
+        )
+        VALUES ($1, $2, $3, $4, 'binding_signup', $5, false)
+        `,
+        [
+          departure.trip_id,
+          departureId,
+          departure.turleder_user_id,
+          userId,
+          `${user.username} meldte seg bindende på turen.`,
+        ]
+      );
+    }
+
     await client.query("COMMIT");
 
     return NextResponse.json(
@@ -214,7 +308,7 @@ export async function POST(request, { params }) {
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(request, context) {
   const client = await pool.connect();
 
   try {
@@ -223,7 +317,8 @@ export async function DELETE(request, { params }) {
       return response;
     }
 
-    const departureId = Number(params.departureId);
+    const { departureId: departureIdParam } = await context.params;
+    const departureId = Number(departureIdParam);
 
     if (!Number.isFinite(departureId)) {
       return NextResponse.json(

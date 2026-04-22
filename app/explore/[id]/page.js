@@ -413,6 +413,23 @@ export default function TripDetailsPage() {
             )}
           </section>
 
+          {trip.is_trip_admin && trip.admin_notifications?.length > 0 && (
+            <section className={styles.section}>
+              <h2>Varsler</h2>
+              <ul style={{ paddingLeft: 18, margin: 0 }}>
+                {trip.admin_notifications.map((notification) => (
+                  <li key={notification.id} style={{ marginBottom: 10 }}>
+                    <strong>{notification.actor_username || "Noen"}</strong>:{" "}
+                    {notification.message}
+                    <div style={{ fontSize: "0.9rem", color: "#6b7280", marginTop: 2 }}>
+                      {new Date(notification.created_at).toLocaleString("no-NO")}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {trip.date_options?.length > 0 && (
             <section className={styles.section}>
               <h2>Datoalternativer</h2>
@@ -538,6 +555,23 @@ export default function TripDetailsPage() {
               <p>Ingen planlagt avgang enda.</p>
             )}
           </section>
+
+          {trip.is_trip_admin && trip.binding_registrations?.length > 0 && (
+            <section className={styles.section}>
+              <h2>Bindende påmeldte</h2>
+              <ul style={{ paddingLeft: 18, margin: 0 }}>
+                {trip.binding_registrations.map((person) => (
+                  <li key={person.id} style={{ marginBottom: 10 }}>
+                    <strong>{person.username}</strong>
+                    <div style={{ color: "#374151" }}>{person.email}</div>
+                    <div style={{ fontSize: "0.9rem", color: "#6b7280", marginTop: 2 }}>
+                      Meldte seg på: {new Date(person.registered_at).toLocaleString("no-NO")}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {actionState.message && (
             <p className={styles.successMessage}>{actionState.message}</p>
