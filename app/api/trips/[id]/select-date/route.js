@@ -1,8 +1,28 @@
 import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
-import { requireAuth, requireRole } from "../../../../../lib/auth";
+import { requireAuth } from "../../../../../lib/auth";
 
-export async function POST(request, { params }) {
+async function ensureTurlederUserIdColumn(client) {
+  await client.query(`
+    ALTER TABLE public.tiu_trips
+    ADD COLUMN IF NOT EXISTS turleder_user_id UUID NULL
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_tiu_trips_turleder_user_id
+    ON public.tiu_trips (turleder_user_id)
+  `);
+
+  await client.query(`
+    UPDATE public.tiu_trips tt
+    SET turleder_user_id = u.id
+    FROM public.users u
+    WHERE tt.turleder_user_id IS NULL
+      AND u.username = tt.turleder_navn
+  `);
+}
+
+export async function POST(request, context) {
   const client = await pool.connect();
 
   try {
@@ -11,12 +31,10 @@ export async function POST(request, { params }) {
       return response;
     }
 
-    const roleError = requireRole(user, ["admin", "turleder"]);
-    if (roleError) {
-      return roleError;
-    }
+    await ensureTurlederUserIdColumn(client);
 
-    const tripId = Number(params.id);
+    const { id } = await context.params;
+    const tripId = Number(id);
 
     if (!Number.isFinite(tripId)) {
       return NextResponse.json(
@@ -26,10 +44,13 @@ export async function POST(request, { params }) {
     }
 
     const body = await request.json();
-    const dateOptionId = Number(body.dateOptionId);
-    const minParticipants = Number(body.min_participants ?? 1);
+
+    const dateOptionId = Number(body?.dateOptionId);
+    const minParticipants = Number(body?.min_participants ?? 1);
     const maxParticipants =
-      body.max_participants === null || body.max_participants === undefined
+      body?.max_participants === null ||
+      body?.max_participants === undefined ||
+      body?.max_participants === ""
         ? null
         : Number(body.max_participants);
 
@@ -64,11 +85,13 @@ export async function POST(request, { params }) {
         t.id,
         tt.id AS tiu_trip_id,
         tt.is_flexible,
-        tt.planning_status
+        tt.planning_status,
+        tt.turleder_user_id
       FROM public.trips t
       JOIN public.tiu_trips tt
         ON tt.trip_id = t.id
       WHERE t.id = $1
+      LIMIT 1
       FOR UPDATE
       `,
       [tripId]
@@ -83,6 +106,20 @@ export async function POST(request, { params }) {
     }
 
     const trip = tripResult.rows[0];
+
+    const role = String(user.role || "").toUpperCase();
+    const isAdmin = role === "ADMIN";
+    const isLeaderForThisTrip =
+      trip.turleder_user_id &&
+      String(trip.turleder_user_id) === String(user.id);
+
+    if (!isAdmin && !isLeaderForThisTrip) {
+      await client.query("ROLLBACK");
+      return NextResponse.json(
+        { error: "Ingen tilgang" },
+        { status: 403 }
+      );
+    }
 
     if (!trip.is_flexible) {
       await client.query("ROLLBACK");
@@ -117,24 +154,39 @@ export async function POST(request, { params }) {
         id,
         trip_id,
         start_time,
-        end_time
+        end_time,
+        is_selected
       FROM public.trip_date_options
-      WHERE id = $1
-        AND trip_id = $2
-      FOR UPDATE
+      WHERE trip_id = $1
+      ORDER BY start_time ASC
       `,
-      [dateOptionId, tripId]
+      [tripId]
     );
 
     if (optionResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
-        { error: "Datoalternativet ble ikke funnet" },
+        { error: "Denne turen har ingen datoalternativer" },
         { status: 404 }
       );
     }
 
-    const selectedOption = optionResult.rows[0];
+    const selectedOption = optionResult.rows.find(
+      (option) => Number(option.id) === dateOptionId
+    );
+
+    if (!selectedOption) {
+      await client.query("ROLLBACK");
+      return NextResponse.json(
+        {
+          error: "Datoalternativet ble ikke funnet for denne turen",
+          received_date_option_id: dateOptionId,
+          trip_id: tripId,
+          available_option_ids: optionResult.rows.map((row) => row.id),
+        },
+        { status: 404 }
+      );
+    }
 
     await client.query(
       `
@@ -150,8 +202,9 @@ export async function POST(request, { params }) {
       UPDATE public.trip_date_options
       SET is_selected = true
       WHERE id = $1
+        AND trip_id = $2
       `,
-      [dateOptionId]
+      [dateOptionId, tripId]
     );
 
     const departureResult = await client.query(
@@ -165,7 +218,14 @@ export async function POST(request, { params }) {
         status
       )
       VALUES ($1, $2, $3, $4, $5, 'open')
-      RETURNING id, trip_id, start_time, end_time, min_participants, max_participants, status
+      RETURNING
+        id,
+        trip_id,
+        start_time,
+        end_time,
+        min_participants,
+        max_participants,
+        status
       `,
       [
         tripId,
@@ -205,7 +265,10 @@ export async function POST(request, { params }) {
     console.error("Select date API error:", error);
 
     return NextResponse.json(
-      { error: "Kunne ikke velge datoalternativ" },
+      {
+        error: "Kunne ikke velge datoalternativ",
+        details: error?.message || "Ukjent feil",
+      },
       { status: 500 }
     );
   } finally {
