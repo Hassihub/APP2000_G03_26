@@ -114,8 +114,6 @@ export default function NewTripRoutePage() {
   const [selectedCabinIds, setSelectedCabinIds] = useState([]);
   const [requestedBedsByCabinId, setRequestedBedsByCabinId] = useState({});
   const [stayRequestMessage, setStayRequestMessage] = useState("");
-  const [stayRequestStartDate, setStayRequestStartDate] = useState("");
-  const [stayRequestEndDate, setStayRequestEndDate] = useState("");
 
   const [routeMode, setRouteMode] = useState("straight"); // straight | path
   const routeModeRef = useRef("straight");
@@ -763,22 +761,6 @@ export default function NewTripRoutePage() {
 
     const stayRequests = [];
     if (isTiu && selectedCabinIds.length > 0) {
-      if (!stayRequestStartDate || !stayRequestEndDate) {
-        setStatus({
-          type: "error",
-          message: "Velg start- og sluttdato for overnattingsforespørsler.",
-        });
-        return;
-      }
-
-      if (stayRequestStartDate >= stayRequestEndDate) {
-        setStatus({
-          type: "error",
-          message: "Startdato må være før sluttdato.",
-        });
-        return;
-      }
-
       for (const cabinId of selectedCabinIds) {
         const selectedCabin = cabins.find((item) => String(item.id) === String(cabinId));
         const capacity = Number(selectedCabin?.capacity);
@@ -868,8 +850,6 @@ export default function NewTripRoutePage() {
             trip_id: Number(data.id),
             requests: stayRequests,
             message: stayRequestMessage.trim() || null,
-            requested_start: stayRequestStartDate,
-            requested_end: stayRequestEndDate,
           }),
         });
 
@@ -1253,31 +1233,11 @@ export default function NewTripRoutePage() {
                 <>
                   <h2>Velg hytter i ruten</h2>
 
-                  <div className={styles.field}>
-                    <label htmlFor="stay-request-start">Overnattingsdato fra</label>
-                    <input
-                      id="stay-request-start"
-                      type="date"
-                      value={stayRequestStartDate}
-                      onChange={(e) => setStayRequestStartDate(e.target.value)}
-                    />
+                  <div className={styles.ownerActions}>
+                    <Link href="/reserver/foresporsler" className={styles.btnAlt}>
+                      Se overnattingsforesporsler
+                    </Link>
                   </div>
-
-                  <div className={styles.field}>
-                    <label htmlFor="stay-request-end">Overnattingsdato til</label>
-                    <input
-                      id="stay-request-end"
-                      type="date"
-                      value={stayRequestEndDate}
-                      onChange={(e) => setStayRequestEndDate(e.target.value)}
-                    />
-                  </div>
-
-                <div className={styles.ownerActions}>
-                  <Link href="/reserver/foresporsler" className={styles.btnAlt}>
-                    Se overnattingsforesporsler
-                  </Link>
-                </div>
 
                   {canManageCabins && (
                     <div className={styles.ownerActions}>

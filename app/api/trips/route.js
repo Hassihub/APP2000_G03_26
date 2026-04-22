@@ -3,6 +3,38 @@ import pool from "../../../lib/db";
 import { requireAuth, requireRole } from "../../../lib/auth";
 import { ROLE_ADMIN, ROLE_TURLEDER } from "../../../lib/roles";
 
+async function notifyAdmins(client, tripId, tripNavn) {
+  try {
+    const adminsResult = await client.query(
+      `SELECT id::text AS id FROM public.users WHERE role = $1`,
+      [ROLE_ADMIN]
+    );
+
+    for (const admin of adminsResult.rows) {
+      await client.query(
+        `
+          INSERT INTO public.user_notifications
+            (user_id, type, reference_id, title, message, action_url, metadata)
+          VALUES
+            ($1, $2, $3, $4, $5, $6, $7::jsonb)
+          ON CONFLICT DO NOTHING
+        `,
+        [
+          admin.id,
+          "new_tiu_trip",
+          `tiu-trip:${tripId}`,
+          "Ny TiU-tur til godkjenning",
+          `Turen "${tripNavn}" er sendt inn og venter på godkjenning.`,
+          `/admin/turer`,
+          JSON.stringify({ trip_id: tripId }),
+        ]
+      );
+    }
+  } catch {
+    // varslingsfeil skal ikke stoppe opprettelse av tur
+  }
+}
+
 let tripCabinsTableReady = false;
 
 async function ensureTripCabinsTable(client) {
@@ -452,6 +484,10 @@ export async function POST(request) {
       .map((row) => ({ id: row.id, name: row.name }));
 
     await client.query("COMMIT");
+
+    if (isTiu) {
+      await notifyAdmins(client, trip.id, trip.navn);
+    }
 
     return NextResponse.json(trip, { status: 201 });
   } catch (error) {
