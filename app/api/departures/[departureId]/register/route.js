@@ -65,6 +65,8 @@ async function ensureTripAdminNotificationsTable(client) {
 export async function POST(request, context) {
   const client = await pool.connect();
 
+  let notificationPayload = null;
+
   try {
     const { user, response } = await requireAuth();
     if (response) {
@@ -72,7 +74,6 @@ export async function POST(request, context) {
     }
 
     await ensureTurlederUserIdColumn(client);
-    await ensureTripAdminNotificationsTable(client);
 
     const { departureId: departureIdParam } = await context.params;
     const userId = user.id;
@@ -243,34 +244,55 @@ export async function POST(request, context) {
       );
     }
 
+    await client.query("COMMIT");
+
     if (
       departure.turleder_user_id &&
       String(departure.turleder_user_id) !== String(userId)
     ) {
-      await client.query(
-        `
-        INSERT INTO public.trip_admin_notifications (
-          trip_id,
-          departure_id,
-          recipient_user_id,
-          actor_user_id,
-          type,
-          message,
-          is_read
-        )
-        VALUES ($1, $2, $3, $4, 'binding_signup', $5, false)
-        `,
-        [
-          departure.trip_id,
-          departureId,
-          departure.turleder_user_id,
-          userId,
-          `${user.username} meldte seg bindende på turen.`,
-        ]
-      );
+      notificationPayload = {
+        tripId: departure.trip_id,
+        departureId,
+        recipientUserId: departure.turleder_user_id,
+        actorUserId: userId,
+        message: `${user.username} meldte seg bindende på turen.`,
+      };
     }
 
-    await client.query("COMMIT");
+    if (notificationPayload) {
+      try {
+        const notificationClient = await pool.connect();
+        try {
+          await ensureTripAdminNotificationsTable(notificationClient);
+
+          await notificationClient.query(
+            `
+            INSERT INTO public.trip_admin_notifications (
+              trip_id,
+              departure_id,
+              recipient_user_id,
+              actor_user_id,
+              type,
+              message,
+              is_read
+            )
+            VALUES ($1, $2, $3, $4, 'binding_signup', $5, false)
+            `,
+            [
+              notificationPayload.tripId,
+              notificationPayload.departureId,
+              notificationPayload.recipientUserId,
+              notificationPayload.actorUserId,
+              notificationPayload.message,
+            ]
+          );
+        } finally {
+          notificationClient.release();
+        }
+      } catch (notificationError) {
+        console.error("Notification insert error:", notificationError);
+      }
+    }
 
     return NextResponse.json(
       {
@@ -300,7 +322,10 @@ export async function POST(request, context) {
     console.error("Register API error:", error);
 
     return NextResponse.json(
-      { error: "Kunne ikke registrere bindende påmelding" },
+      {
+        error: "Kunne ikke registrere bindende påmelding",
+        details: error?.message || "Ukjent feil",
+      },
       { status: 500 }
     );
   } finally {
