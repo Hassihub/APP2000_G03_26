@@ -18,6 +18,7 @@ export default function SosialPage() {
   const [imageUrl, setImageUrl] = useState("")
   const [uploadPublicKey, setUploadPublicKey] = useState("")
   const [uploadStatus, setUploadStatus] = useState("")
+  const [uploaderKey, setUploaderKey] = useState(0)
 
 async function loadPosts() {
   try {
@@ -123,30 +124,30 @@ async function submitComment(postid) {
 async function submitPost() {
   if (!caption.trim()) return
 
-  try {
-    const res = await fetch("/api/sosial/posts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        caption,
-        imageUrl
-      })
+  console.log("Submitting post with imageUrl:", imageUrl)
+
+  const res = await fetch("/api/sosial/posts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      caption,
+      imageUrl
     })
+  })
 
-    const data = await res.json()
+  const data = await res.json().catch(() => ({}))
+  console.log("submit response:", data)
 
-    if (!res.ok) {
-      console.error("Post creation failed:", data.error)
-      return
-    }
-
-    setCaption("")
-    setImageUrl("")
-    setUploadStatus("")
-    loadPosts()
-  } catch (err) {
-    console.error("submitPost crashed:", err)
+  if (!res.ok) {
+    console.error("Post creation failed:", data.error || data)
+    return
   }
+
+  setCaption("")
+  setImageUrl("")
+  setUploadStatus("")
+  setUploaderKey(prev => prev + 1)
+  loadPosts()
 }
 
 async function toggleLike(postid) {
@@ -185,14 +186,31 @@ async function toggleLike(postid) {
     }
   }
 
-  function handleImageUploadChange(event) {
-    // SimpleFileUpload returns an object with cdnUrl for single file uploads
-    const url = event?.cdnUrl || ""
-    if (!url) return
+function handleImageUploadChange(event) {
+  console.log("upload event:", event)
 
-    setImageUrl(url)
-    setUploadStatus("Bilde lastet opp.")
+  const files = Array.isArray(event?.allFiles)
+    ? event.allFiles
+    : event?.file
+      ? [event.file]
+      : []
+
+  const firstUrl =
+    files[0]?.cdnUrl ||
+    files[0]?.url ||
+    event?.cdnUrl ||
+    ""
+
+  console.log("resolved firstUrl:", firstUrl)
+
+  if (!firstUrl) {
+    setUploadStatus("Fant ikke bilde-URL etter opplasting.")
+    return
   }
+
+  setImageUrl(firstUrl)
+  setUploadStatus("Bilde lastet opp.")
+}
 
   return (
     <div className="sosial-container">
@@ -206,16 +224,20 @@ async function toggleLike(postid) {
       />
       
 
-      {uploadPublicKey ? (
-        <SimpleFileUpload
-          publicKey={uploadPublicKey}
-          multiple={false}
-          maxFileSize={5 * 1024 * 1024}
-          onChange={handleImageUploadChange}
-        />
-        ) : (
-          <p>Missing key for SimpleFileUpload</p>
-        )}
+     {uploadPublicKey ? (
+  <SimpleFileUpload
+    key={uploaderKey}
+    publicKey={uploadPublicKey}
+    multiple={false}
+    maxFileSize={5 * 1024 * 1024}
+    onChange={handleImageUploadChange}
+  />
+) : (
+  <p>Mangler nøkkel for Simple File Upload.</p>
+)}
+
+{uploadStatus && <p>{uploadStatus}</p>}
+{imageUrl && <p>Opplastet URL: {imageUrl}</p>}
 
       <button onClick={submitPost} className="buttonPost">post</button>
       </div>

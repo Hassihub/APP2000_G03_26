@@ -2,7 +2,7 @@ import pool from "../../../../lib/db";
 import { cookies } from "next/headers";
 
 export async function GET() {
-  
+
   try {
     const cookieStore = await cookies();
     const sid = cookieStore.get("connect.sid")?.value;
@@ -96,6 +96,8 @@ export async function POST(req) {
     const postid = result.rows[0].postid;
 
     if (imageUrl) {
+      console.log("POST /api/sosial/posts body:", { caption, imageUrl, userid })
+    //feilsøking
       await pool.query(
         `
         INSERT INTO post_pictures (postid, picture_url)
