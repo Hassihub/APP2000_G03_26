@@ -42,7 +42,6 @@ export default function TopBar() {
       { nameKey: "map", href: "/map" },
       { nameKey: "weather", href: "/weather" },
       { nameKey: "social", href: "/sosial" },
-      { nameKey: "ads", href: "/annonser" },
     ],
     []
   );

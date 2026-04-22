@@ -163,6 +163,8 @@ export default function AdminUsersPage() {
         <Link href="/admin">Admin oversikt</Link>
         <span>|</span>
         <Link href="/admin/turer">Turer til verifisering</Link>
+        <span>|</span>
+        <Link href="/admin/hytter">Hytter</Link>
       </div>
 
       <h1>Admin - Brukere</h1>
