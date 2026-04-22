@@ -620,7 +620,9 @@ export async function PATCH(request) {
           c.name AS cabin_name,
           c.capacity,
           t.navn AS trip_name,
-          tt.id AS tiu_trip_id
+          tt.id AS tiu_trip_id,
+          u.username AS requester_name,
+          u.email AS requester_email
         FROM public.cabin_stay_requests csr
         JOIN public.cabins c
           ON c.id = csr.cabin_id
@@ -628,6 +630,8 @@ export async function PATCH(request) {
           ON t.id = csr.trip_id
         LEFT JOIN public.tiu_trips tt
           ON tt.trip_id = csr.trip_id
+        LEFT JOIN public.users u
+          ON u.id::text = csr.requester_user_id
         WHERE csr.id::text = $1
         LIMIT 1
       `,
@@ -707,8 +711,8 @@ export async function PATCH(request) {
           );
         }
 
-        const requesterName = String(existing.requester_user_id || "turleder").substring(0, 50);
-        const guestEmail = String(existing.requester_user_id || "guest@example.com").substring(0, 100);
+        const requesterName = String(existing.requester_name || existing.requester_user_id || "Turleder").substring(0, 50);
+        const guestEmail = String(existing.requester_email || existing.requester_user_id || "guest@example.com").substring(0, 100);
 
         const reservationResult = await db.query(
           `
