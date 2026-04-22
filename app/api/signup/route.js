@@ -25,6 +25,30 @@ export async function POST(req) {
         { status: 400 }
       );
     }
+    if (cleanPassword.length > 128) {
+      return NextResponse.json(
+        { error: "Passordet kan ikke være lengre enn 128 tegn" },
+        { status: 400 }
+      );
+    }
+    if (!/[A-Z]/.test(cleanPassword)) {
+      return NextResponse.json(
+        { error: "Passordet må inneholde minst én stor bokstav" },
+        { status: 400 }
+      );
+    }
+    if (!/[0-9]/.test(cleanPassword)) {
+      return NextResponse.json(
+        { error: "Passordet må inneholde minst ett tall" },
+        { status: 400 }
+      );
+    }
+    if (!/[^A-Za-z0-9]/.test(cleanPassword)) {
+      return NextResponse.json(
+        { error: "Passordet må inneholde minst ett spesialtegn (f.eks. !@#$)" },
+        { status: 400 }
+      );
+    }
 
     const hashedPassword = await bcrypt.hash(cleanPassword, 10);
 

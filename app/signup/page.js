@@ -41,10 +41,24 @@ export default function SignUp() {
     checkLoggedIn();
   }, [router]);
 
+  const passwordRules = [
+    { label: "Minst 8 tegn", valid: formData.password.length >= 8 },
+    { label: "Minst én stor bokstav", valid: /[A-Z]/.test(formData.password) },
+    { label: "Minst ett tall", valid: /[0-9]/.test(formData.password) },
+    { label: "Minst ett spesialtegn (f.eks. !@#$)", valid: /[^A-Za-z0-9]/.test(formData.password) },
+  ];
+  const passwordValid = passwordRules.every((r) => r.valid);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    if (!passwordValid) {
+      setError("Passordet oppfyller ikke kravene");
+      setLoading(false);
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError(t.passwordMismatch || "Passordene er ikke like");
@@ -111,6 +125,17 @@ export default function SignUp() {
             <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.password}</span>
             <input type="password" value={formData.password} onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))} required autoComplete="new-password" style={inputStyle} />
           </label>
+
+          {formData.password.length > 0 && (
+            <ul style={{ margin: "-0.35rem 0 0", padding: "0.6rem 0.75rem", listStyle: "none", display: "grid", gap: "0.25rem", borderRadius: 4, background: "var(--bg)", border: "1px solid var(--border)", fontSize: "0.8rem" }}>
+              {passwordRules.map((rule) => (
+                <li key={rule.label} style={{ color: rule.valid ? "#4ade80" : "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <span>{rule.valid ? "✓" : "✗"}</span>
+                  {rule.label}
+                </li>
+              ))}
+            </ul>
+          )}
 
           <label style={{ display: "grid", gap: "0.35rem" }}>
             <span style={{ color: "var(--text-muted)", fontWeight: 600, fontSize: "0.85rem" }}>{t.confirmPassword}</span>
