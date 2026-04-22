@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import styles from "./Reserver.module.css";
 import { ROLE_UTLEIER, ROLE_ADMIN } from "../../lib/roles";
-import CabinWeather from "./CabinWeather";
 
 const AMENITY_OPTIONS = [
   "WiFi",
@@ -377,8 +376,7 @@ export default function ReserverPage() {
                             <div className={styles.tileBody}>
                               <h3 className={styles.tileTitle}>{cabin.name}</h3>
                               <div className={styles.tileMeta}>
-                                📍 {cabin.location} •{" "}
-                                <CabinWeather location={cabin.location} /> • {cabin.is_staffed ? "Betjent" : "Ubetjent"}
+                                📍 {cabin.location} • {cabin.is_staffed ? "Betjent" : "Ubetjent"}
                               </div>
                               <div className={styles.tileStats}>
                                 <span>
