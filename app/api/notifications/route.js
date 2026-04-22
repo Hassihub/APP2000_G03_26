@@ -228,7 +228,7 @@ async function createReservationCreatedNotifications(user) {
               r.guest_user_id = $1
               OR ($2 <> '' AND LOWER(r.guest_email) = LOWER($2))
             )
-        AND r.status <> 'cancelled'
+        AND r.status IN ('active', 'completed')
         AND un.id IS NULL
       ORDER BY r.created_at DESC
       LIMIT 100
@@ -254,8 +254,8 @@ async function createReservationCreatedNotifications(user) {
       [
         userId,
         `reservation:${row.reservation_id}`,
-        "Reservasjon bekreftet",
-        `Du har reservert ${cabinName} fra ${String(row.start_date).slice(0, 10)} til ${String(row.end_date).slice(0, 10)}.`,
+        "Reservasjon godkjent",
+        `Bookingen din av ${cabinName} fra ${String(row.start_date).slice(0, 10)} til ${String(row.end_date).slice(0, 10)} er godkjent av hytteeier.`,
         actionUrl,
         JSON.stringify({
           reservation_id: row.reservation_id,
@@ -293,7 +293,7 @@ async function createReservationReceivedNotifications(user) {
        AND un.type = 'reservation_received'
        AND un.reference_id = CONCAT('reservation:', r.id::text)
       WHERE c.owner_id::text = $1
-        AND r.status <> 'cancelled'
+        AND r.status = 'pending'
         AND un.id IS NULL
       ORDER BY r.created_at DESC
       LIMIT 100
@@ -322,9 +322,9 @@ async function createReservationReceivedNotifications(user) {
       [
         ownerId,
         `reservation:${row.reservation_id}`,
-        "Ny booking mottatt",
-        `${guestDisplayName} har booket ${cabinName} fra ${String(row.start_date).slice(0, 10)} til ${String(row.end_date).slice(0, 10)}.`,
-        "/profile",
+        "Ny booking å godkjenne",
+        `${guestDisplayName} ønsker å booke ${cabinName} fra ${String(row.start_date).slice(0, 10)} til ${String(row.end_date).slice(0, 10)}.`,
+        "/reserver/foresporsler",
         JSON.stringify({
           reservation_id: row.reservation_id,
           cabin_id: cabinId,

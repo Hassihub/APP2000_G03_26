@@ -57,6 +57,7 @@ export default function CabinStayRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [incoming, setIncoming] = useState([]);
+  const [incomingReservations, setIncomingReservations] = useState([]);
   const [outgoing, setOutgoing] = useState([]);
   const [decisionLoadingId, setDecisionLoadingId] = useState(null);
   const [ownerResponseById, setOwnerResponseById] = useState({});
@@ -73,22 +74,41 @@ export default function CabinStayRequestsPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/cabin-stay-requests", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
+      const [stayRes, reservationRes] = await Promise.all([
+        fetch("/api/cabin-stay-requests", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        }),
+        fetch("/api/reservations?pending_for_owner=true", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        }),
+      ]);
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.error || "Kunne ikke hente foresporsler.");
+      const stayData = await stayRes.json().catch(() => ({}));
+      if (!stayRes.ok) {
+        throw new Error(stayData?.error || "Kunne ikke hente foresporsler.");
       }
 
-      setIncoming(Array.isArray(data?.incoming) ? data.incoming : []);
-      setOutgoing(Array.isArray(data?.outgoing) ? data.outgoing : []);
+      const reservationData = await reservationRes.json().catch(() => ({}));
+      if (!reservationRes.ok) {
+        throw new Error(reservationData?.error || "Kunne ikke hente bookingforesporsler.");
+      }
+
+      setIncoming(Array.isArray(stayData?.incoming) ? stayData.incoming : []);
+      setOutgoing(Array.isArray(stayData?.outgoing) ? stayData.outgoing : []);
+      setIncomingReservations(
+        (Array.isArray(reservationData?.reservations) ? reservationData.reservations : []).map((item) => ({
+          ...item,
+          request_source: "reservation",
+        }))
+      );
     } catch (requestError) {
       setError(requestError?.message || "Kunne ikke hente foresporsler.");
       setIncoming([]);
+      setIncomingReservations([]);
       setOutgoing([]);
     } finally {
       setLoading(false);
@@ -158,6 +178,54 @@ export default function CabinStayRequestsPage() {
     }
   }
 
+  async function decideReservation(reservationId, decision) {
+    if (!reservationId) return;
+
+    setDecisionLoadingId(`reservation-${reservationId}`);
+    setNotice({ type: "", message: "" });
+
+    try {
+      const ownerResponse = String(ownerResponseById[`reservation-${reservationId}`] || "").trim();
+
+      const res = await fetch("/api/reservations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          reservationId,
+          decision,
+          ownerResponse: ownerResponse || null,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || "Kunne ikke oppdatere bookingforesporsel.");
+      }
+
+      setNotice({
+        type: "success",
+        message: `Bookingforesporsel ${decision === "approve" ? "godkjent" : "avslatt"}.`,
+      });
+
+      await loadRequests();
+      setOwnerResponseById((prev) => {
+        const next = { ...prev };
+        delete next[`reservation-${reservationId}`];
+        return next;
+      });
+
+      window.dispatchEvent(new CustomEvent("ff-notifications-updated"));
+    } catch (decideError) {
+      setNotice({
+        type: "error",
+        message: decideError?.message || "Kunne ikke oppdatere bookingforesporsel.",
+      });
+    } finally {
+      setDecisionLoadingId(null);
+    }
+  }
+
   return (
     <main className={styles.page}>
       <div className={styles.shell}>
@@ -186,7 +254,81 @@ export default function CabinStayRequestsPage() {
           <div className={styles.grid}>
             <section className={styles.card}>
               <div className={styles.sectionHeader}>
-                <h2>Innkommende (hytteeier)</h2>
+                <h2>Innkommende bookinger (privat)</h2>
+                <span className={styles.counter}>
+                  {incomingReservations.filter((item) => item.status === "pending").length} venter
+                </span>
+              </div>
+
+              {incomingReservations.length === 0 ? (
+                <p className={styles.empty}>Ingen innkommende bookingforesporsler.</p>
+              ) : (
+                <div className={styles.list}>
+                  {incomingReservations.map((item) => {
+                    const isPending = item.status === "pending";
+                    const key = `reservation-${item.id}`;
+                    return (
+                      <article key={key} className={styles.item}>
+                        <div className={styles.itemTop}>
+                          <h3>{item.cabin_name || "Hytte"}</h3>
+                          <span className={`${styles.statusPill} ${statusClass(item.status === "active" ? "approved" : item.status)}`}>
+                            {statusLabel(item.status === "active" ? "approved" : item.status)}
+                          </span>
+                        </div>
+
+                        <p className={styles.meta}>
+                          Gjest: {item.guest_name || item.guest_email || item.guest_user_id}
+                        </p>
+                        <p className={styles.meta}>Antall personer: {item.guests_count}</p>
+                        <p className={styles.meta}>
+                          Overnattingstid: {formatRequestedDates(item.start_date, item.end_date)}
+                        </p>
+                        {item.notes && <p className={styles.message}>&quot;{item.notes}&quot;</p>}
+                        <p className={styles.dateText}>Sendt: {formatDateTime(item.created_at)}</p>
+
+                        {isPending ? (
+                          <div className={styles.actionBlock}>
+                            <label htmlFor={`owner-response-${key}`}>Svar til gjest (valgfritt)</label>
+                            <textarea
+                              id={`owner-response-${key}`}
+                              rows={2}
+                              value={ownerResponseById[key] ?? ""}
+                              onChange={(event) =>
+                                setOwnerResponseById((prev) => ({
+                                  ...prev,
+                                  [key]: event.target.value,
+                                }))
+                              }
+                              placeholder="Kort svar til gjest"
+                            />
+                            <div className={styles.buttons}>
+                              <button
+                                className={styles.btnApprove}
+                                onClick={() => decideReservation(item.id, "approve")}
+                                disabled={decisionLoadingId === key}
+                              >
+                                Godta
+                              </button>
+                              <button
+                                className={styles.btnReject}
+                                onClick={() => decideReservation(item.id, "reject")}
+                                disabled={decisionLoadingId === key}
+                              >
+                                Avsla
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            <section className={styles.card}>
+              <div className={styles.sectionHeader}>
+                <h2>Innkommende bookinger (Fra TiU)</h2>
                 <span className={styles.counter}>{pendingIncomingCount} venter</span>
               </div>
 
