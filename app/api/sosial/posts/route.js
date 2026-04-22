@@ -2,8 +2,7 @@ import pool from "../../../../lib/db";
 import { cookies } from "next/headers";
 
 export async function GET() {
-  return Response.json({ test: "NEW CODE IS LIVE" });
-  /*
+  
   try {
     const cookieStore = await cookies();
     const sid = cookieStore.get("connect.sid")?.value;
@@ -50,7 +49,6 @@ export async function GET() {
       { status: 500 }
     );
   }
-*/
 }
 
 export async function POST(req) {
