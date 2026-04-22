@@ -19,34 +19,48 @@ export default function SosialPage() {
   const [uploadPublicKey, setUploadPublicKey] = useState("")
   const [uploadStatus, setUploadStatus] = useState("")
 
-  async function loadPosts() {
-  const res = await fetch("/api/sosial/posts")
+async function loadPosts() {
+  try {
+    const res = await fetch("/api/sosial/posts")
 
-  if (!res.ok) {
-    const text = await res.text()
-    console.error("Failed to load posts:", text)
-    return
+    if (!res.ok) {
+      const text = await res.text()
+      console.error("Failed to load posts:", text)
+      return
+    }
+
+    const data = await res.json()
+    setPosts(data)
+  } catch (err) {
+    console.error("loadPosts crashed:", err)
   }
+}
 
-  const data = await res.json()
-  setPosts(data)
+async function loadComments(postid) {
+  try {
+    const res = await fetch(`/api/sosial/comments?postid=${postid}`)
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      console.error("Failed to load comments:", data.error)
+      return
+    }
+
+    setComments(prev => ({
+      ...prev,
+      [postid]: data
+    }))
+  } catch (err) {
+    console.error("loadComments crashed:", err)
   }
-
-  async function loadComments(postid) {
-  const res = await fetch(`/api/sosial/comments?postid=${postid}`)
-  const data = await res.json()
-
-  setComments(prev => ({
-    ...prev,
-    [postid]: data
-  }))
 }
 
 async function submitComment(postid) {
   const text = newComment[postid]
   if (!text?.trim()) return
 
-  await fetch("/api/sosial/comments", {
+  const res = await fetch("/api/sosial/comments", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -54,6 +68,12 @@ async function submitComment(postid) {
       comment: text,
     })
   })
+
+  if (!res.ok) {
+    const errorText = await res.text()
+    console.error("Failed to submit comment:", errorText)
+    return
+  }
 
   setNewComment(prev => ({ ...prev, [postid]: "" }))
   loadComments(postid)
@@ -63,7 +83,7 @@ async function submitComment(postid) {
     loadPosts()
   }, [])
 
-  useEffect(() => {
+ useEffect(() => {
   let alive = true
 
   async function loadUploadPublicKey() {
@@ -73,15 +93,22 @@ async function submitComment(postid) {
         cache: "no-store",
       })
 
-      if (!res.ok || !alive) return
+      if (!res.ok) {
+        const text = await res.text()
+        console.error("Failed to load Simple File Upload key:", text)
+        return
+      }
 
-      const data = await res.json().catch(() => ({}))
+      if (!alive) return
+
+      const data = await res.json()
       const key = typeof data?.publicKey === "string" ? data.publicKey.trim() : ""
 
       if (key && alive) {
         setUploadPublicKey(key)
       }
-    } catch {
+    } catch (err) {
+      console.error("loadUploadPublicKey crashed:", err)
       if (alive) setUploadPublicKey("")
     }
   }
@@ -117,18 +144,26 @@ async function submitPost() {
   loadPosts()
 }
 
-  async function toggleLike(postid, liked) {
-  await fetch("/api/sosial/likes", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      postid,
-      userid: "00000000-0000-0000-0000-000000000000" //MÅ byttes ut med userid?
+async function toggleLike(postid) {
+  try {
+    const res = await fetch("/api/sosial/likes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postid })
     })
-  })
-  
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      console.error("Failed to toggle like:", data.error)
+      return
+    }
+
     loadPosts()
+  } catch (err) {
+    console.error("toggleLike crashed:", err)
   }
+}
 
   function sharePost(postid) {
     const url = `${window.location.origin}/sosial#post-${postid}`
@@ -220,11 +255,11 @@ async function submitPost() {
 
 
               {liked ? (
-                <button onClick={() => toggleLike(p.postid, true)}>
+                <button onClick={() => toggleLike(p.postid)}>
                   <Image src={LikerKnappPaa} alt="Liker Paa" width={24} height={24} className="test"/>
                 </button>
               ) : (
-                <button onClick={() => toggleLike(p.postid, false)}>
+                <button onClick={() => toggleLike(p.postid)}>
                   <Image src={LikerKnappAv} alt="Liker Av" width={24} height={24} className="test" />
                 </button>
               )}
