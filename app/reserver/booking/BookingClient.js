@@ -36,7 +36,6 @@ export default function BookingClient() {
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
 
-  const [showWeather, setShowWeather] = useState(false);
   const [weather, setWeather] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
@@ -435,7 +434,7 @@ export default function BookingClient() {
       if (!res.ok)
         throw new Error(json?.error || "Kunne ikke opprette reservasjon.");
 
-      setOk("✅ Reservasjon opprettet!");
+      setOk("✅ Bookingforespørsel sendt. Venter på godkjenning fra hytteeier.");
       window.dispatchEvent(new Event("ff-notifications-updated"));
       setTimeout(() => router.push("/reserver"), 900);
     } catch (e) {
@@ -749,45 +748,6 @@ export default function BookingClient() {
                               lon={cabin.longitude}
                             />
                           </span>
-                          <div
-                            className={styles.summaryWeatherPopoverWrap}
-                          >
-                            <button
-                              className={styles.summaryWeatherButton}
-                              onClick={() => setShowWeather((prev) => !prev)}
-                              type="button"
-                            >
-                              🌤️ {showWeather ? "Skjul" : "Vis værmelding"}
-                            </button>
-                            {showWeather && weather?.daily && (
-                              <div className={styles.summaryWeatherPopover}>
-                                <strong className={styles.summaryWeatherTitle}>
-                                  📅 7-dagers prognose
-                                </strong>
-                                <div className={styles.summaryWeatherList}>
-                                  {weather.daily.map((day) => (
-                                    <div key={day.date} className={styles.summaryWeatherItem}>
-                                      <span className={styles.summaryWeatherDate}>
-                                        {new Date(day.date).toLocaleDateString(
-                                          "nb-NO",
-                                          {
-                                            weekday: "long",
-                                            day: "numeric",
-                                            month: "short",
-                                          },
-                                        )}
-                                      </span>
-                                      <span>
-                                        🌡️ {day.tempMin}° / {day.tempMax}°
-                                      </span>
-                                      <span>🌧️ {day.totalPrecipitation}mm</span>
-                                      <span>💨 {day.avgWindSpeed}m/s</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
                         </div>
 
                         {cabin.description ? (
