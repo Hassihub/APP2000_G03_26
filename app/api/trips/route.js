@@ -123,6 +123,7 @@ export async function GET(request) {
         LIMIT 1
       ) d ON true
       WHERE t.navn ILIKE $1
+        AND (tt.id IS NULL OR tt.planning_status NOT IN ('draft', 'rejected'))
     `;
 
     const values = [`%${search}%`];
@@ -383,7 +384,7 @@ export async function POST(request) {
     const trip = tripResult.rows[0];
 
     if (isTiu) {
-      const planningStatus = "interest_open";
+      const planningStatus = "draft";
 
       const tiuResult = await client.query(
         `
