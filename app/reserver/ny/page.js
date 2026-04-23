@@ -1,3 +1,5 @@
+// Laget av Sigurd
+
 "use client";
 
 import Link from "next/link";
@@ -40,6 +42,7 @@ export default function NewCabinPage() {
   const [userRole, setUserRole] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  // Henter innlogget bruker for a sikre at bare utleier/admin kan opprette hytte.
   useEffect(() => {
     let alive = true;
 
@@ -73,6 +76,7 @@ export default function NewCabinPage() {
     };
   }, []);
 
+  // Henter public key brukt av filopplastingstjenesten.
   useEffect(() => {
     let alive = true;
     async function loadUploadPublicKey() {
@@ -118,6 +122,7 @@ export default function NewCabinPage() {
     );
   }
 
+  // Initialiserer kart og lar bruker velge koordinater ved a klikke i kartet.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (authLoading) return;
@@ -197,6 +202,7 @@ export default function NewCabinPage() {
     };
   }, [Leaflet, authLoading]);
 
+  // Bygger payload fra skjema og oppretter ny hytte via API.
   async function handleSubmit(e) {
     e.preventDefault();
 

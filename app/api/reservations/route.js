@@ -1,3 +1,5 @@
+// Skrevet av Sigurd
+
 import { NextResponse } from "next/server";
 import db from "../../../lib/db"; // default Pool
 import { requireAuth } from "../../../lib/auth";

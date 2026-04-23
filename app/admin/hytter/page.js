@@ -1,3 +1,5 @@
+// Skrevet av Sigurd
+
 "use client";
 
 import Link from "next/link";

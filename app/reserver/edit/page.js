@@ -1,3 +1,5 @@
+// Laget av Sigurd
+
 "use client";
 
 import Link from "next/link";
@@ -10,6 +12,7 @@ import { ROLE_UTLEIER, ROLE_ADMIN } from "../../../lib/roles";
 const STANDARD_IMAGE_WIDTH = 1200;
 const STANDARD_IMAGE_HEIGHT = 900;
 
+// Leser bildefil i nettleseren slik at vi kan normalisere format/storrelse.
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
     const imageUrl = URL.createObjectURL(file);
@@ -29,6 +32,7 @@ function loadImageFromFile(file) {
   });
 }
 
+// Tvinger alle opplastede bilder til samme format og dimensjoner.
 async function normalizeImageFile(file, index) {
   if (!file.type.startsWith("image/")) {
     throw new Error(`Filen ${file.name} er ikke et bilde.`);
@@ -93,6 +97,7 @@ function EditCabinContent() {
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Henter brukerrolle for tilgangsstyring pa siden.
   useEffect(() => {
     let alive = true;
 
@@ -126,6 +131,7 @@ function EditCabinContent() {
     };
   }, []);
 
+  // Laster eksisterende hytte-data for valgt cabinId.
   useEffect(() => {
     let alive = true;
 
@@ -234,6 +240,7 @@ function EditCabinContent() {
       return;
     }
 
+    // Laster opp nye bilder, bygger payload og lagrer endringer via API.
     setStatus({ type: "loading", message: "Lagrer..." });
 
     try {

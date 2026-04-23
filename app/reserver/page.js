@@ -1,3 +1,5 @@
+// Laget av Sigurd
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -29,6 +31,7 @@ export default function ReserverPage() {
   const [staffedFilter, setStaffedFilter] = useState("all");
   const [selectedAmenities, setSelectedAmenities] = useState([]);
 
+  // Henter alle hytter som grunnlag for visning og filtrering.
   useEffect(() => {
     async function fetchCabins() {
       setLoading(true);
@@ -51,6 +54,7 @@ export default function ReserverPage() {
     fetchCabins();
   }, []);
 
+  // Leser inn innlogget bruker for å styre hvilke admin/utleier-knapper som vises.
   useEffect(() => {
     let alive = true;
 
@@ -87,6 +91,7 @@ export default function ReserverPage() {
     };
   }, []);
 
+  // Sjekker om brukeren kan redigere/slette denne hytta.
   function hasManageAccess(cabin) {
     if (!cabin || !userRole) return false;
     if (userRole === ROLE_ADMIN) return true;
@@ -102,6 +107,7 @@ export default function ReserverPage() {
     );
   }
 
+  // Filtrerer hytter lokalt basert på alle valgte filterfelt.
   const filteredCabins = useMemo(() => {
     const locationFilter = locationQuery.trim().toLowerCase();
     const selectedAmenityFilters = selectedAmenities.map((amenity) =>

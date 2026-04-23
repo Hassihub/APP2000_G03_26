@@ -1,3 +1,5 @@
+// Skrevet av Sigurd
+
 import { NextResponse } from "next/server";
 import path from "path";
 import { mkdir, writeFile } from "fs/promises";
@@ -9,6 +11,7 @@ const MAX_FILES = 8;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+// Normaliserer filendelse for trygg lagring.
 function getExtension(fileName = "") {
   const ext = path.extname(fileName).toLowerCase();
   if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext)) return ext;
@@ -17,12 +20,14 @@ function getExtension(fileName = "") {
 
 export async function POST(req) {
   try {
+    // Kun utleier/admin kan laste opp hyttebilder.
     const { user, response } = await requireAuth();
     if (response) return response;
 
     const roleError = requireRole(user, [ROLE_UTLEIER, ROLE_ADMIN]);
     if (roleError) return roleError;
 
+    // Leser multipart-filer og sjekker antall/storrelse/type.
     const formData = await req.formData();
     const files = formData.getAll("images").filter(Boolean);
 
@@ -42,6 +47,7 @@ export async function POST(req) {
 
     const uploaded = [];
 
+    // Lagrer hver fil i public/uploads/cabins og returnerer URL-er.
     for (const file of files) {
       if (typeof file?.arrayBuffer !== "function") continue;
 

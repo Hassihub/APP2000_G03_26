@@ -1,3 +1,5 @@
+// Skrevet av Sigurd
+
 import { NextResponse } from "next/server";
 import db from "../../../../lib/db";
 import { requireAuth, requireRole } from "../../../../lib/auth";
@@ -15,6 +17,7 @@ let cabinImagesTableReady = false;
 let cabinStaffedColumnReady = false;
 let cabinReviewsTableReady = false;
 
+// Returnerer standard 400-respons for ugyldig input.
 async function ensureCabinStaffedColumn() {
   if (cabinStaffedColumnReady) return true;
 
@@ -205,6 +208,7 @@ export async function GET(_req, { params }) {
       return NextResponse.json({ error: "Fant ikke hytta" }, { status: 404 });
     }
 
+    // Beriker enkelthytte med bilder og rating-statistikk.
     const cabin = result.rows[0];
     const image_urls = await getCabinImages(cabin.id);
     const reviewStats = await getCabinReviewStats(cabin.id);
@@ -230,6 +234,7 @@ export async function PUT(req, { params }) {
     if (roleError) return roleError;
 
     // Sørg for at utleier kun kan endre egne hytter (hvis det finnes en owner_id-kolonne)
+    // Sikkerhet: utleier kan kun oppdatere egne hytter.
     let cabinOwnerId = null;
     try {
       const cabinRes = await db.query(
@@ -257,6 +262,7 @@ export async function PUT(req, { params }) {
       }
     }
 
+    // Leser payload og validerer felt før oppdatering.
     const body = await req.json();
 
     const name = String(body.name ?? "").trim();
@@ -320,6 +326,7 @@ export async function PUT(req, { params }) {
       return NextResponse.json({ error: "Fant ikke hytta" }, { status: 404 });
     }
 
+    // Oppdaterer bilder separat for a beholde rekkefolge.
     const cabin = result.rows[0];
     await replaceCabinImages(cabin.id, image_urls);
     return NextResponse.json({ cabin: { ...cabin, image_urls } }, { status: 200 });
@@ -340,6 +347,7 @@ export async function DELETE(_req, { params }) {
     if (roleError) return roleError;
 
     // Sørg for at utleier kun kan slette egne hytter (hvis owner_id finnes)
+    // Sikkerhet: utleier kan kun slette egne hytter.
     let cabinOwnerId = null;
     try {
       const cabinRes = await db.query(

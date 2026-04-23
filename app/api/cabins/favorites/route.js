@@ -1,3 +1,5 @@
+// Skrevet av Sigurd
+
 import { NextResponse } from "next/server";
 import db from "../../../../lib/db";
 import { requireAuth } from "../../../../lib/auth";
@@ -5,6 +7,7 @@ import { requireAuth } from "../../../../lib/auth";
 let favoritesTableReady = false;
 let cabinImagesTableReady = false;
 
+// Oppretter favoritt-tabell ved behov for miljooer uten migrering.
 async function ensureFavoritesTable() {
   if (favoritesTableReady) return true;
 
@@ -151,6 +154,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const cabinId = String(searchParams.get("cabin_id") ?? "").trim();
 
+    // Hvis cabin_id finnes, returneres bare favoritt-status for den hytta.
     if (cabinId) {
       const exists = await db.query(
         `
@@ -168,6 +172,7 @@ export async function GET(req) {
       );
     }
 
+    // Ellers returneres hele favorittlisten med tilhorende hytteinfo.
     const favorites = await getFavoritesWithCabins(String(user.id));
     return NextResponse.json({ favorites }, { status: 200 });
   } catch (e) {
@@ -192,6 +197,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "cabin_id er påkrevd" }, { status: 400 });
     }
 
+    // Legger til favoritt idempotent via ON CONFLICT.
     await db.query(
       `
         INSERT INTO public.cabin_favorites (cabin_id, user_id)
@@ -224,6 +230,7 @@ export async function DELETE(req) {
       return NextResponse.json({ error: "cabin_id er påkrevd" }, { status: 400 });
     }
 
+    // Fjerner favoritt for innlogget bruker.
     await db.query(
       `
         DELETE FROM public.cabin_favorites

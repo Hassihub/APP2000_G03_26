@@ -1,3 +1,5 @@
+// Laget av Sigurd
+
 "use client";
 
 import Link from "next/link";
@@ -77,6 +79,7 @@ export default function CabinStayRequestsPage() {
     [incoming]
   );
 
+  // Henter både TiU-foresporsler og private bookingforesporsler i ett kall.
   async function loadRequests() {
     setLoading(true);
     setError("");
@@ -127,6 +130,7 @@ export default function CabinStayRequestsPage() {
     loadRequests();
   }, []);
 
+  // Oppdaterer status for TiU-foresporsel (kapasitet/bindende svar).
   async function decideRequest(requestId, decision, options = {}) {
     if (!requestId) return;
 
@@ -208,6 +212,7 @@ export default function CabinStayRequestsPage() {
     }
   }
 
+  // Oppdaterer status for privat bookingforesporsel.
   async function decideReservation(reservationId, decision) {
     if (!reservationId) return;
 

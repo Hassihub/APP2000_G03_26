@@ -1,3 +1,5 @@
+// Skrevet av Sigurd
+
 import { NextResponse } from "next/server";
 import db from "../../../lib/db";
 import { requireAuth, requireRole } from "../../../lib/auth";
@@ -11,6 +13,7 @@ let cabinImagesTableReady = false;
 let cabinStaffedColumnReady = false;
 let cabinReviewsTableReady = false;
 
+// Sikrer at schema-endring for betjent/ubetjent finnes før sporringer.
 async function ensureCabinStaffedColumn() {
   if (cabinStaffedColumnReady) return true;
 
@@ -181,6 +184,7 @@ async function storeCabinImages(cabinId, imageUrls) {
 export async function GET(req) {
   try {
     await ensureCabinStaffedColumn();
+    // Leser query-parametere for filtrering av hytter.
     const { searchParams } = new URL(req.url);
     const start_date = searchParams.get("start_date");
     const end_date = searchParams.get("end_date");
@@ -275,6 +279,7 @@ export async function GET(req) {
       rows = fallback.rows.map((cabin) => ({ ...cabin, is_staffed: false }));
     }
 
+    // Beriker resultatet med bilder og rating-oppsummering.
     const cabinsWithImages = await attachCabinImages(rows);
     const cabins = await attachCabinRatings(cabinsWithImages);
     return NextResponse.json({ cabins }, { status: 200 });
@@ -286,6 +291,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await ensureCabinStaffedColumn();
+    // Krever innlogget utleier/admin for opprettelse av ny hytte.
     const { user, response } = await requireAuth();
     if (response) return response;
 
@@ -308,6 +314,7 @@ export async function POST(req) {
     const latitude = hasLatitude ? Number(body.latitude) : null;
     const longitude = hasLongitude ? Number(body.longitude) : null;
 
+    // Enkel validering av obligatoriske felter og tallfelt.
     if (!name) return NextResponse.json({ error: "name er påkrevd" }, { status: 400 });
     if (!location) return NextResponse.json({ error: "location er påkrevd" }, { status: 400 });
     if (!Number.isFinite(price_per_night)) {
@@ -350,6 +357,7 @@ export async function POST(req) {
     ];
 
     try {
+      // Prover forst med nyeste schema (owner_id + is_staffed), med fallback under.
       const result = await db.query(insertSqlWithOwnerAndStaffed, valuesWithOwnerAndStaffed);
       const cabin = result.rows[0];
       await storeCabinImages(cabin.id, image_urls);

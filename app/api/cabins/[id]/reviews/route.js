@@ -1,3 +1,5 @@
+// Skrevet av Sigurd
+
 import { NextResponse } from "next/server";
 import db from "../../../../../lib/db";
 import { getCurrentUser, requireAuth } from "../../../../../lib/auth";
@@ -9,6 +11,7 @@ function badRequest(message) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
+// Oppretter reviews-tabell hvis den mangler.
 async function ensureCabinReviewsTable() {
   if (cabinReviewsTableReady) return true;
 
@@ -58,6 +61,7 @@ async function ensureReservationUserIdColumn() {
   }
 }
 
+// Sjekker om bruker har gyldig reservasjon og dermed kan anmelde.
 async function getReviewEligibility({ userId, cabinId }) {
   await ensureReservationUserIdColumn();
 
@@ -135,6 +139,7 @@ export async function GET(_req, { params }) {
       return NextResponse.json({ error: "Fant ikke hytta" }, { status: 404 });
     }
 
+    // Henter alle anmeldelser for hytta og beregner snitt/antall.
     const reviewsRes = await db.query(
       `
         SELECT id, cabin_id, user_id, username, rating, comment, created_at, updated_at
@@ -187,6 +192,7 @@ export async function POST(req, { params }) {
     const { id } = await params;
     if (!id) return badRequest("Mangler cabin-id");
 
+    // Krever innlogging og reservasjonstilknytning for a skrive anmeldelse.
     const { user, response } = await requireAuth();
     if (response) return response;
 
@@ -233,6 +239,7 @@ export async function POST(req, { params }) {
       String(user?.email ?? "").trim() ||
       `Bruker ${String(user?.id ?? "")}`;
 
+    // Upsert sikrer at hver bruker kun har en anmeldelse per hytte.
     const upsertResult = await db.query(
       `
         INSERT INTO public.cabin_reviews (cabin_id, user_id, username, rating, comment)

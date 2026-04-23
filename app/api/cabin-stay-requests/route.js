@@ -1,3 +1,5 @@
+// Skrevet av Sigurd
+
 import { NextResponse } from "next/server";
 import db from "../../../lib/db";
 import { requireAuth, requireRole } from "../../../lib/auth";
@@ -40,13 +42,8 @@ async function ensureStayRequestsTable() {
 
   await db.query(`ALTER TABLE public.cabin_stay_requests ADD COLUMN IF NOT EXISTS requested_start DATE`);
   await db.query(`ALTER TABLE public.cabin_stay_requests ADD COLUMN IF NOT EXISTS requested_end DATE`);
-  await db.query(`ALTER TABLE public.cabin_stay_requests ADD COLUMN IF NOT EXISTS approved_start DATE`);
-  await db.query(`ALTER TABLE public.cabin_stay_requests ADD COLUMN IF NOT EXISTS approved_end DATE`);
   await db.query(`ALTER TABLE public.cabin_stay_requests ADD COLUMN IF NOT EXISTS approved_beds INTEGER`);
   await db.query(`ALTER TABLE public.cabin_stay_requests ADD COLUMN IF NOT EXISTS reservation_id TEXT`);
-  await db.query(`ALTER TABLE public.cabin_stay_requests ADD COLUMN IF NOT EXISTS binding_decision TEXT NOT NULL DEFAULT 'pending'`);
-  await db.query(`ALTER TABLE public.cabin_stay_requests ADD COLUMN IF NOT EXISTS binding_beds INTEGER`);
-  await db.query(`ALTER TABLE public.cabin_stay_requests ADD COLUMN IF NOT EXISTS binding_decided_at TIMESTAMPTZ`);
 
   await db.query(`
     CREATE INDEX IF NOT EXISTS idx_cabin_stay_requests_trip
@@ -221,12 +218,8 @@ export async function GET() {
           csr.approved_start::text AS approved_start,
           csr.approved_end::text AS approved_end,
           csr.reservation_id,
-          csr.binding_decision,
-          csr.binding_beds,
-          csr.binding_decided_at,
           dto.trip_date_options,
           t.navn AS trip_name,
-          tt.planning_status AS trip_planning_status,
           c.name AS cabin_name,
           c.location AS cabin_location,
           c.capacity AS cabin_capacity,
@@ -286,12 +279,8 @@ export async function GET() {
           csr.approved_start::text AS approved_start,
           csr.approved_end::text AS approved_end,
           csr.reservation_id,
-          csr.binding_decision,
-          csr.binding_beds,
-          csr.binding_decided_at,
           dto.trip_date_options,
           t.navn AS trip_name,
-          tt.planning_status AS trip_planning_status,
           c.name AS cabin_name,
           c.location AS cabin_location,
           c.capacity AS cabin_capacity,
@@ -479,14 +468,20 @@ export async function POST(request) {
 
     stage = "insert_requests";
     for (const requestItem of prepared) {
-      let result = await db.query(
+      const result = await db.query(
         `
           INSERT INTO public.cabin_stay_requests
-            (trip_id, cabin_id, requester_user_id, requested_beds, message, owner_response, responded_at, updated_at, requested_start, requested_end)
+            (trip_id, cabin_id, requester_user_id, requested_beds, message, status, owner_response, responded_at, updated_at, requested_start, requested_end)
           VALUES
-            ($1, $2::uuid, $3, $4, $5, NULL, NULL, NOW(), $6::date, $7::date)
+            ($1, $2::uuid, $3, $4, $5, 'pending', NULL, NULL, NOW(), $6::date, $7::date)
           ON CONFLICT (trip_id, cabin_id, requester_user_id)
-          DO NOTHING
+          DO UPDATE SET
+            requested_beds = EXCLUDED.requested_beds,
+            message = EXCLUDED.message,
+            status = 'pending',
+            owner_response = NULL,
+            responded_at = NULL,
+            updated_at = NOW()
           RETURNING
             id,
             trip_id,
@@ -494,6 +489,7 @@ export async function POST(request) {
             requester_user_id,
             requested_beds,
             message,
+            status,
             owner_response,
             requested_start,
             requested_end,
@@ -512,56 +508,9 @@ export async function POST(request) {
         ]
       );
 
-      if (result.rowCount === 0) {
-        result = await db.query(
-          `
-            UPDATE public.cabin_stay_requests
-            SET requested_beds = $4,
-                message = $5,
-                status = 'pending',
-                owner_response = NULL,
-                approved_beds = NULL,
-                reservation_id = NULL,
-                binding_decision = 'pending',
-                binding_beds = NULL,
-                binding_decided_at = NULL,
-                responded_at = NULL,
-                updated_at = NOW(),
-                requested_start = $6::date,
-                requested_end = $7::date
-            WHERE trip_id = $1
-              AND cabin_id = $2::uuid
-              AND requester_user_id = $3
-            RETURNING
-              id,
-              trip_id,
-              cabin_id::text AS cabin_id,
-              requester_user_id,
-              requested_beds,
-              message,
-              owner_response,
-              requested_start,
-              requested_end,
-              created_at,
-              updated_at,
-              responded_at
-          `,
-          [
-            tripId,
-            requestItem.cabinId,
-            requesterUserId,
-            requestItem.requestedBeds,
-            message,
-            requestedStart || null,
-            requestedEnd || null,
-          ]
-        );
-      }
-
       const row = result.rows[0];
       inserted.push({
         ...row,
-        status: "pending",
         trip_name: trip.navn,
         cabin_name: requestItem.cabin.name,
         owner_id: requestItem.cabin.owner_id,
@@ -642,7 +591,6 @@ export async function PATCH(request) {
     const body = await request.json().catch(() => ({}));
     const requestId = String(body?.requestId ?? "").trim();
     const decisionRaw = String(body?.decision || "").trim().toLowerCase();
-    const bindingDecisionRaw = String(body?.bindingDecision || "").trim().toLowerCase();
     const ownerResponse = typeof body?.ownerResponse === "string"
       ? body.ownerResponse.trim().slice(0, 1000)
       : null;
@@ -653,8 +601,7 @@ export async function PATCH(request) {
       return badRequest("Mangler gyldig requestId");
     }
 
-    const isBindingDecision = bindingDecisionRaw === "confirm" || bindingDecisionRaw === "withdraw";
-    if (!isBindingDecision && decisionRaw !== "approve" && decisionRaw !== "reject") {
+    if (decisionRaw !== "approve" && decisionRaw !== "reject") {
       return badRequest("decision ma vaere approve eller reject");
     }
 
@@ -670,16 +617,12 @@ export async function PATCH(request) {
           csr.requested_beds,
           csr.requested_start::text AS requested_start,
           csr.requested_end::text AS requested_end,
-          csr.approved_beds,
-          csr.binding_decision,
-          csr.binding_beds,
           csr.status,
           c.owner_id::text AS owner_id,
           c.name AS cabin_name,
           c.capacity,
           t.navn AS trip_name,
           tt.id AS tiu_trip_id,
-          tt.planning_status,
           u.username AS requester_name,
           u.email AS requester_email
         FROM public.cabin_stay_requests csr
@@ -714,109 +657,28 @@ export async function PATCH(request) {
       return NextResponse.json({ error: "Kun hytteeier kan svare pa foresporselen" }, { status: 403 });
     }
 
-    if (!existing.tiu_trip_id) {
-      return badRequest("Kun foresporsler for TiU-turer kan behandles");
-    }
-
-    if (isBindingDecision) {
-      if (existing.status !== "approved") {
-        return badRequest("Kun godkjente foresporsler kan bekreftes bindende");
-      }
-
-      if (String(existing.planning_status || "") !== "binding_open") {
-        return badRequest("Bindende bekreftelse er ikke åpen for denne turen enda");
-      }
-
-      const bindingBedsRaw = body?.binding_beds ?? body?.approved_beds ?? existing.binding_beds ?? existing.approved_beds ?? existing.requested_beds;
-      const bindingBeds = Number(bindingBedsRaw);
-      const capacity = Number(existing.capacity);
-
-      if (bindingDecisionRaw === "confirm") {
-        if (!Number.isInteger(bindingBeds) || bindingBeds <= 0) {
-          return badRequest("Bindende sengeplasser ma vaere et positivt heltall");
-        }
-
-        if (Number.isFinite(capacity) && bindingBeds > capacity) {
-          return badRequest(`Bindende sengeplasser kan ikke overstige kapasitet (${capacity})`);
-        }
-      }
-
-      const updateResult = await db.query(
-        `
-          UPDATE public.cabin_stay_requests
-          SET binding_decision = $2,
-              binding_beds = $3,
-              binding_decided_at = NOW(),
-              owner_response = COALESCE($4, owner_response),
-              updated_at = NOW()
-          WHERE id::text = $1
-          RETURNING
-            id,
-            trip_id,
-            cabin_id::text AS cabin_id,
-            requester_user_id,
-            requested_beds,
-            message,
-            status,
-            owner_response,
-            approved_beds,
-            binding_decision,
-            binding_beds,
-            binding_decided_at,
-            reservation_id,
-            requested_start::text AS requested_start,
-            requested_end::text AS requested_end,
-            created_at,
-            updated_at,
-            responded_at
-        `,
-        [
-          requestId,
-          bindingDecisionRaw === "confirm" ? "confirmed" : "withdrawn",
-          bindingDecisionRaw === "confirm" ? bindingBeds : null,
-          ownerResponse || null,
-        ]
-      );
-
-      const updated = {
-        ...updateResult.rows[0],
-        trip_name: existing.trip_name,
-        cabin_name: existing.cabin_name,
-      };
-
-      if (String(existing.requester_user_id || "").trim()) {
-        const decisionLabel = updated.binding_decision === "confirmed" ? "bekreftet" : "trukket";
-        const bedsLabel = updated.binding_decision === "confirmed"
-          ? ` (${updated.binding_beds} sengeplasser)`
-          : "";
-
-        await createNotification({
-          userId: existing.requester_user_id,
-          type: "cabin_stay_binding_decision",
-          referenceId: `stay-request:${updated.id}:binding:${updated.binding_decision}`,
-          title: "Bindende svar fra hytteeier",
-          message: `Hytteeier har ${decisionLabel} sengeplasser for ${String(existing.cabin_name || "hytta")}${bedsLabel}.`,
-          actionUrl: `/reserver/foresporsler?view=outgoing&requestId=${encodeURIComponent(String(updated.id))}`,
-          metadata: {
-            stay_request_id: updated.id,
-            trip_id: updated.trip_id,
-            trip_name: existing.trip_name,
-            cabin_id: updated.cabin_id,
-            cabin_name: existing.cabin_name,
-            binding_decision: updated.binding_decision,
-            binding_beds: updated.binding_beds,
-          },
-        });
-      }
-
-      return NextResponse.json({ ok: true, request: updated }, { status: 200 });
-    }
-
     if (existing.status !== "pending") {
       return badRequest("Foresporselen er allerede behandlet");
     }
 
+    if (!existing.tiu_trip_id) {
+      return badRequest("Kun foresporsler for TiU-turer kan behandles");
+    }
+
+    let reservationId = null;
+
     if (decisionRaw === "approve") {
+      const startDate = approvalStart || String(existing.requested_start || "").trim();
+      const endDate = approvalEnd || String(existing.requested_end || "").trim();
+
+      if (!startDate || !endDate) {
+        return badRequest("Velg start- og sluttdato før godkjenning. Forespørselen kan være fleksibel, men reservasjonen må få konkrete datoer.");
+      }
+
+      if (startDate >= endDate) {
+        return badRequest("Startdato må være før sluttdato");
+      }
+
       if (approvedBeds <= 0 || !Number.isFinite(approvedBeds)) {
         return badRequest("Godkjente sengeplasser ma vaere et positivt tall");
       }
@@ -826,94 +688,109 @@ export async function PATCH(request) {
         return badRequest(`Godkjente sengeplasser kan ikke overstige kapasitet (${capacity})`);
       }
 
-      const updateResult = await db.query(
-        `
-          UPDATE public.cabin_stay_requests
-          SET status = $2,
-              owner_response = $3,
-              responded_at = NOW(),
-              updated_at = NOW(),
-              approved_beds = $4,
-              approved_start = $5::date,
-              approved_end = $6::date,
-              reservation_id = NULL,
-              binding_decision = 'pending',
-              binding_beds = NULL,
-              binding_decided_at = NULL
-          WHERE id::text = $1
-          RETURNING
-            id,
-            trip_id,
-            cabin_id::text AS cabin_id,
-            requester_user_id,
-            requested_beds,
-            message,
-            status,
-            owner_response,
-            approved_beds,
-            approved_start::text AS approved_start,
-            approved_end::text AS approved_end,
-            binding_decision,
-            binding_beds,
-            binding_decided_at,
-            reservation_id,
-            requested_start::text AS requested_start,
-            requested_end::text AS requested_end,
-            created_at,
-            updated_at,
-            responded_at
-        `,
-        [
-          requestId,
-          nextStatus,
-          ownerResponse || null,
-          approvedBeds,
-          approvalStart || null,
-          approvalEnd || null,
-        ]
-      );
+      await db.query("BEGIN");
 
-      const updated = {
+      let updateResult;
+
+      try {
+        const overlapResult = await db.query(
+          `
+            SELECT 1
+            FROM public.reservations
+            WHERE cabin_id = $1
+              AND status <> 'cancelled'
+              AND NOT (end_date <= $2::date OR start_date >= $3::date)
+            LIMIT 1
+          `,
+          [existing.cabin_id, startDate, endDate]
+        );
+
+        if (overlapResult.rowCount > 0) {
+          await db.query("ROLLBACK");
+          return NextResponse.json(
+            { error: "Hytta er allerede reservert i den perioden. Kan ikke godkjenne." },
+            { status: 409 }
+          );
+        }
+
+        const requesterName = String(existing.requester_name || existing.requester_user_id || "Turleder").substring(0, 50);
+        const guestEmail = String(existing.requester_email || existing.requester_user_id || "guest@example.com").substring(0, 100);
+
+        const reservationResult = await db.query(
+          `
+            INSERT INTO public.reservations
+              (cabin_id, guest_user_id, guest_name, guest_email, start_date, end_date, guests_count, notes, status)
+            VALUES
+              ($1, $2, $3, $4, $5::date, $6::date, $7, $8, 'active')
+            RETURNING id
+          `,
+          [
+            existing.cabin_id,
+            existing.requester_user_id,
+            requesterName,
+            guestEmail,
+            startDate,
+            endDate,
+            approvedBeds,
+            `Automatisk reservasjon fra hytteforespørsel (request ID: ${requestId})`,
+          ]
+        );
+
+        reservationId = String(reservationResult.rows[0]?.id || "");
+
+        updateResult = await db.query(
+          `
+            UPDATE public.cabin_stay_requests
+            SET status = $2,
+                owner_response = $3,
+                responded_at = NOW(),
+                updated_at = NOW(),
+                approved_beds = $4,
+                reservation_id = $5,
+                approved_start = $6::date,
+                approved_end = $7::date
+            WHERE id::text = $1
+            RETURNING
+              id,
+              trip_id,
+              cabin_id::text AS cabin_id,
+              requester_user_id,
+              requested_beds,
+              message,
+              status,
+              owner_response,
+              approved_beds,
+              approved_start::text AS approved_start,
+              approved_end::text AS approved_end,
+              reservation_id,
+              requested_start::text AS requested_start,
+              requested_end::text AS requested_end,
+              created_at,
+              updated_at,
+              responded_at
+          `,
+          [requestId, nextStatus, ownerResponse || null, approvedBeds, reservationId, startDate, endDate]
+        );
+
+        await db.query("COMMIT");
+      } catch (txError) {
+        try {
+          await db.query("ROLLBACK");
+        } catch {}
+        throw txError;
+      }
+
+      var updated = {
         ...updateResult.rows[0],
         trip_name: existing.trip_name,
         cabin_name: existing.cabin_name,
       };
-
-      if (String(existing.requester_user_id || "").trim()) {
-        await createNotification({
-          userId: existing.requester_user_id,
-          type: "cabin_stay_request_decision",
-          referenceId: `stay-request:${updated.id}:decision:${nextStatus}`,
-          title: "Svar pa overnattingsforesporsel",
-          message: `${String(existing.cabin_name || "Hytteeier")} har meldt ${updated.approved_beds || updated.requested_beds} ikke-bindende sengeplasser for turen.`,
-          actionUrl: `/reserver/foresporsler?view=outgoing&requestId=${encodeURIComponent(String(updated.id))}`,
-          metadata: {
-            stay_request_id: updated.id,
-            trip_id: updated.trip_id,
-            trip_name: existing.trip_name,
-            cabin_id: updated.cabin_id,
-            cabin_name: existing.cabin_name,
-            requested_beds: updated.requested_beds,
-            approved_beds: updated.approved_beds,
-            status: updated.status,
-            owner_response: updated.owner_response,
-            reservation_id: updated.reservation_id,
-          },
-        });
-      }
-
-      return NextResponse.json({ ok: true, request: updated }, { status: 200 });
     } else {
       const updateResult = await db.query(
         `
           UPDATE public.cabin_stay_requests
           SET status = $2,
               owner_response = $3,
-              approved_beds = NULL,
-              reservation_id = NULL,
-              binding_decision = 'pending',
-              binding_beds = NULL,
-              binding_decided_at = NULL,
               responded_at = NOW(),
               updated_at = NOW()
           WHERE id::text = $1
@@ -927,9 +804,6 @@ export async function PATCH(request) {
             status,
             owner_response,
             approved_beds,
-            binding_decision,
-            binding_beds,
-            binding_decided_at,
             reservation_id,
             requested_start::text AS requested_start,
             requested_end::text AS requested_end,
@@ -940,37 +814,46 @@ export async function PATCH(request) {
         [requestId, nextStatus, ownerResponse || null]
       );
 
-      const updated = {
+      var updated = {
         ...updateResult.rows[0],
         trip_name: existing.trip_name,
         cabin_name: existing.cabin_name,
       };
+    }
 
-      if (String(existing.requester_user_id || "").trim()) {
-        await createNotification({
-          userId: existing.requester_user_id,
-          type: "cabin_stay_request_decision",
-          referenceId: `stay-request:${updated.id}:decision:${nextStatus}`,
-          title: "Svar pa overnattingsforesporsel",
-          message: `Foresporselen om overnatting pa ${String(existing.cabin_name || "hytta")} ble avslatt.`,
-          actionUrl: `/reserver/foresporsler?view=outgoing&requestId=${encodeURIComponent(String(updated.id))}`,
-          metadata: {
-            stay_request_id: updated.id,
-            trip_id: updated.trip_id,
-            trip_name: existing.trip_name,
-            cabin_id: updated.cabin_id,
-            cabin_name: existing.cabin_name,
-            requested_beds: updated.requested_beds,
-            approved_beds: updated.approved_beds,
-            status: updated.status,
-            owner_response: updated.owner_response,
-            reservation_id: updated.reservation_id,
-          },
-        });
+    if (String(existing.requester_user_id || "").trim()) {
+      const statusLabel = nextStatus === "approved" ? "godkjent" : "avslatt";
+      let message = `Foresporselen om overnatting pa ${String(existing.cabin_name || "hytta")} ble ${statusLabel}.`;
+      
+      if (nextStatus === "approved") {
+        const aStart = String(updated.approved_start || "").slice(0, 10);
+        const aEnd = String(updated.approved_end || "").slice(0, 10);
+        message = `Overnatting godkjent! Reservasjon opprettet fra ${aStart} til ${aEnd}.`;
       }
 
-      return NextResponse.json({ ok: true, request: updated }, { status: 200 });
+      await createNotification({
+        userId: existing.requester_user_id,
+        type: "cabin_stay_request_decision",
+        referenceId: `stay-request:${updated.id}:decision:${nextStatus}`,
+        title: "Svar pa overnattingsforesporsel",
+        message: message,
+        actionUrl: `/reserver/foresporsler?view=outgoing&requestId=${encodeURIComponent(String(updated.id))}`,
+        metadata: {
+          stay_request_id: updated.id,
+          trip_id: updated.trip_id,
+          trip_name: existing.trip_name,
+          cabin_id: updated.cabin_id,
+          cabin_name: existing.cabin_name,
+          requested_beds: updated.requested_beds,
+          approved_beds: updated.approved_beds,
+          status: updated.status,
+          owner_response: updated.owner_response,
+          reservation_id: updated.reservation_id,
+        },
+      });
     }
+
+    return NextResponse.json({ ok: true, request: updated }, { status: 200 });
   } catch (error) {
     console.error("Cabin stay requests PATCH error:", error);
     const detail = process.env.NODE_ENV !== "production"
