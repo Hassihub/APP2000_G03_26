@@ -98,6 +98,9 @@ export async function GET() {
               tc.trip_id::text AS trip_id,
               c.id::text AS cabin_id,
               c.name,
+              c.location,
+              c.latitude,
+              c.longitude,
               tc.sort_order
             FROM public.trip_cabins tc
             JOIN public.cabins c
@@ -110,6 +113,9 @@ export async function GET() {
               tc.trip_id::text AS trip_id,
               c.id::text AS cabin_id,
               c.name,
+              c.location,
+              c.latitude,
+              c.longitude,
               0::int AS sort_order
             FROM public.trip_cabins tc
             JOIN public.cabins c
@@ -122,7 +128,7 @@ export async function GET() {
       cabinsByTripId = cabinResult.rows.reduce((map, row) => {
         const key = String(row.trip_id);
         const list = map.get(key) || [];
-        list.push({ id: row.cabin_id, name: row.name, sort_order: row.sort_order });
+        list.push({ id: row.cabin_id, name: row.name, location: row.location, latitude: row.latitude, longitude: row.longitude, sort_order: row.sort_order });
         map.set(key, list);
         return map;
       }, new Map());

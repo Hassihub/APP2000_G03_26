@@ -882,8 +882,6 @@ export default function NewTripRoutePage() {
       setSelectedCabinIds([]);
       setRequestedBedsByCabinId({});
       setStayRequestMessage("");
-      setStayRequestStartDate("");
-      setStayRequestEndDate("");
       setAnchorPoints([]);
       setSegmentModes([]);
       setRoutePoints([]);
