@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "./LanguageProvider";
-import DelKnapp from "../sosial/post_buttons/DelKnapp.png";
 import KommentarKnapp from "../sosial/post_buttons/KommentarKnapp.png";
 import LikerKnappAv from "../sosial/post_buttons/LikerKnappAv.png";
 import LikerKnappPaa from "../sosial/post_buttons/LikerKnappPaa.png";
