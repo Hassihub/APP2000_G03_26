@@ -66,8 +66,7 @@ async function markCompletedReservations() {
     `
       UPDATE public.reservations
       SET status = 'completed'
-      WHERE status <> 'cancelled'
-        AND status <> 'completed'
+      WHERE status = 'active'
         AND end_date < CURRENT_DATE
     `
   );
@@ -162,14 +161,14 @@ async function createReservationNotification(userId, reservation) {
           INSERT INTO public.user_notifications
             (user_id, type, reference_id, title, message, action_url, metadata)
           VALUES
-            ($1, 'reservation_created', $2, $3, $4, $5, $6::jsonb)
+            ($1, 'reservation_pending', $2, $3, $4, $5, $6::jsonb)
           ON CONFLICT DO NOTHING
         `,
         [
           String(userId),
           `reservation:${reservation.id}`,
-          "Reservasjon bekreftet",
-          `Du har reservert ${cabinName} fra ${String(reservation.start_date).slice(0, 10)} til ${String(reservation.end_date).slice(0, 10)}.`,
+          "Booking venter godkjenning",
+          `Booking av ${cabinName} fra ${String(reservation.start_date).slice(0, 10)} til ${String(reservation.end_date).slice(0, 10)} venter på godkjenning fra hytteeier.`,
           `/reserver/booking?cabinId=${encodeURIComponent(String(reservation.cabin_id))}`,
           JSON.stringify({
             reservation_id: reservation.id,
@@ -200,9 +199,9 @@ async function createReservationNotification(userId, reservation) {
           [
             cabinOwnerId,
             `reservation:${reservation.id}`,
-            "Ny booking mottatt",
-            `${guestDisplayName} har booket ${cabinName} fra ${String(reservation.start_date).slice(0, 10)} til ${String(reservation.end_date).slice(0, 10)}.`,
-            `/profile`,
+            "Ny booking å godkjenne",
+            `${guestDisplayName} ønsker å booke ${cabinName} fra ${String(reservation.start_date).slice(0, 10)} til ${String(reservation.end_date).slice(0, 10)}.`,
+            `/reserver/foresporsler`,
             JSON.stringify({
               reservation_id: reservation.id,
               cabin_id: reservation.cabin_id,
@@ -225,9 +224,45 @@ export async function GET(req) {
     await ensureReservationUserIdColumn();
     await runReservationLifecycleHousekeeping();
     const { searchParams } = new URL(req.url);
-    const cabin_id = searchParams.get("cabin_id"); // valgfri filter
-    const guest_email = searchParams.get("guest_email"); // valgfri filter
-    const guest_user_id = searchParams.get("guest_user_id"); // valgfri filter
+    const cabin_id = searchParams.get("cabin_id");
+    const guest_email = searchParams.get("guest_email");
+    const guest_user_id = searchParams.get("guest_user_id");
+    const pending_for_owner = searchParams.get("pending_for_owner") === "true";
+
+    // Hytteeier henter innkommende bookinger som venter godkjenning
+    if (pending_for_owner) {
+      const { user, response } = await requireAuth();
+      if (response) return response;
+
+      const userId = String(user.id ?? "").trim();
+
+      const result = await db.query(
+        `
+          SELECT
+            r.id,
+            r.cabin_id,
+            r.guest_user_id,
+            r.guest_name,
+            r.guest_email,
+            r.start_date,
+            r.end_date,
+            r.guests_count,
+            r.notes,
+            r.status,
+            r.created_at,
+            c.name AS cabin_name,
+            c.location AS cabin_location
+          FROM public.reservations r
+          JOIN public.cabins c ON c.id = r.cabin_id
+          WHERE c.owner_id = $1
+            AND r.status = 'pending'
+          ORDER BY r.created_at DESC
+        `,
+        [userId]
+      );
+
+      return NextResponse.json({ reservations: result.rows }, { status: 200 });
+    }
 
     const where = [];
     const values = [];
@@ -311,7 +346,7 @@ export async function POST(req) {
       SELECT 1
       FROM public.reservations
       WHERE cabin_id = $1
-        AND status <> 'cancelled'
+        AND status NOT IN ('cancelled', 'rejected')
         AND NOT (end_date <= $2::date OR start_date >= $3::date)
       LIMIT 1
     `;
@@ -339,9 +374,9 @@ export async function POST(req) {
 
     const insertSql = `
       INSERT INTO public.reservations
-        (cabin_id, guest_user_id, guest_name, guest_email, start_date, end_date, guests_count, notes)
+        (cabin_id, guest_user_id, guest_name, guest_email, start_date, end_date, guests_count, notes, status)
       VALUES
-        ($1, $2, $3, $4, $5::date, $6::date, $7, $8)
+        ($1, $2, $3, $4, $5::date, $6::date, $7, $8, 'pending')
       RETURNING
         id, cabin_id, guest_user_id, guest_name, guest_email, start_date, end_date, guests_count, notes, status, created_at
     `;
@@ -352,6 +387,126 @@ export async function POST(req) {
     await createReservationNotification(user.id, result.rows[0]);
 
     return NextResponse.json({ reservation: result.rows[0] }, { status: 201 });
+  } catch (e) {
+    return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req) {
+  try {
+    await ensureReservationUserIdColumn();
+    const { user, response } = await requireAuth();
+    if (response) return response;
+
+    const body = await req.json();
+    const reservationId = String(body.reservationId ?? "").trim();
+    const decision = String(body.decision ?? "").trim(); // "approve" | "reject"
+    const ownerResponse = body.ownerResponse ? String(body.ownerResponse).trim() : null;
+
+    if (!reservationId) return NextResponse.json({ error: "Mangler reservasjons-ID" }, { status: 400 });
+    if (decision !== "approve" && decision !== "reject") {
+      return NextResponse.json({ error: "decision må være 'approve' eller 'reject'" }, { status: 400 });
+    }
+
+    // Hent reservasjon og sjekk at innlogget bruker er hytteeier
+    const resResult = await db.query(
+      `
+        SELECT r.id, r.cabin_id, r.guest_user_id, r.guest_name, r.guest_email,
+               r.start_date, r.end_date, r.status, c.owner_id, c.name AS cabin_name
+        FROM public.reservations r
+        JOIN public.cabins c ON c.id = r.cabin_id
+        WHERE r.id::text = $1
+        LIMIT 1
+      `,
+      [reservationId]
+    );
+
+    if (resResult.rowCount === 0) {
+      return NextResponse.json({ error: "Fant ikke reservasjonen" }, { status: 404 });
+    }
+
+    const reservation = resResult.rows[0];
+    const userId = String(user.id ?? "").trim();
+
+    if (String(reservation.owner_id ?? "").trim() !== userId) {
+      return NextResponse.json({ error: "Ingen tilgang – du er ikke eier av denne hytta" }, { status: 403 });
+    }
+
+    if (reservation.status !== "pending") {
+      return NextResponse.json({ error: "Reservasjonen er ikke lenger i ventestatus" }, { status: 409 });
+    }
+
+    const newStatus = decision === "approve" ? "active" : "rejected";
+
+    await db.query(
+      `UPDATE public.reservations SET status = $1 WHERE id::text = $2`,
+      [newStatus, reservationId]
+    );
+
+    // Send varsling til gjesten
+    if (reservation.guest_user_id) {
+      try {
+        const hasTable = await ensureNotificationsTable();
+        if (hasTable) {
+          const guestAllows = await userAllowsNotifications(reservation.guest_user_id);
+          if (guestAllows) {
+            const cabinName = String(reservation.cabin_name || "hytta").trim();
+            const startDate = String(reservation.start_date).slice(0, 10);
+            const endDate = String(reservation.end_date).slice(0, 10);
+
+            if (decision === "approve") {
+              await db.query(
+                `
+                  INSERT INTO public.user_notifications
+                    (user_id, type, reference_id, title, message, action_url, metadata)
+                  VALUES
+                    ($1, 'reservation_approved', $2, $3, $4, $5, $6::jsonb)
+                  ON CONFLICT (user_id, type, reference_id) DO UPDATE
+                    SET title = EXCLUDED.title,
+                        message = EXCLUDED.message,
+                        is_read = false,
+                        created_at = NOW()
+                `,
+                [
+                  String(reservation.guest_user_id),
+                  `reservation:${reservationId}`,
+                  "Booking godkjent",
+                  `Bookingen din av ${cabinName} fra ${startDate} til ${endDate} er godkjent!${ownerResponse ? ` Melding fra hytteeier: ${ownerResponse}` : ""}`,
+                  `/reserver/booking?cabinId=${encodeURIComponent(String(reservation.cabin_id))}`,
+                  JSON.stringify({ reservation_id: reservationId, cabin_id: reservation.cabin_id }),
+                ]
+              );
+            } else {
+              await db.query(
+                `
+                  INSERT INTO public.user_notifications
+                    (user_id, type, reference_id, title, message, action_url, metadata)
+                  VALUES
+                    ($1, 'reservation_rejected', $2, $3, $4, $5, $6::jsonb)
+                  ON CONFLICT (user_id, type, reference_id) DO UPDATE
+                    SET title = EXCLUDED.title,
+                        message = EXCLUDED.message,
+                        is_read = false,
+                        created_at = NOW()
+                `,
+                [
+                  String(reservation.guest_user_id),
+                  `reservation:${reservationId}`,
+                  "Booking avslått",
+                  `Bookingen din av ${cabinName} fra ${startDate} til ${endDate} ble dessverre avslått.${ownerResponse ? ` Melding fra hytteeier: ${ownerResponse}` : ""}`,
+                  `/reserver`,
+                  JSON.stringify({ reservation_id: reservationId, cabin_id: reservation.cabin_id }),
+                ]
+              );
+            }
+          }
+        }
+      } catch {
+        // Varsling skal ikke blokkere godkjenning.
+      }
+    }
+
+    return NextResponse.json({ ok: true, status: newStatus }, { status: 200 });
   } catch (e) {
     return NextResponse.json({ error: e?.message ?? "Ukjent feil" }, { status: 500 });
   }

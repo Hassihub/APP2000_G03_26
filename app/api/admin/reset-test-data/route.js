@@ -1,3 +1,11 @@
+/**
+ * app/api/admin/reset-test-data/route.js
+ *
+ * Christian Hjortland
+ * Studentnr: 274074
+ * Github - @chh303
+ */
+
 // Next.js API-ruter bruker NextResponse for å sende svar tilbake til nettleseren.
 import { NextResponse } from "next/server";
 

@@ -3,6 +3,38 @@ import pool from "../../../lib/db";
 import { requireAuth, requireRole } from "../../../lib/auth";
 import { ROLE_ADMIN, ROLE_TURLEDER } from "../../../lib/roles";
 
+async function notifyAdmins(client, tripId, tripNavn) {
+  try {
+    const adminsResult = await client.query(
+      `SELECT id::text AS id FROM public.users WHERE role = $1`,
+      [ROLE_ADMIN]
+    );
+
+    for (const admin of adminsResult.rows) {
+      await client.query(
+        `
+          INSERT INTO public.user_notifications
+            (user_id, type, reference_id, title, message, action_url, metadata)
+          VALUES
+            ($1, $2, $3, $4, $5, $6, $7::jsonb)
+          ON CONFLICT DO NOTHING
+        `,
+        [
+          admin.id,
+          "new_tiu_trip",
+          `tiu-trip:${tripId}`,
+          "Ny TiU-tur til godkjenning",
+          `Turen "${tripNavn}" er sendt inn og venter på godkjenning.`,
+          `/admin/turer`,
+          JSON.stringify({ trip_id: tripId }),
+        ]
+      );
+    }
+  } catch {
+    // varslingsfeil skal ikke stoppe opprettelse av tur
+  }
+}
+
 let tripCabinsTableReady = false;
 
 async function ensureTripCabinsTable(client) {
@@ -29,6 +61,26 @@ async function ensureTripCabinsTable(client) {
   `);
 
   tripCabinsTableReady = true;
+}
+
+async function ensureTurlederUserIdColumn(client) {
+  await client.query(`
+    ALTER TABLE public.tiu_trips
+    ADD COLUMN IF NOT EXISTS turleder_user_id UUID NULL
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_tiu_trips_turleder_user_id
+    ON public.tiu_trips (turleder_user_id)
+  `);
+
+  await client.query(`
+    UPDATE public.tiu_trips tt
+    SET turleder_user_id = u.id
+    FROM public.users u
+    WHERE tt.turleder_user_id IS NULL
+      AND u.username = tt.turleder_navn
+  `);
 }
 
 async function hasTripCabinsNightNumberColumn(client) {
@@ -71,6 +123,7 @@ export async function GET(request) {
         t.geometry,
         tt.id AS tiu_trip_id,
         tt.turleder_navn,
+        tt.turleder_user_id,
         tt.is_flexible,
         tt.planning_status,
         (
@@ -102,6 +155,7 @@ export async function GET(request) {
         LIMIT 1
       ) d ON true
       WHERE t.navn ILIKE $1
+        AND (tt.id IS NULL OR tt.planning_status NOT IN ('draft', 'rejected'))
     `;
 
     const values = [`%${search}%`];
@@ -182,11 +236,15 @@ export async function POST(request) {
     const cabinIdsRaw = Array.isArray(body.cabin_ids) ? body.cabin_ids : [];
     const cabin_ids = [...new Set(cabinIdsRaw.map((id) => String(id).trim()).filter(Boolean))];
 
+    let user = null;
+
     if (isTiu) {
-      const { user, response } = await requireAuth();
-      if (response) {
-        return response;
+      const auth = await requireAuth();
+      if (auth.response) {
+        return auth.response;
       }
+
+      user = auth.user;
 
       const roleError = requireRole(user, [ROLE_ADMIN, ROLE_TURLEDER]);
       if (roleError) {
@@ -316,6 +374,7 @@ export async function POST(request) {
 
     await client.query("BEGIN");
     await ensureTripCabinsTable(client);
+    await ensureTurlederUserIdColumn(client);
     const hasNightNumberColumn = await hasTripCabinsNightNumberColumn(client);
 
     const insertTripQuery = `
@@ -357,29 +416,32 @@ export async function POST(request) {
     const trip = tripResult.rows[0];
 
     if (isTiu) {
-      const planningStatus = "interest_open";
+      const planningStatus = "draft";
 
       const tiuResult = await client.query(
         `
         INSERT INTO public.tiu_trips (
           trip_id,
           turleder_navn,
+          turleder_user_id,
           is_flexible,
           planning_status
         )
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, turleder_navn, is_flexible, planning_status
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, turleder_navn, turleder_user_id, is_flexible, planning_status
         `,
-        [trip.id, turleder_navn, isFlexible, planningStatus]
+        [trip.id, turleder_navn, user.id, isFlexible, planningStatus]
       );
 
       trip.tiu_trip_id = tiuResult.rows[0].id;
       trip.turleder_navn = tiuResult.rows[0].turleder_navn;
+      trip.turleder_user_id = tiuResult.rows[0].turleder_user_id;
       trip.is_flexible = tiuResult.rows[0].is_flexible;
       trip.planning_status = tiuResult.rows[0].planning_status;
     } else {
       trip.tiu_trip_id = null;
       trip.turleder_navn = null;
+      trip.turleder_user_id = null;
       trip.is_flexible = false;
       trip.planning_status = null;
     }
@@ -422,6 +484,10 @@ export async function POST(request) {
       .map((row) => ({ id: row.id, name: row.name }));
 
     await client.query("COMMIT");
+
+    if (isTiu) {
+      await notifyAdmins(client, trip.id, trip.navn);
+    }
 
     return NextResponse.json(trip, { status: 201 });
   } catch (error) {
