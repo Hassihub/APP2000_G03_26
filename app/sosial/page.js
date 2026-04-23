@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { SimpleFileUpload } from "simple-file-upload-react"
 import Image from "next/image"
-import DelKnapp from "./post_buttons/DelKnapp.png"
 import KommentarKnapp from "./post_buttons/KommentarKnapp.png"
 import LikerKnappAv from "./post_buttons/LikerKnappAv.png"
 import LikerKnappPaa from "./post_buttons/LikerKnappPaa.png"
