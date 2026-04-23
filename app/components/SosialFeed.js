@@ -73,13 +73,7 @@ export default function SosialFeed({ embedded = false, currentUser: userProp = n
     });
     loadPosts(currentUser.id);
   }
-
-  function sharePost(postid) {
-    const url = `${window.location.origin}/sosial#post-${postid}`;
-    if (navigator.share) { navigator.share({ url }); }
-    else { navigator.clipboard.writeText(url); alert(t.shareCopied); }
-  }
-
+  
   const S = {
     composeBox: {
       background: "var(--bg-panel)",
@@ -237,10 +231,6 @@ export default function SosialFeed({ embedded = false, currentUser: userProp = n
               >
                 <Image src={liked ? LikerKnappPaa : LikerKnappAv} alt="Lik" width={15} height={15} />
                 {p.likes} Liker
-              </button>
-              <button style={S.actionBtn} onClick={() => sharePost(p.postid)}>
-                <Image src={DelKnapp} alt="Del" width={15} height={15} />
-                Del
               </button>
             </div>
           </div>
