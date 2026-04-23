@@ -82,17 +82,6 @@ async function submitComment(postid) {
     loadPosts()
   }
 
-  function sharePost(postid) {
-    const url = `${window.location.origin}/sosial#post-${postid}`
-
-    if (navigator.share) {
-      navigator.share({ url })
-    } else {
-      navigator.clipboard.writeText(url)
-      alert("link copied")
-    }
-  }
-
   return (
     <div className="sosial-container">
       <h1>sosial</h1>
@@ -165,10 +154,6 @@ async function submitComment(postid) {
                   <Image src={LikerKnappAv} alt="Liker Av" width={24} height={24} className="test" />
                 </button>
               )}
-
-              <button onClick={() => sharePost(p.postid)}>
-                <Image src={DelKnapp} alt="Del" width={24} height={24} className="test"/>
-              </button>
 
             </div>
                 {showComments[p.postid] && (
