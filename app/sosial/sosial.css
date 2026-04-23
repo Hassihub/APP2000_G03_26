@@ -77,7 +77,7 @@ textarea {
 }
 
 /* Bilder i innlegg skaleres for å dekke hele bredden av post-kortet */
-.post img {
+.post-image {
   width: 100%;
   border-radius: 10px;
   margin-top: 10px;

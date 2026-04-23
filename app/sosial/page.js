@@ -310,6 +310,7 @@ function handleImageUploadChange(event) {
                 height={300}
                 unoptimized
                 style={{ width: "300px", height: "auto" }}
+                className="post-image"
               />
                )}
                <div className="post-header">
