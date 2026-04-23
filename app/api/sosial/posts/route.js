@@ -73,15 +73,18 @@ export async function GET() {
       SELECT 
         p.postid,
         p.userid,
+        u.username,
+        u.avatar,
         p.caption,
         p.timestamp,
         COUNT(l.likeid) AS likes,
         COALESCE(BOOL_OR(l.userid = $1), false) AS liked,
         MAX(pic.picture_url) AS image
       FROM posts p
+      JOIN users u ON p.userid = u.id
       LEFT JOIN post_liked l ON p.postid = l.postid
       LEFT JOIN post_pictures pic ON p.postid = pic.postid
-      GROUP BY p.postid, p.userid, p.caption, p.timestamp
+      GROUP BY p.postid, p.userid, u.username, u.avatar, p.caption, p.timestamp
       ORDER BY p.timestamp DESC
       `,
       [currentUserId]

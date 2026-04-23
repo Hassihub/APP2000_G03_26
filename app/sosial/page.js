@@ -290,6 +290,17 @@ function handleImageUploadChange(event) {
 
         return (
           <div key={p.postid} id={`post-${p.postid}`} className="post">
+            <div className="post-user">
+              <img
+                src={p.avatar || "/images/profilbilde.jpg"}
+                alt={p.username ? `${p.username} sitt profilbilde` : "Profilbilde"}
+                className="post-avatar"
+              />
+              <div className="post-user-info">
+                <strong>{p.username}</strong>
+                <small>{formatDate(p.timestamp)}</small>
+              </div>
+            </div>
             <p>{p.caption}</p>
               {p.image && (
               <Image
@@ -299,12 +310,10 @@ function handleImageUploadChange(event) {
                 height={300}
                 unoptimized
                 style={{ width: "300px", height: "auto" }}
+                className="post-image"
               />
                )}
                <div className="post-header">
-            <small>
-              {formatDate(p.timestamp)}
-            </small>
             </div>
             <div>likes: {p.likes}</div>
 
