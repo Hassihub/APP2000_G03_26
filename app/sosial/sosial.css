@@ -77,7 +77,7 @@ textarea {
 }
 
 /* Bilder i innlegg skaleres for å dekke hele bredden av post-kortet */
-.post img {
+.post-image {
   width: 100%;
   border-radius: 10px;
   margin-top: 10px;
@@ -131,6 +131,35 @@ textarea {
   border: none;
   background: #2a2a2a;
   color: white;
+}
+
+/* Rekkefølge og avstand for brukerinfo øverst i hvert innlegg */
+.post-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+/* Brukerbildet får rund form og lik størrelse for alle innlegg */
+.post-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Informasjon om brukeren i innlegget vises i en vertikal kolonne */
+.post-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Dato/brukerinfo i innlegg vises mindre og med lav kontrast */
+.post-user-info small {
+  font-size: 12px;
+  opacity: 0.7;
 }
 
 /* Mini-klasse for ikoner i knappene, justerer størrelse og posisjon (ser nå at jeg har glemt å endre navn, men vil ikke ødelegge koden)*/
