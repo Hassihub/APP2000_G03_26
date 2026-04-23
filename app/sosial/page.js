@@ -196,6 +196,23 @@ async function deletePost(postid) {
   }
 }
 
+function formatDate(timestamp) {
+  const d = new Date(timestamp)
+
+  const time = d.toLocaleTimeString("no-NO", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+
+  const date = d.toLocaleDateString("no-NO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+
+  return `${time} ${date.replace(/\./g, "-")}`
+}
+
 function handleImageUploadChange(event) {
   console.log("upload event:", event)
 
@@ -272,7 +289,7 @@ function handleImageUploadChange(event) {
                )}
                <div className="post-header">
             <small>
-              {new Date(p.timestamp).toISOString()}
+              {formatDate(p.timestamp)}
             </small>
             </div>
             <div>likes: {p.likes}</div>
