@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
 
+// Denne API-ruten håndterer registrering og trekking av interesse for fleksible turer.
+// POST: Registrerer ikke-bindende interesse
+// DELETE: Trekker interesse
+
+// Registrerer interesse for en fleksibel tur
 export async function POST(request, { params }) {
   const client = await pool.connect();
 
@@ -102,6 +107,7 @@ export async function POST(request, { params }) {
   }
 }
 
+// Trekker interesse for en fleksibel tur
 export async function DELETE(request, { params }) {
   const client = await pool.connect();
 

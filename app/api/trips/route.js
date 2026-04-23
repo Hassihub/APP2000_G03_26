@@ -3,6 +3,11 @@ import pool from "../../../lib/db";
 import { requireAuth, requireRole } from "../../../lib/auth";
 import { ROLE_ADMIN, ROLE_TURLEDER } from "../../../lib/roles";
 
+// Denne API-ruten håndterer opprettelse og henting av turer.
+// GET: Henter liste over turer med filtre
+// POST: Oppretter en ny tur og varsler admin om TiU-turer
+
+// Varsler admin-brukere om nye TiU-turer som trenger godkjenning
 async function notifyAdmins(client, tripId, tripNavn) {
   try {
     const adminsResult = await client.query(
@@ -37,6 +42,7 @@ async function notifyAdmins(client, tripId, tripNavn) {
 
 let tripCabinsTableReady = false;
 
+// Sikrer at trip_cabins-tabellen finnes for å knytte hytter til turer
 async function ensureTripCabinsTable(client) {
   if (tripCabinsTableReady) return;
 

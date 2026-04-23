@@ -1,6 +1,9 @@
 "use client";
 export const dynamic = "force-dynamic";
 
+// Denne siden viser utforskingssiden hvor brukere kan søke og filtrere turer.
+// Den laster turer fra API-et basert på søk, type, vanskelighetsgrad og Tiu-filter.
+
 import Image from "next/image";
 import { useCallback } from "react";
 import { Suspense } from "react";
@@ -29,6 +32,7 @@ function ExplorePage() {
   const [difficulty, setDifficulty] = useState("alle");
   const [onlyTiu, setOnlyTiu] = useState(false);
 
+  // Funksjon for å hente turer fra API med filtre
   const fetchTrips = useCallback(async () => {
     try {
       const params = new URLSearchParams({
@@ -50,10 +54,12 @@ function ExplorePage() {
     }
   }, [difficulty, onlyTiu, search, t.fetchError, type]);
 
+  // Henter turer når filtre endres
   useEffect(() => {
     fetchTrips();
   }, [fetchTrips]);
 
+  // Setter filtre fra URL-parametere ved lasting
   useEffect(() => {
     setSearch(searchParams.get("search") || "");
     setType(searchParams.get("type") || "alle");
@@ -61,6 +67,7 @@ function ExplorePage() {
     setOnlyTiu(searchParams.get("onlyTiu") === "true");
   }, [searchParams]);
 
+  // Returnerer UI for utforskingssiden
   return (
     <main className={styles.container}>
       <section className={styles.headerRow}>

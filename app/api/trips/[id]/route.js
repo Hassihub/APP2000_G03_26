@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import pool from "../../../../lib/db";
 import { getCurrentUser, requireAuth } from "../../../../lib/auth";
 
+// Denne API-ruten håndterer henting og sletting av spesifikke turer.
+// GET: Henter detaljer om en tur inkludert avgangsinformasjon
+// DELETE: Sletter en tur (kun for admin eller turleder)
+
+// Sikrer at turleder_user_id kolonnen finnes
 async function ensureTurlederUserIdColumn(client) {
   await client.query(`
     ALTER TABLE public.tiu_trips
@@ -22,6 +27,7 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
+// Henter detaljer om en spesifikk tur inkludert neste avgang
 export async function GET(request, { params }) {
   const client = await pool.connect();
 

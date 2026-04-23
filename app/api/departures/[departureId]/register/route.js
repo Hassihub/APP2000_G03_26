@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
 
+// Denne API-ruten håndterer påmelding til turavganger.
+// POST: Registrerer bruker for en avgang
+// DELETE: Avregistrerer bruker fra en avgang
+
+// Sikrer at turleder_user_id kolonnen finnes i tiu_trips tabellen
 async function ensureTurlederUserIdColumn(client) {
   await client.query(`
     ALTER TABLE public.tiu_trips
@@ -22,6 +27,7 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
+// Sikrer at user_notifications tabellen finnes for å sende varsler
 async function ensureUserNotificationsTable(client) {
   await client.query(`
     CREATE TABLE IF NOT EXISTS public.user_notifications (

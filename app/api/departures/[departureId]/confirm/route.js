@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
 
+// Denne API-ruten håndterer bekreftelse av turavganger.
+// POST: Bekrefter en avgang, gjør den bindende for påmeldte deltakere (kun for turleder eller admin)
+
+// Sikrer at turleder_user_id kolonnen finnes
 async function ensureTurlederUserIdColumn(client) {
   await client.query(`
     ALTER TABLE public.tiu_trips
@@ -22,6 +26,7 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
+// Bekrefter en turavgang og gjør den bindende
 export async function POST(request, context) {
   const client = await pool.connect();
 

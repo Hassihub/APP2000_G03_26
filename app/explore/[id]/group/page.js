@@ -1,5 +1,8 @@
 "use client";
 
+// Denne siden viser gruppechatten for en tur, hvor deltakere kan sende meldinger og bilder i realtid.
+// Bruker Server-Sent Events for å motta nye meldinger uten å refreshe siden.
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "./group.module.css";
@@ -8,6 +11,7 @@ export default function TripGroupPage() {
   const params = useParams();
   const router = useRouter();
 
+  // State for gruppedata, lasting, feil, melding, bildehåndtering
   const [groupData, setGroupData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -17,19 +21,23 @@ export default function TripGroupPage() {
   const [sending, setSending] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
 
+  // Referanser for filinput, meldingsbunn, og event source
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const eventSourceRef = useRef(null);
 
+  // Beregner siste melding-ID for streaming
   const lastMessageId = useMemo(() => {
     if (!groupData?.messages?.length) return 0;
     return Number(groupData.messages[groupData.messages.length - 1]?.id || 0);
   }, [groupData?.messages]);
 
+  // Skroller til bunnen av meldingslisten
   const scrollToBottom = useCallback((behavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
+  // Legger til ny melding hvis den ikke allerede finnes
   const appendMessageIfMissing = useCallback((incomingMessage) => {
     setGroupData((prev) => {
       if (!prev) return prev;

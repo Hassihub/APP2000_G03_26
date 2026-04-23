@@ -3,6 +3,10 @@ import { getCurrentUser } from "../../../../../../lib/auth";
 
 export const dynamic = "force-dynamic";
 
+// Denne filen håndterer streaming av gruppechat-meldinger for en tur ved hjelp av Server-Sent Events (SSE).
+// Den sender nye meldinger i realtid til klienten etter siste mottatte melding-ID.
+
+// Sikrer at nødvendige databasetabeller for gruppechat finnes
 async function ensureTripGroupTables(client) {
   await client.query(`
     CREATE TABLE IF NOT EXISTS public.trip_group_chats (
@@ -48,6 +52,7 @@ async function ensureTripGroupTables(client) {
   `);
 }
 
+// Sjekker om brukeren har tilgang til turgruppen (enten interessert eller påmeldt)
 async function userHasAccess(client, tripId, userId) {
   const result = await client.query(
     `
@@ -75,6 +80,7 @@ async function userHasAccess(client, tripId, userId) {
   return result.rowCount > 0;
 }
 
+// Sikrer at det finnes en gruppechat for turen, oppretter hvis ikke
 async function ensureChatForTrip(client, tripId) {
   let chatResult = await client.query(
     `
@@ -100,6 +106,7 @@ async function ensureChatForTrip(client, tripId) {
   return chatResult.rows[0];
 }
 
+// Henter meldinger etter en spesifikk melding-ID for å få nye meldinger
 async function getMessagesAfter(client, chatId, lastMessageId) {
   const result = await client.query(
     `
@@ -123,23 +130,28 @@ async function getMessagesAfter(client, chatId, lastMessageId) {
   return result.rows;
 }
 
+// Hovedfunksjon for GET-forespørsel: setter opp Server-Sent Events stream for gruppechat
 export async function GET(request, { params }) {
   const client = await pool.connect();
 
   try {
+    // Sikrer at databasetabeller finnes
     await ensureTripGroupTables(client);
 
+    // Henter nåværende bruker
     const user = await getCurrentUser();
 
     if (!user) {
       return new Response("Ikke innlogget", { status: 401 });
     }
 
+    // Validerer tur-ID
     const tripId = Number(params.id);
     if (!Number.isFinite(tripId)) {
       return new Response("Ugyldig tur-id", { status: 400 });
     }
 
+    // Sjekker tilgang til turgruppen
     const hasAccess = await userHasAccess(client, tripId, user.id);
     if (!hasAccess) {
       return new Response(
@@ -148,7 +160,9 @@ export async function GET(request, { params }) {
       );
     }
 
+    // Sikrer at gruppechat finnes for turen
     const chat = await ensureChatForTrip(client, tripId);
+    // Henter siste melding-ID fra query-parametere
     const { searchParams } = new URL(request.url);
     let lastMessageId = Number(searchParams.get("lastMessageId") || "0");
 
@@ -156,12 +170,15 @@ export async function GET(request, { params }) {
       lastMessageId = 0;
     }
 
+    // Setter opp TextEncoder for å sende data som tekst
     const encoder = new TextEncoder();
 
+    // Oppretter ReadableStream for Server-Sent Events
     const stream = new ReadableStream({
       start(controller) {
         let closed = false;
 
+        // Hjelpefunksjon for å sende events til klienten
         const send = (event, data) => {
           if (closed) return;
           controller.enqueue(
@@ -169,6 +186,7 @@ export async function GET(request, { params }) {
           );
         };
 
+        // Sender "ready" event for å bekrefte at streamen er startet
         send("ready", {
           ok: true,
           tripId,
@@ -176,29 +194,35 @@ export async function GET(request, { params }) {
           currentUserId: user.id,
         });
 
+        // Setter opp heartbeat for å holde forbindelsen åpen
         const heartbeat = setInterval(() => {
           send("ping", { ts: Date.now() });
         }, 20000);
 
+        // Poller for nye meldinger hver 1.5 sekund
         const poll = setInterval(async () => {
           if (closed) return;
 
           try {
+            // Henter nye meldinger etter siste ID
             const rows = await getMessagesAfter(client, chat.id, lastMessageId);
 
             if (rows.length > 0) {
               for (const row of rows) {
+                // Sender hver nye melding som event
                 send("message", row);
                 lastMessageId = Math.max(lastMessageId, Number(row.id));
               }
             }
           } catch (error) {
+            // Sender feil-event hvis noe går galt
             send("error", {
               message: error?.message || "Klarte ikke hente nye meldinger",
             });
           }
         }, 1500);
 
+        // Lytter på abort-signal for å rydde opp
         request.signal.addEventListener("abort", () => {
           closed = true;
           clearInterval(heartbeat);
@@ -210,12 +234,14 @@ export async function GET(request, { params }) {
         });
       },
       cancel() {
+        // Rydder opp databaseforbindelse ved kansellering
         try {
           client.release();
         } catch {}
       },
     });
 
+    // Returnerer Response med stream og riktige headers for SSE
     return new Response(stream, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
@@ -224,10 +250,12 @@ export async function GET(request, { params }) {
       },
     });
   } catch (error) {
+    // Rydder opp databaseforbindelse ved feil
     try {
       client.release();
     } catch {}
 
+    // Returnerer feilrespons
     return new Response(error?.message || "Kunne ikke starte stream", {
       status: 500,
     });

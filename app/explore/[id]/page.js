@@ -1,5 +1,8 @@
 "use client";
 
+// Denne siden viser detaljer om en spesifikk tur, inkludert bilder, kart, vær og muligheter for påmelding eller interesse.
+// Brukere kan også slette eller bekrefte avganger hvis de har rettigheter.
+
 import TripImageCarousel from "./TripImageCarousel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -10,16 +13,20 @@ import TripMap from "./TripMap";
 export default function TripDetailsPage() {
   const params = useParams();
   const router = useRouter();
+
+  // State for turdata, lasting og feil
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // State for handling av interesse eller påmelding
   const [actionState, setActionState] = useState({
     loading: false,
     message: "",
     error: "",
   });
 
+  // State for valg av dato og deltakere
   const [dateSelection, setDateSelection] = useState({
     dateOptionId: "",
     minParticipants: 1,
@@ -29,17 +36,20 @@ export default function TripDetailsPage() {
     message: "",
   });
 
+  // State for sletting av tur
   const [deleteState, setDeleteState] = useState({
     loading: false,
     error: "",
   });
 
+  // State for bekreftelse av avgang
   const [confirmState, setConfirmState] = useState({
     loading: false,
     error: "",
     message: "",
   });
 
+  // Henter turdetaljer fra API
   const fetchTrip = useCallback(async () => {
     try {
       setLoading(true);
@@ -63,12 +73,14 @@ export default function TripDetailsPage() {
     }
   }, [params?.id]);
 
+  // Henter tur når komponenten monteres eller ID endres
   useEffect(() => {
     if (params?.id) {
       fetchTrip();
     }
   }, [params?.id, fetchTrip]);
 
+  // Setter standard dato-valg basert på tilgjengelige alternativer
   useEffect(() => {
     if (!trip?.date_options?.length) return;
 
@@ -81,6 +93,7 @@ export default function TripDetailsPage() {
     }));
   }, [trip?.date_options]);
 
+  // Håndterer påmelding til turavgang
   const handleRegister = async () => {
     if (!trip?.departure_id) return;
 
@@ -119,6 +132,7 @@ export default function TripDetailsPage() {
     }
   };
 
+  // Håndterer avmelding fra bindende påmelding
   const handleWithdrawBinding = async () => {
     if (!trip?.departure_id) return;
 
@@ -156,6 +170,7 @@ export default function TripDetailsPage() {
     }
   };
 
+  // Håndterer registrering av ikke-bindende interesse for turen
   const handleInterest = async () => {
     setActionState({
       loading: true,
@@ -191,6 +206,7 @@ export default function TripDetailsPage() {
     }
   };
 
+  // Håndterer trekking av interesse
   const handleWithdrawInterest = async () => {
     setActionState({
       loading: true,
@@ -226,6 +242,7 @@ export default function TripDetailsPage() {
     }
   };
 
+  // Håndterer valg av dato for turen
   const handleSelectDate = async () => {
     if (!trip?.id || !dateSelection.dateOptionId) return;
 
@@ -278,6 +295,7 @@ export default function TripDetailsPage() {
     }
   };
 
+  // Håndterer bekreftelse av turavgang (kun for turleder eller admin)
   const handleConfirmDeparture = async () => {
     if (!trip?.departure_id) return;
 
@@ -315,6 +333,7 @@ export default function TripDetailsPage() {
     }
   };
 
+  // Håndterer sletting av turen (kun for admin eller turleder)
   const handleDeleteTrip = async () => {
     if (!trip?.id) return;
 

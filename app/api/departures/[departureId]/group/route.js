@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
 
+// Denne API-ruten håndterer henting av gruppechat for en turavgang.
+// GET: Henter chat-data og medlemmer for påmeldte deltakere
+
+// Sjekker om brukeren har tilgang til gruppechatten (må være bindende påmeldt)
 async function ensureAccess(client, departureId, userId) {
   const accessResult = await client.query(
     `
@@ -28,6 +32,7 @@ async function ensureAccess(client, departureId, userId) {
   return accessResult.rows[0] ?? null;
 }
 
+// Henter gruppechat-data for en avgang
 export async function GET(request, { params }) {
   const client = await pool.connect();
 
