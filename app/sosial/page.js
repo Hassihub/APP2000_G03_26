@@ -1,5 +1,9 @@
 "use client"
 
+// Koden er laget av Nikolai
+// Denne filen er frontend-siden for sosialfeedet, hvor brukere kan se, lage, like og kommentere innlegg.
+// Den bruker React hooks for state-håndtering og fetch for API-kall.
+
 import { useEffect, useState } from "react"
 import { SimpleFileUpload } from "simple-file-upload-react"
 import Image from "next/image"
@@ -10,6 +14,7 @@ import SlettKnapp from "./post_buttons/SlettKnapp.png"
 import "./sosial.css"
 
 export default function SosialPage() {
+  // State-variabler for å holde data om innlegg, kommentarer, osv.
   const [posts, setPosts] = useState([])
   const [caption, setCaption] = useState("")
   const [comments, setComments] = useState({})
@@ -20,6 +25,7 @@ export default function SosialPage() {
   const [uploadStatus, setUploadStatus] = useState("")
   const [uploaderKey, setUploaderKey] = useState(0)
 
+  // Funksjon for å laste innlegg fra API-et
 async function loadPosts() {
   try {
     const res = await fetch("/api/sosial/posts")
@@ -37,6 +43,7 @@ async function loadPosts() {
   }
 }
 
+  // Funksjon for å laste kommentarer for et spesifikt innlegg
 async function loadComments(postid) {
   try {
     const res = await fetch(`/api/sosial/comments?postid=${postid}`)
@@ -57,6 +64,7 @@ async function loadComments(postid) {
   }
 }
 
+  // Funksjon for å sende en ny kommentar til API-et
 async function submitComment(postid) {
   const text = newComment[postid]
   if (!text?.trim()) return
@@ -80,13 +88,15 @@ async function submitComment(postid) {
   loadComments(postid)
 }
 
+  // useEffect for å laste innlegg når komponenten monteres
   useEffect(() => {
     loadPosts()
   }, [])
 
+  // useEffect for å laste opp public key for filopplasting
  useEffect(() => {
   let alive = true
-
+// funksjon som kaller på SimpleFileUpload api'en for å laste opp bilder
   async function loadUploadPublicKey() {
     try {
       const res = await fetch("/api/simple-file-upload/public-key", {
@@ -121,10 +131,9 @@ async function submitComment(postid) {
   }
 }, [])
 
+  // Funksjon for å sende et nytt innlegg til API-et
 async function submitPost() {
   if (!caption.trim()) return
-
-  console.log("Submitting post with imageUrl:", imageUrl)
 
   const res = await fetch("/api/sosial/posts", {
     method: "POST",
@@ -150,6 +159,7 @@ async function submitPost() {
   loadPosts()
 }
 
+  // Funksjon for å toggle like-status på et innlegg
 async function toggleLike(postid) {
   try {
     const res = await fetch("/api/sosial/likes", {
@@ -171,6 +181,7 @@ async function toggleLike(postid) {
   }
 }
 
+  // Funksjon for å slette et innlegg
 async function deletePost(postid) {
   try {
     const res = await fetch("/api/sosial/posts", {
@@ -196,6 +207,7 @@ async function deletePost(postid) {
   }
 }
 
+  // Funksjon for å formatere dato og tid
 function formatDate(timestamp) {
   const d = new Date(timestamp)
 
@@ -213,6 +225,7 @@ function formatDate(timestamp) {
   return `${time} ${date.replace(/\./g, "-")}`
 }
 
+  // Funksjon for å håndtere bildeopplasting
 function handleImageUploadChange(event) {
   console.log("upload event:", event)
 
@@ -239,6 +252,7 @@ function handleImageUploadChange(event) {
   setUploadStatus("Bilde lastet opp.")
 }
 
+  // JSX for å vise komponentene
   return (
     <div className="sosial-container">
       <h1>sosial</h1>
