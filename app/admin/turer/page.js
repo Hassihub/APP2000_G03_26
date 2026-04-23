@@ -295,6 +295,29 @@ export default function AdminTripsPage() {
         });
 
         map.fitBounds(getBounds(selectedLatLngs), { padding: [24, 24] });
+
+        // Hyttemarkører
+        const cabins = selectedRoute?.cabins ?? selectedTiuTrip?.cabins ?? [];
+        cabins.forEach((cabin) => {
+          const lat = parseFloat(cabin.latitude);
+          const lng = parseFloat(cabin.longitude);
+          if (!lat || !lng) return;
+
+          const cabinIcon = L.divIcon({
+            className: "",
+            html: `
+              <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="background:#7c3aed;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.3);max-width:120px;overflow:hidden;text-overflow:ellipsis">${cabin.name}</div>
+                <div style="width:12px;height:12px;background:#7c3aed;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>
+              </div>`,
+            iconAnchor: [30, 28],
+          });
+
+          L.marker([lat, lng], { icon: cabinIcon })
+            .bindPopup(`<b>${cabin.name}</b><br>${cabin.location ?? ""}`)
+            .addTo(routeLayer);
+        });
+
         return;
       }
 

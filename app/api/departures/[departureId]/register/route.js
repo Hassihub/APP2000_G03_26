@@ -2,7 +2,102 @@ import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
 
-export async function POST(request, { params }) {
+async function ensureTurlederUserIdColumn(client) {
+  await client.query(`
+    ALTER TABLE public.tiu_trips
+    ADD COLUMN IF NOT EXISTS turleder_user_id UUID NULL
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_tiu_trips_turleder_user_id
+    ON public.tiu_trips (turleder_user_id)
+  `);
+
+  await client.query(`
+    UPDATE public.tiu_trips tt
+    SET turleder_user_id = u.id
+    FROM public.users u
+    WHERE tt.turleder_user_id IS NULL
+      AND u.username = tt.turleder_navn
+  `);
+}
+
+async function ensureUserNotificationsTable(client) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS public.user_notifications (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      reference_id TEXT,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      action_url TEXT,
+      metadata JSONB,
+      is_read BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      read_at TIMESTAMPTZ
+    )
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created
+    ON public.user_notifications (user_id, created_at DESC)
+  `);
+
+  await client.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_user_notifications_reference
+    ON public.user_notifications (user_id, type, reference_id)
+    WHERE reference_id IS NOT NULL
+  `);
+}
+
+async function sendLeaderNotificationBestEffort({
+  tripId,
+  departureId,
+  recipientUserId,
+  actorUserId,
+  actorUsername,
+}) {
+  if (!recipientUserId || String(recipientUserId) === String(actorUserId)) {
+    return;
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await ensureUserNotificationsTable(client);
+
+    await client.query(
+      `
+      INSERT INTO public.user_notifications
+        (user_id, type, reference_id, title, message, action_url, metadata)
+      VALUES
+        ($1, $2, $3, $4, $5, $6, $7::jsonb)
+      ON CONFLICT DO NOTHING
+      `,
+      [
+        String(recipientUserId),
+        "trip_binding_signup",
+        `trip:${tripId}:departure:${departureId}:signup:${actorUserId}`,
+        "Ny bindende påmelding",
+        `${actorUsername} meldte seg bindende på turen.`,
+        `/explore/${tripId}`,
+        JSON.stringify({
+          trip_id: tripId,
+          departure_id: departureId,
+          actor_user_id: actorUserId,
+          actor_username: actorUsername,
+        }),
+      ]
+    );
+  } catch (error) {
+    console.error("Notification insert error:", error);
+  } finally {
+    client.release();
+  }
+}
+
+export async function POST(request, context) {
   const client = await pool.connect();
 
   try {
@@ -11,8 +106,11 @@ export async function POST(request, { params }) {
       return response;
     }
 
+    await ensureTurlederUserIdColumn(client);
+
+    const { departureId: departureIdParam } = await context.params;
     const userId = user.id;
-    const departureId = Number(params.departureId);
+    const departureId = Number(departureIdParam);
 
     if (!Number.isFinite(departureId)) {
       return NextResponse.json(
@@ -50,10 +148,30 @@ export async function POST(request, { params }) {
 
     const departure = departureResult.rows[0];
 
+    const leaderResult = await client.query(
+      `
+      SELECT turleder_user_id
+      FROM public.tiu_trips
+      WHERE trip_id = $1
+      LIMIT 1
+      `,
+      [departure.trip_id]
+    );
+
+    const turlederUserId = leaderResult.rows[0]?.turleder_user_id ?? null;
+
     if (departure.status === "cancelled") {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Avgangen er avlyst" },
+        { status: 400 }
+      );
+    }
+
+    if (departure.status === "confirmed") {
+      await client.query("ROLLBACK");
+      return NextResponse.json(
+        { error: "Turen er allerede bekreftet" },
         { status: 400 }
       );
     }
@@ -163,25 +281,24 @@ export async function POST(request, { params }) {
     );
 
     const bindingCount = countResult.rows[0].binding_count;
-    const shouldConfirm = bindingCount >= departure.min_participants;
-
-    if (shouldConfirm && departure.status === "open") {
-      await client.query(
-        `
-        UPDATE public.trip_departures
-        SET status = 'confirmed'
-        WHERE id = $1
-        `,
-        [departureId]
-      );
-    }
+    const readyToConfirm = bindingCount >= departure.min_participants;
 
     await client.query("COMMIT");
+
+    await sendLeaderNotificationBestEffort({
+      tripId: departure.trip_id,
+      departureId,
+      recipientUserId: turlederUserId,
+      actorUserId: userId,
+      actorUsername: user.username,
+    });
 
     return NextResponse.json(
       {
         success: true,
-        message: "Bindende påmelding registrert",
+        message: readyToConfirm
+          ? "Bindende påmelding registrert. Turen er klar til å bekreftes av turleder."
+          : "Bindende påmelding registrert",
         departure: {
           id: departure.id,
           trip_id: departure.trip_id,
@@ -189,10 +306,10 @@ export async function POST(request, { params }) {
           end_time: departure.end_time,
           min_participants: departure.min_participants,
           max_participants: departure.max_participants,
-          status: shouldConfirm ? "confirmed" : departure.status,
+          status: departure.status,
         },
         binding_count: bindingCount,
-        confirmed: shouldConfirm,
+        ready_to_confirm: readyToConfirm,
       },
       { status: 200 }
     );
@@ -206,7 +323,10 @@ export async function POST(request, { params }) {
     console.error("Register API error:", error);
 
     return NextResponse.json(
-      { error: "Kunne ikke registrere bindende påmelding" },
+      {
+        error: "Kunne ikke registrere bindende påmelding",
+        details: error?.message || "Ukjent feil",
+      },
       { status: 500 }
     );
   } finally {
@@ -214,7 +334,7 @@ export async function POST(request, { params }) {
   }
 }
 
-export async function DELETE(request, { params }) {
+export async function DELETE(request, context) {
   const client = await pool.connect();
 
   try {
@@ -223,7 +343,8 @@ export async function DELETE(request, { params }) {
       return response;
     }
 
-    const departureId = Number(params.departureId);
+    const { departureId: departureIdParam } = await context.params;
+    const departureId = Number(departureIdParam);
 
     if (!Number.isFinite(departureId)) {
       return NextResponse.json(

@@ -29,6 +29,17 @@ export default function TripDetailsPage() {
     message: "",
   });
 
+  const [deleteState, setDeleteState] = useState({
+    loading: false,
+    error: "",
+  });
+
+  const [confirmState, setConfirmState] = useState({
+    loading: false,
+    error: "",
+    message: "",
+  });
+
   const fetchTrip = useCallback(async () => {
     try {
       setLoading(true);
@@ -98,6 +109,7 @@ export default function TripDetailsPage() {
       });
 
       await fetchTrip();
+      window.dispatchEvent(new Event("ff-notifications-updated"));
     } catch (err) {
       setActionState({
         loading: false,
@@ -255,6 +267,7 @@ export default function TripDetailsPage() {
       }));
 
       await fetchTrip();
+      window.dispatchEvent(new Event("ff-notifications-updated"));
     } catch (err) {
       setDateSelection((prev) => ({
         ...prev,
@@ -262,6 +275,78 @@ export default function TripDetailsPage() {
         error: err.message || "Noe gikk galt",
         message: "",
       }));
+    }
+  };
+
+  const handleConfirmDeparture = async () => {
+    if (!trip?.departure_id) return;
+
+    setConfirmState({
+      loading: true,
+      error: "",
+      message: "",
+    });
+
+    try {
+      const res = await fetch(`/api/departures/${trip.departure_id}/confirm`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Kunne ikke bekrefte turen");
+      }
+
+      setConfirmState({
+        loading: false,
+        error: "",
+        message: data?.message || "Turen er bekreftet",
+      });
+
+      await fetchTrip();
+    } catch (err) {
+      setConfirmState({
+        loading: false,
+        error: err.message || "Noe gikk galt",
+        message: "",
+      });
+    }
+  };
+
+  const handleDeleteTrip = async () => {
+    if (!trip?.id) return;
+
+    const confirmed = window.confirm(
+      `Er du sikker på at du vil slette turen "${trip.navn}"? Dette kan ikke angres.`
+    );
+
+    if (!confirmed) return;
+
+    setDeleteState({
+      loading: true,
+      error: "",
+    });
+
+    try {
+      const res = await fetch(`/api/trips/${trip.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Kunne ikke slette tur");
+      }
+
+      router.push("/explore");
+    } catch (err) {
+      setDeleteState({
+        loading: false,
+        error: err.message || "Noe gikk galt",
+      });
     }
   };
 
@@ -287,6 +372,9 @@ export default function TripDetailsPage() {
     Array.isArray(trip?.date_options) &&
     trip.date_options.length > 0 &&
     !trip?.departure_id;
+
+  const canDeleteTrip = trip?.is_trip_admin === true;
+  const canConfirmDeparture = trip?.can_confirm_departure === true;
 
   const selectedDateLabel = useMemo(() => {
     if (!trip?.date_options?.length) return null;
@@ -370,7 +458,7 @@ export default function TripDetailsPage() {
           {trip.geometry && (
             <section className={styles.section}>
               <h2>Rute</h2>
-              <TripMap geometry={trip.geometry} />
+              <TripMap geometry={trip.geometry} cabins={trip.cabins ?? []} />
             </section>
           )}
 
@@ -533,11 +621,40 @@ export default function TripDetailsPage() {
                     <strong>Status:</strong> {trip.departure_status}
                   </p>
                 )}
+                <p>
+                  <strong>Bindende påmeldte:</strong> {trip.binding_count ?? 0} /{" "}
+                  {trip.min_participants ?? 0} minimum
+                </p>
               </>
             ) : (
               <p>Ingen planlagt avgang enda.</p>
             )}
           </section>
+
+          {trip.is_trip_admin && trip.binding_registrations?.length > 0 && (
+            <section className={styles.section}>
+              <h2>Bindende påmeldte</h2>
+              <ul style={{ paddingLeft: 18, margin: 0 }}>
+                {trip.binding_registrations.map((person) => (
+                  <li key={person.id} style={{ marginBottom: 10 }}>
+                    <strong>{person.username}</strong>
+                    <div style={{ color: "#374151" }}>{person.email}</div>
+                    <div style={{ fontSize: "0.9rem", color: "#6b7280", marginTop: 2 }}>
+                      Meldte seg på: {new Date(person.registered_at).toLocaleString("no-NO")}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {confirmState.message && (
+            <p className={styles.successMessage}>{confirmState.message}</p>
+          )}
+
+          {confirmState.error && (
+            <p className={styles.errorMessage}>{confirmState.error}</p>
+          )}
 
           {actionState.message && (
             <p className={styles.successMessage}>{actionState.message}</p>
@@ -545,6 +662,10 @@ export default function TripDetailsPage() {
 
           {actionState.error && (
             <p className={styles.errorMessage}>{actionState.error}</p>
+          )}
+
+          {deleteState.error && (
+            <p className={styles.errorMessage}>{deleteState.error}</p>
           )}
 
           <div className={styles.actions}>
@@ -606,11 +727,35 @@ export default function TripDetailsPage() {
               </button>
             )}
 
+            {canConfirmDeparture && (
+              <button
+                className={styles.confirmButton}
+                onClick={handleConfirmDeparture}
+                disabled={confirmState.loading}
+                type="button"
+              >
+                {confirmState.loading ? "Bekrefter..." : "Bekreft tur"}
+              </button>
+            )}
+
+            {canDeleteTrip && (
+              <button
+                className={styles.deleteButton}
+                onClick={handleDeleteTrip}
+                disabled={deleteState.loading}
+                type="button"
+              >
+                {deleteState.loading ? "Sletter..." : "Slett tur"}
+              </button>
+            )}
+
             {!canExpressInterest &&
               !trip?.can_withdraw_interest &&
               !canRegisterBinding &&
               !trip?.can_withdraw_binding &&
-              !canShowGroupButton && (
+              !canShowGroupButton &&
+              !canConfirmDeparture &&
+              !canDeleteTrip && (
                 <p className={styles.noDeparture}>
                   Det finnes ingen aktiv avgang eller åpen interesserunde akkurat nå.
                 </p>
