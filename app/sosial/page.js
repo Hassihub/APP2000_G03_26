@@ -124,8 +124,6 @@ async function submitComment(postid) {
 async function submitPost() {
   if (!caption.trim()) return
 
-  console.log("Submitting post with imageUrl:", imageUrl)
-
   const res = await fetch("/api/sosial/posts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -136,7 +134,6 @@ async function submitPost() {
   })
 
   const data = await res.json().catch(() => ({}))
-  console.log("submit response:", data)
 
   if (!res.ok) {
     console.error("Post creation failed:", data.error || data)
@@ -197,8 +194,6 @@ async function deletePost(postid) {
 }
 
 function handleImageUploadChange(event) {
-  console.log("upload event:", event)
-
   const files = Array.isArray(event?.allFiles)
     ? event.allFiles
     : event?.file
@@ -210,8 +205,6 @@ function handleImageUploadChange(event) {
     files[0]?.url ||
     event?.cdnUrl ||
     ""
-
-  console.log("resolved firstUrl:", firstUrl)
 
   if (!firstUrl) {
     setUploadStatus("Fant ikke bilde-URL etter opplasting.")

@@ -137,8 +137,6 @@ export async function POST(req) {
     const postid = result.rows[0].postid;
 
     if (imageUrl) {
-      console.log("POST /api/sosial/posts body:", { caption, imageUrl, userid })
-    //feilsøking
       await pool.query(
         `
         INSERT INTO post_pictures (postid, picture_url)

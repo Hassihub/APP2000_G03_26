@@ -3,10 +3,6 @@ import "./globals.css";
 import AppShell from "./components/AppShell";
 import { LanguageProvider } from "./components/LanguageProvider";
 import CookieBanner from "./components/CookieBanner";
-// ResetBanner er en "use client"-komponent og må importeres separat.
-// layout.js er en Server Component og kan ikke selv inneholde onClick eller useState.
-// Ved å flytte knappen til ResetBanner.js kan den ha interaktivitet
-// mens layout.js forblir en Server Component (raskere lasting).
 import ResetBanner from "./components/ResetBanner";
 
 const geistSans = Geist({

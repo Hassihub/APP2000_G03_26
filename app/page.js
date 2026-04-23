@@ -600,11 +600,3 @@ function Category({ icon, label, link }) {
   );
 }
 
-function CategoryBtn({ icon, label, onClick }) {
-  return (
-    <button onClick={onClick} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", fontFamily: "inherit", padding: 0 }}>
-      {icon}
-      <span style={{ fontWeight: 600 }}>{label}</span>
-    </button>
-  );
-}
