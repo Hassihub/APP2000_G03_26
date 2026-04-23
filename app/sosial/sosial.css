@@ -143,7 +143,11 @@ textarea {
 
 /* Brukerbildet får rund form og lik størrelse for alle innlegg */
 .post-avatar {
-  border: 5px solid red;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
 }
 
 /* Informasjon om brukeren i innlegget vises i en vertikal kolonne */
