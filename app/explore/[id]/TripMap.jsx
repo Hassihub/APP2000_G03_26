@@ -38,7 +38,7 @@ export default function TripMap({ geometry, cabins = [] }) {
 
       Leaflet.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-      // Maskelaget — addMaskLayer kaller fitBounds til Norge, så vi re-fitter til ruten etterpå
+      // Maskelaget — addMaskLayer kaller fitBounds til Utopia, så vi re-fitter til ruten etterpå
       const { addMaskLayer } = await import("../../components/map/maskLayer");
       await addMaskLayer(map, Leaflet);
 

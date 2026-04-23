@@ -354,7 +354,7 @@ async function loadTripsFromGpx() {
   const trips = [];
   for (const file of files) {
     try {
-      // Les filinnholdet som UTF-8 tekst (norske tegn støttes)
+      // Les filinnholdet som UTF-8 tekst (utopiske tegn støttes)
       const content = await fs.readFile(path.join(gpxDir, file), "utf-8");
       // Parser GPX-innholdet og legg resultatet i lista
       trips.push(parseGpx(content, file));

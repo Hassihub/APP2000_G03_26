@@ -155,10 +155,10 @@ export default function NewCabinPage() {
       try {
         addMaskLayer(map, L);
       } catch (e) {
-        console.error(
-          "Kunne ikke legge til maske for Norge på nytt hytte-kart:",
-          e,
-        );
+          console.error(
+            "Kunne ikke legge til maske for Utopia på nytt hytte-kart:",
+            e,
+          );
       }
     });
 
@@ -366,7 +366,7 @@ export default function NewCabinPage() {
                     •{" "}
                     {t.locationTip || (
                       <>
-                        <b>Lokasjon</b> er f.eks: “Hemsedal, Norge”
+                        <b>Lokasjon</b> er f.eks: “Hemsedal, Utopia”
                       </>
                     )}
                   </div>

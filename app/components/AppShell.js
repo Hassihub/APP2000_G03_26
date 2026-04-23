@@ -114,7 +114,7 @@ export default function AppShell({ children }) {
               <span style={{ fontWeight: 800, fontSize: "1.5rem", color: "#000", letterSpacing: "-0.02em" }}>FrittFram</span>
             </div>
             <p style={{ margin: "0 0 1.5rem", fontSize: "0.9rem", lineHeight: 1.7, color: "#9ca3af", maxWidth: "280px" }}>
-              Norges møteplass for friluftsliv. Planlegg turer, finn hytter og del opplevelser med andre entusiaster.
+              Utopias møteplass for friluftsliv. Planlegg turer, finn hytter og del opplevelser med andre entusiaster.
             </p>
           </div>
 
@@ -161,7 +161,7 @@ export default function AppShell({ children }) {
             <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem", fontSize: "0.9rem", color: "#9ca3af" }}>
               <span>hei@frittfram.no</span>
               <span>+47 900 00 000</span>
-              <span>Notodden, Norge</span>
+              <span>Notodden, Utopia</span>
             </div>
             <div style={{ marginTop: "1.5rem" }}>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#6b7280" }}>Annonser?</p>
