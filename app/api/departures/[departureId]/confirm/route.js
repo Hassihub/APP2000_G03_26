@@ -22,6 +22,18 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
+  async function ensureCabinStayBindingColumns(client) {
+    await client.query(`
+      ALTER TABLE public.cabin_stay_requests
+      ADD COLUMN IF NOT EXISTS binding_decision TEXT NOT NULL DEFAULT 'pending'
+    `);
+
+    await client.query(`
+      ALTER TABLE public.cabin_stay_requests
+      ADD COLUMN IF NOT EXISTS binding_beds INTEGER
+    `);
+  }
+
 export async function POST(request, context) {
   const client = await pool.connect();
 
@@ -123,6 +135,68 @@ export async function POST(request, context) {
         },
         { status: 400 }
       );
+    }
+
+    const stayTableExistsResult = await client.query(
+      `SELECT to_regclass('public.cabin_stay_requests') IS NOT NULL AS exists`
+    );
+
+    const stayTableExists = stayTableExistsResult.rows[0]?.exists === true;
+
+    if (stayTableExists) {
+      await ensureCabinStayBindingColumns(client);
+
+      const bedsSummaryResult = await client.query(
+        `
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'approved')::int AS approved_count,
+          COUNT(*) FILTER (
+            WHERE status = 'approved'
+              AND COALESCE(binding_decision, 'pending') = 'pending'
+          )::int AS pending_owner_count,
+          COALESCE(
+            SUM(
+              CASE
+                WHEN status = 'approved'
+                  AND COALESCE(binding_decision, 'pending') = 'confirmed'
+                THEN COALESCE(binding_beds, approved_beds, requested_beds, 0)
+                ELSE 0
+              END
+            ),
+            0
+          )::int AS confirmed_beds
+        FROM public.cabin_stay_requests
+        WHERE trip_id = $1
+        `,
+        [departure.trip_id]
+      );
+
+      const bedsSummary = bedsSummaryResult.rows[0] || {};
+      const approvedCount = Number(bedsSummary.approved_count || 0);
+      const pendingOwnerCount = Number(bedsSummary.pending_owner_count || 0);
+      const confirmedBeds = Number(bedsSummary.confirmed_beds || 0);
+
+      if (approvedCount > 0 && pendingOwnerCount > 0) {
+        await client.query("ROLLBACK");
+        return NextResponse.json(
+          {
+            error: "Hytteeiere må bekrefte eller trekke bindende sengeplasser før turen kan bekreftes",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (approvedCount > 0 && confirmedBeds < bindingCount) {
+        await client.query("ROLLBACK");
+        return NextResponse.json(
+          {
+            error: "Ikke nok bekreftede sengeplasser til antall bindende påmeldte",
+            binding_count: bindingCount,
+            confirmed_beds: confirmedBeds,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     await client.query(

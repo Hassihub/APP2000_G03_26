@@ -23,6 +23,12 @@ function statusLabel(status) {
   return "Venter";
 }
 
+function tiuStatusLabel(status) {
+  if (status === "approved") return "Kapasitet registrert";
+  if (status === "rejected") return "Kan ikke ta imot";
+  return "Venter svar";
+}
+
 function statusClass(status) {
   if (status === "approved") return styles.approved;
   if (status === "rejected") return styles.rejected;
@@ -61,6 +67,8 @@ export default function CabinStayRequestsPage() {
   const [outgoing, setOutgoing] = useState([]);
   const [decisionLoadingId, setDecisionLoadingId] = useState(null);
   const [ownerResponseById, setOwnerResponseById] = useState({});
+  const [approvedBedsById, setApprovedBedsById] = useState({});
+  const [bindingBedsById, setBindingBedsById] = useState({});
   const [approvalDatesById, setApprovalDatesById] = useState({});
   const [notice, setNotice] = useState({ type: "", message: "" });
 
@@ -119,7 +127,7 @@ export default function CabinStayRequestsPage() {
     loadRequests();
   }, []);
 
-  async function decideRequest(requestId, decision) {
+  async function decideRequest(requestId, decision, options = {}) {
     if (!requestId) return;
 
     setDecisionLoadingId(requestId);
@@ -130,6 +138,11 @@ export default function CabinStayRequestsPage() {
       const approvalDates = approvalDatesById[requestId] || {};
       const requestedStart = String(approvalDates.requested_start || "").trim();
       const requestedEnd = String(approvalDates.requested_end || "").trim();
+      const approvedBedsRaw = String(approvedBedsById[requestId] ?? "").trim();
+      const approvedBeds = approvedBedsRaw === "" ? null : Number(approvedBedsRaw);
+      const bindingBedsRaw = String(bindingBedsById[requestId] ?? "").trim();
+      const bindingBeds = bindingBedsRaw === "" ? null : Number(bindingBedsRaw);
+      const bindingDecision = options.bindingDecision || null;
 
       const res = await fetch("/api/cabin-stay-requests", {
         method: "PATCH",
@@ -141,6 +154,9 @@ export default function CabinStayRequestsPage() {
           ownerResponse: ownerResponse || null,
           requested_start: requestedStart || null,
           requested_end: requestedEnd || null,
+          approved_beds: Number.isFinite(approvedBeds) ? approvedBeds : null,
+          binding_beds: Number.isFinite(bindingBeds) ? bindingBeds : null,
+          bindingDecision,
         }),
       });
 
@@ -152,7 +168,11 @@ export default function CabinStayRequestsPage() {
 
       setNotice({
         type: "success",
-        message: `Foresporsel ${decision === "approve" ? "godkjent" : "avslatt"}.`,
+        message: bindingDecision === "confirm"
+          ? "Bindende sengeplasser bekreftet."
+          : bindingDecision === "withdraw"
+            ? "Bindende sengeplasser trukket."
+            : `${decision === "approve" ? "Kapasitet registrert (ikke-bindende)." : "Meldt at hytten ikke kan ta imot."}`,
       });
 
       await loadRequests();
@@ -162,6 +182,16 @@ export default function CabinStayRequestsPage() {
         return next;
       });
       setApprovalDatesById((prev) => {
+        const next = { ...prev };
+        delete next[requestId];
+        return next;
+      });
+      setApprovedBedsById((prev) => {
+        const next = { ...prev };
+        delete next[requestId];
+        return next;
+      });
+      setBindingBedsById((prev) => {
         const next = { ...prev };
         delete next[requestId];
         return next;
@@ -232,7 +262,7 @@ export default function CabinStayRequestsPage() {
         <section className={styles.hero}>
           <p className={styles.kicker}>Overnattingsforesporsler</p>
           <h1>Administrer overnattinger</h1>
-          <p>Hytteeiere mottar og godkjenner foresporsler. Turledere ser statusen på sine foresporsler.</p>
+          <p>Hytteeiere svarer først ikke-bindende på kapasitet, og bekrefter senere bindende sengeplasser når dato er valgt.</p>
         </section>
 
         {notice.message && (
@@ -338,16 +368,18 @@ export default function CabinStayRequestsPage() {
                 <div className={styles.list}>
                   {incoming.map((item) => {
                     const isPending = item.status === "pending";
-                    const approvalDates = approvalDatesById[item.id] || {};
-                    const approvalStart = approvalDates.requested_start ?? String(item.requested_start || "").slice(0, 10);
-                    const approvalEnd = approvalDates.requested_end ?? String(item.requested_end || "").slice(0, 10);
+                    const isBindingPhase = item.status === "approved" && item.trip_planning_status === "binding_open";
+                    const bindingDecision = String(item.binding_decision || "pending").toLowerCase();
+                    const isBindingPending = isBindingPhase && bindingDecision === "pending";
+                    const approvedBedsValue = approvedBedsById[item.id] ?? String(item.requested_beds || "");
+                    const bindingBedsValue = bindingBedsById[item.id] ?? String(item.binding_beds || item.approved_beds || item.requested_beds || "");
                     const dateOptions = Array.isArray(item.trip_date_options) ? item.trip_date_options : [];
                     return (
                       <article key={item.id} className={styles.item}>
                         <div className={styles.itemTop}>
                           <h3>{item.cabin_name || "Hytte"}</h3>
                           <span className={`${styles.statusPill} ${statusClass(item.status)}`}>
-                            {statusLabel(item.status)}
+                            {tiuStatusLabel(item.status)}
                           </span>
                         </div>
 
@@ -384,47 +416,43 @@ export default function CabinStayRequestsPage() {
 
                         {isPending && (
                           <div className={styles.actionBlock}>
-                            <label htmlFor={`approval-start-${item.id}`}>Startdato ved godkjenning</label>
+                            <label htmlFor={`approved-beds-${item.id}`}>Antall sengeplasser du kan tilby (ikke-bindende)</label>
                             <input
-                              id={`approval-start-${item.id}`}
-                              type="date"
-                              value={approvalStart}
+                              id={`approved-beds-${item.id}`}
+                              type="number"
+                              min={1}
+                              max={Number.isFinite(Number(item.cabin_capacity)) ? Number(item.cabin_capacity) : undefined}
+                              value={approvedBedsValue}
                               onChange={(event) =>
-                                setApprovalDatesById((prev) => ({
+                                setApprovedBedsById((prev) => ({
                                   ...prev,
-                                  [item.id]: {
-                                    ...(prev[item.id] || {}),
-                                    requested_start: event.target.value,
-                                  },
+                                  [item.id]: event.target.value,
                                 }))
                               }
-                              placeholder="Velg startdato"
-                            />
-
-                            <label htmlFor={`approval-end-${item.id}`}>Sluttdato ved godkjenning</label>
-                            <input
-                              id={`approval-end-${item.id}`}
-                              type="date"
-                              value={approvalEnd}
-                              onChange={(event) =>
-                                setApprovalDatesById((prev) => ({
-                                  ...prev,
-                                  [item.id]: {
-                                    ...(prev[item.id] || {}),
-                                    requested_end: event.target.value,
-                                  },
-                                }))
-                              }
-                              placeholder="Velg sluttdato"
+                              placeholder="Antall sengeplasser"
                             />
                           </div>
                         )}
 
-                        {item.status === "approved" && (
+                        {item.status === "approved" && !isBindingPhase && (
                           <div className={styles.approvedBlock}>
                             <p className={styles.success}>
-                              ✓ Reservasjon opprettet: {item.approved_beds || item.requested_beds} sengeplasser
+                              ✓ Ikke-bindende kapasitet registrert: {item.approved_beds || item.requested_beds} sengeplasser
                             </p>
+                          </div>
+                        )}
+
+                        {isBindingPhase && (
+                          <div className={styles.approvedBlock}>
+                            <p className={styles.success}>
+                              Turen er i bindende fase.
+                            </p>
+                            <p className={styles.meta}>
+                              Bindende status: {bindingDecision === "confirmed" ? "Bekreftet" : bindingDecision === "withdrawn" ? "Trukket" : "Venter svar"}
+                            </p>
+                            {bindingDecision === "confirmed" && (
+                              <p className={styles.meta}>Bindende sengeplasser: {item.binding_beds || item.approved_beds || item.requested_beds}</p>
+                            )}
                           </div>
                         )}
 
@@ -456,14 +484,63 @@ export default function CabinStayRequestsPage() {
                                 onClick={() => decideRequest(item.id, "approve")}
                                 disabled={decisionLoadingId === item.id}
                               >
-                                Godta
+                                Meld kapasitet (ikke-bindende)
                               </button>
                               <button
                                 className={styles.btnReject}
                                 onClick={() => decideRequest(item.id, "reject")}
                                 disabled={decisionLoadingId === item.id}
                               >
-                                Avsla
+                                Kan ikke ta imot
+                              </button>
+                            </div>
+                          </div>
+                        ) : isBindingPending ? (
+                          <div className={styles.actionBlock}>
+                            <label htmlFor={`binding-beds-${item.id}`}>Bindende sengeplasser</label>
+                            <input
+                              id={`binding-beds-${item.id}`}
+                              type="number"
+                              min={1}
+                              max={Number.isFinite(Number(item.cabin_capacity)) ? Number(item.cabin_capacity) : undefined}
+                              value={bindingBedsValue}
+                              onChange={(event) =>
+                                setBindingBedsById((prev) => ({
+                                  ...prev,
+                                  [item.id]: event.target.value,
+                                }))
+                              }
+                              placeholder="Antall bindende plasser"
+                            />
+
+                            <label htmlFor={`owner-response-binding-${item.id}`}>Svar til turleder (valgfritt)</label>
+                            <textarea
+                              id={`owner-response-binding-${item.id}`}
+                              rows={2}
+                              value={ownerResponseById[item.id] ?? ""}
+                              onChange={(event) =>
+                                setOwnerResponseById((prev) => ({
+                                  ...prev,
+                                  [item.id]: event.target.value,
+                                }))
+                              }
+                              placeholder="Kort svar om bindende kapasitet"
+                            />
+
+                            <div className={styles.buttons}>
+                              <button
+                                className={styles.btnApprove}
+                                onClick={() => decideRequest(item.id, "approve", { bindingDecision: "confirm" })}
+                                disabled={decisionLoadingId === item.id}
+                              >
+                                Bekreft bindende
+                              </button>
+                              <button
+                                className={styles.btnReject}
+                                onClick={() => decideRequest(item.id, "approve", { bindingDecision: "withdraw" })}
+                                disabled={decisionLoadingId === item.id}
+                              >
+                                Trekk bindende
                               </button>
                             </div>
                           </div>
@@ -524,8 +601,16 @@ export default function CabinStayRequestsPage() {
                       {item.status === "approved" && (
                         <div className={styles.approvedBlock}>
                           <p className={styles.success}>
-                            ✓ Reservasjon opprettet: {item.approved_beds || item.requested_beds} sengeplasser
+                            ✓ Ikke-bindende kapasitet registrert: {item.approved_beds || item.requested_beds} sengeplasser
                           </p>
+                          {String(item.trip_planning_status || "") === "binding_open" && (
+                            <p className={styles.meta}>
+                              Bindende status hos hytteeier: {String(item.binding_decision || "pending") === "confirmed" ? "Bekreftet" : String(item.binding_decision || "pending") === "withdrawn" ? "Trukket" : "Venter svar"}
+                              {String(item.binding_decision || "pending") === "confirmed"
+                                ? ` (${item.binding_beds || item.approved_beds || item.requested_beds} plasser)`
+                                : ""}
+                            </p>
+                          )}
                         </div>
                       )}
 
