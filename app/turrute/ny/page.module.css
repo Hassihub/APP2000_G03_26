@@ -64,6 +64,10 @@
   min-width: 0;
 }
 
+.mainFull {
+  grid-column: span 12;
+}
+
 .side {
   grid-column: span 12;
   display: grid;
@@ -122,6 +126,10 @@
 
 .mapWrap {
   position: relative;
+}
+
+.mapWrapLegacy {
+  width: 100%;
 }
 
 .modeOverlay {
@@ -309,6 +317,7 @@
   overflow: auto;
   display: grid;
   gap: 0.5rem;
+  padding-right: 0.25rem;
 }
 
 .ownerActions {
@@ -316,7 +325,11 @@
   gap: 0.45rem;
 }
 
-.ownerActions .btn {
+.ownerActions .btn,
+.ownerActions .btnAlt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   text-decoration: none;
 }
@@ -340,6 +353,30 @@
 .cabinInfo {
   display: grid;
   gap: 0.2rem;
+}
+
+.requestInputRow {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+
+.requestInputRow label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #35594c;
+}
+
+.requestInputRow input {
+  width: 100%;
+  max-width: 180px;
+  border: 1px solid #c6d8d0;
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.88rem;
+  font-family: inherit;
+  background: #ffffff;
+  color: #16352c;
 }
 
 .cabinName {
@@ -382,8 +419,16 @@
     grid-column: span 8;
   }
 
+  .mainFull {
+    grid-column: span 12;
+  }
+
   .side {
     grid-column: span 4;
+  }
+
+  .mapWrapLegacy {
+    max-width: calc((100% - 11rem) * 0.6666667 + 7rem);
   }
 }
 
@@ -406,7 +451,7 @@
     width: 100%;
   }
 
-  .modeButtons > button {
+  .modeButtons > * {
     flex: 1;
   }
 

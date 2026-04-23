@@ -434,7 +434,7 @@ export default function BookingClient() {
       if (!res.ok)
         throw new Error(json?.error || "Kunne ikke opprette reservasjon.");
 
-      setOk("✅ Reservasjon opprettet!");
+      setOk("✅ Bookingforespørsel sendt. Venter på godkjenning fra hytteeier.");
       window.dispatchEvent(new Event("ff-notifications-updated"));
       setTimeout(() => router.push("/reserver"), 900);
     } catch (e) {

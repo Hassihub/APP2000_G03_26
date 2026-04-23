@@ -22,6 +22,68 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
+async function ensureUserNotificationsTable(client) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS public.user_notifications (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      reference_id TEXT,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      action_url TEXT,
+      metadata JSONB,
+      is_read BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      read_at TIMESTAMPTZ
+    )
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created
+    ON public.user_notifications (user_id, created_at DESC)
+  `);
+
+  await client.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_user_notifications_reference
+    ON public.user_notifications (user_id, type, reference_id)
+    WHERE reference_id IS NOT NULL
+  `);
+}
+
+async function hasCabinStayRequestsTable(client) {
+  const result = await client.query(
+    `SELECT to_regclass('public.cabin_stay_requests') IS NOT NULL AS exists`
+  );
+
+  return result.rows[0]?.exists === true;
+}
+
+async function hasTripInterestTable(client) {
+  const result = await client.query(
+    `SELECT to_regclass('public.trip_interest') IS NOT NULL AS exists`
+  );
+
+  return result.rows[0]?.exists === true;
+}
+
+async function ensureCabinStayBindingColumns(client) {
+  await client.query(`
+    ALTER TABLE public.cabin_stay_requests
+    ADD COLUMN IF NOT EXISTS binding_decision TEXT NOT NULL DEFAULT 'pending'
+  `);
+
+  await client.query(`
+    ALTER TABLE public.cabin_stay_requests
+    ADD COLUMN IF NOT EXISTS binding_beds INTEGER
+  `);
+
+  await client.query(`
+    ALTER TABLE public.cabin_stay_requests
+    ADD COLUMN IF NOT EXISTS binding_decided_at TIMESTAMPTZ
+  `);
+}
+
 export async function POST(request, context) {
   const client = await pool.connect();
 
@@ -32,6 +94,7 @@ export async function POST(request, context) {
     }
 
     await ensureTurlederUserIdColumn(client);
+    await ensureUserNotificationsTable(client);
 
     const { id } = await context.params;
     const tripId = Number(id);
@@ -83,6 +146,7 @@ export async function POST(request, context) {
       `
       SELECT
         t.id,
+        t.navn,
         tt.id AS tiu_trip_id,
         tt.is_flexible,
         tt.planning_status,
@@ -236,6 +300,8 @@ export async function POST(request, context) {
       ]
     );
 
+    const departure = departureResult.rows[0];
+
     await client.query(
       `
       UPDATE public.tiu_trips
@@ -245,13 +311,141 @@ export async function POST(request, context) {
       [tripId]
     );
 
+    const hasStayRequestsTable = await hasCabinStayRequestsTable(client);
+
+    if (hasStayRequestsTable) {
+      await ensureCabinStayBindingColumns(client);
+
+      await client.query(
+        `
+        UPDATE public.cabin_stay_requests
+        SET binding_decision = 'pending',
+            binding_beds = NULL,
+            binding_decided_at = NULL,
+            updated_at = NOW()
+        WHERE trip_id = $1
+          AND status = 'approved'
+        `,
+        [tripId]
+      );
+    }
+
+    const tripInterestExists = await hasTripInterestTable(client);
+
+    if (tripInterestExists) {
+      const interestedUsersResult = await client.query(
+        `
+        SELECT ti.user_id
+        FROM public.trip_interest ti
+        WHERE ti.trip_id = $1
+          AND ti.status = 'interested'
+        `,
+        [tripId]
+      );
+
+      for (const row of interestedUsersResult.rows) {
+        await client.query(
+          `
+          INSERT INTO public.user_notifications
+            (user_id, type, reference_id, title, message, action_url, metadata)
+          VALUES
+            ($1, $2, $3, $4, $5, $6, $7::jsonb)
+          ON CONFLICT DO NOTHING
+          `,
+          [
+            String(row.user_id),
+            "trip_date_selected",
+            `trip:${tripId}:departure:${departure.id}:date_selected`,
+            "Dato valgt for tur",
+            `Dato for turen "${trip.navn}" er valgt. Du kan nå melde deg bindende på.`,
+            `/explore/${tripId}`,
+            JSON.stringify({
+              trip_id: tripId,
+              departure_id: departure.id,
+              trip_name: trip.navn,
+              selected_start_time: selectedOption.start_time,
+              selected_end_time: selectedOption.end_time,
+            }),
+          ]
+        );
+      }
+    }
+
+    // Varsle ALLE hytteeiere på turen, uavhengig av om de har svart på steg 4
+    const cabinOwnersResult = await client.query(
+      `
+      SELECT
+        tc.cabin_id::text AS cabin_id,
+        c.owner_id::text AS owner_id,
+        c.name AS cabin_name
+      FROM public.trip_cabins tc
+      JOIN public.cabins c ON c.id::text = tc.cabin_id::text
+      WHERE tc.trip_id = $1
+        AND c.owner_id IS NOT NULL
+      `,
+      [tripId]
+    );
+
+    const stayRequestMap = {};
+    if (hasStayRequestsTable) {
+      const stayReqResult = await client.query(
+        `
+        SELECT
+          id AS stay_request_id,
+          cabin_id::text AS cabin_id,
+          COALESCE(approved_beds, requested_beds) AS offered_beds
+        FROM public.cabin_stay_requests
+        WHERE trip_id = $1
+        `,
+        [tripId]
+      );
+      for (const r of stayReqResult.rows) {
+        stayRequestMap[r.cabin_id] = r;
+      }
+    }
+
+    for (const row of cabinOwnersResult.rows) {
+      if (!String(row.owner_id || "").trim()) continue;
+
+      const stayReq = stayRequestMap[row.cabin_id];
+      const referenceId = stayReq
+        ? `stay-request:${stayReq.stay_request_id}:binding-requested`
+        : `trip:${tripId}:cabin:${row.cabin_id}:binding-requested`;
+
+      await client.query(
+        `
+        INSERT INTO public.user_notifications
+          (user_id, type, reference_id, title, message, action_url, metadata)
+        VALUES
+          ($1, $2, $3, $4, $5, $6, $7::jsonb)
+        ON CONFLICT DO NOTHING
+        `,
+        [
+          String(row.owner_id),
+          "cabin_stay_binding_requested",
+          referenceId,
+          "Bekreft bindende sengeplasser",
+          `Dato for turen "${trip.navn}" er valgt. Bekreft eller trekk bindende sengeplasser for ${String(row.cabin_name || "hytta")}.`,
+          `/reserver/foresporsler?view=incoming${stayReq ? `&requestId=${encodeURIComponent(String(stayReq.stay_request_id))}` : ""}`,
+          JSON.stringify({
+            stay_request_id: stayReq?.stay_request_id ?? null,
+            trip_id: tripId,
+            departure_id: departure.id,
+            trip_name: trip.navn,
+            cabin_name: row.cabin_name,
+            offered_beds: stayReq?.offered_beds ?? null,
+          }),
+        ]
+      );
+    }
+
     await client.query("COMMIT");
 
     return NextResponse.json(
       {
         success: true,
         message: "Dato valgt og avgang opprettet",
-        departure: departureResult.rows[0],
+        departure,
       },
       { status: 200 }
     );

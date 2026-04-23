@@ -22,50 +22,83 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
-async function ensureTripAdminNotificationsTable(client) {
+async function ensureUserNotificationsTable(client) {
   await client.query(`
-    CREATE TABLE IF NOT EXISTS public.trip_admin_notifications (
-      id INT8 NOT NULL GENERATED ALWAYS AS IDENTITY,
-      trip_id INT8 NOT NULL,
-      departure_id INT8 NULL,
-      recipient_user_id UUID NOT NULL,
-      actor_user_id UUID NULL,
-      type STRING NOT NULL DEFAULT 'binding_signup',
-      message STRING NOT NULL,
-      is_read BOOL NOT NULL DEFAULT false,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      CONSTRAINT trip_admin_notifications_pkey PRIMARY KEY (id ASC),
-      CONSTRAINT fk_trip_admin_notifications_trip
-        FOREIGN KEY (trip_id) REFERENCES public.trips(id) ON DELETE CASCADE,
-      CONSTRAINT fk_trip_admin_notifications_departure
-        FOREIGN KEY (departure_id) REFERENCES public.trip_departures(id) ON DELETE SET NULL,
-      CONSTRAINT fk_trip_admin_notifications_recipient
-        FOREIGN KEY (recipient_user_id) REFERENCES public.users(id) ON DELETE CASCADE,
-      CONSTRAINT fk_trip_admin_notifications_actor
-        FOREIGN KEY (actor_user_id) REFERENCES public.users(id) ON DELETE SET NULL
+    CREATE TABLE IF NOT EXISTS public.user_notifications (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      reference_id TEXT,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      action_url TEXT,
+      metadata JSONB,
+      is_read BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      read_at TIMESTAMPTZ
     )
   `);
 
   await client.query(`
-    CREATE INDEX IF NOT EXISTS idx_trip_admin_notifications_recipient
-    ON public.trip_admin_notifications (recipient_user_id ASC)
+    CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created
+    ON public.user_notifications (user_id, created_at DESC)
   `);
 
   await client.query(`
-    CREATE INDEX IF NOT EXISTS idx_trip_admin_notifications_trip
-    ON public.trip_admin_notifications (trip_id ASC)
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_user_notifications_reference
+    ON public.user_notifications (user_id, type, reference_id)
+    WHERE reference_id IS NOT NULL
   `);
+}
 
-  await client.query(`
-    CREATE INDEX IF NOT EXISTS idx_trip_admin_notifications_created_at
-    ON public.trip_admin_notifications (created_at DESC)
-  `);
+async function sendLeaderNotificationBestEffort({
+  tripId,
+  departureId,
+  recipientUserId,
+  actorUserId,
+  actorUsername,
+}) {
+  if (!recipientUserId || String(recipientUserId) === String(actorUserId)) {
+    return;
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await ensureUserNotificationsTable(client);
+
+    await client.query(
+      `
+      INSERT INTO public.user_notifications
+        (user_id, type, reference_id, title, message, action_url, metadata)
+      VALUES
+        ($1, $2, $3, $4, $5, $6, $7::jsonb)
+      ON CONFLICT DO NOTHING
+      `,
+      [
+        String(recipientUserId),
+        "trip_binding_signup",
+        `trip:${tripId}:departure:${departureId}:signup:${actorUserId}`,
+        "Ny bindende påmelding",
+        `${actorUsername} meldte seg bindende på turen.`,
+        `/explore/${tripId}`,
+        JSON.stringify({
+          trip_id: tripId,
+          departure_id: departureId,
+          actor_user_id: actorUserId,
+          actor_username: actorUsername,
+        }),
+      ]
+    );
+  } catch (error) {
+    console.error("Notification insert error:", error);
+  } finally {
+    client.release();
+  }
 }
 
 export async function POST(request, context) {
   const client = await pool.connect();
-
-  let notificationPayload = null;
 
   try {
     const { user, response } = await requireAuth();
@@ -91,18 +124,15 @@ export async function POST(request, context) {
     const departureResult = await client.query(
       `
       SELECT
-        d.id,
-        d.trip_id,
-        d.start_time,
-        d.end_time,
-        d.min_participants,
-        d.max_participants,
-        d.status,
-        tt.turleder_user_id
-      FROM public.trip_departures d
-      LEFT JOIN public.tiu_trips tt
-        ON tt.trip_id = d.trip_id
-      WHERE d.id = $1
+        id,
+        trip_id,
+        start_time,
+        end_time,
+        min_participants,
+        max_participants,
+        status
+      FROM public.trip_departures
+      WHERE id = $1
       FOR UPDATE
       `,
       [departureId]
@@ -118,10 +148,30 @@ export async function POST(request, context) {
 
     const departure = departureResult.rows[0];
 
+    const leaderResult = await client.query(
+      `
+      SELECT turleder_user_id
+      FROM public.tiu_trips
+      WHERE trip_id = $1
+      LIMIT 1
+      `,
+      [departure.trip_id]
+    );
+
+    const turlederUserId = leaderResult.rows[0]?.turleder_user_id ?? null;
+
     if (departure.status === "cancelled") {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Avgangen er avlyst" },
+        { status: 400 }
+      );
+    }
+
+    if (departure.status === "confirmed") {
+      await client.query("ROLLBACK");
+      return NextResponse.json(
+        { error: "Turen er allerede bekreftet" },
         { status: 400 }
       );
     }
@@ -231,73 +281,24 @@ export async function POST(request, context) {
     );
 
     const bindingCount = countResult.rows[0].binding_count;
-    const shouldConfirm = bindingCount >= departure.min_participants;
-
-    if (shouldConfirm && departure.status === "open") {
-      await client.query(
-        `
-        UPDATE public.trip_departures
-        SET status = 'confirmed'
-        WHERE id = $1
-        `,
-        [departureId]
-      );
-    }
+    const readyToConfirm = bindingCount >= departure.min_participants;
 
     await client.query("COMMIT");
 
-    if (
-      departure.turleder_user_id &&
-      String(departure.turleder_user_id) !== String(userId)
-    ) {
-      notificationPayload = {
-        tripId: departure.trip_id,
-        departureId,
-        recipientUserId: departure.turleder_user_id,
-        actorUserId: userId,
-        message: `${user.username} meldte seg bindende på turen.`,
-      };
-    }
-
-    if (notificationPayload) {
-      try {
-        const notificationClient = await pool.connect();
-        try {
-          await ensureTripAdminNotificationsTable(notificationClient);
-
-          await notificationClient.query(
-            `
-            INSERT INTO public.trip_admin_notifications (
-              trip_id,
-              departure_id,
-              recipient_user_id,
-              actor_user_id,
-              type,
-              message,
-              is_read
-            )
-            VALUES ($1, $2, $3, $4, 'binding_signup', $5, false)
-            `,
-            [
-              notificationPayload.tripId,
-              notificationPayload.departureId,
-              notificationPayload.recipientUserId,
-              notificationPayload.actorUserId,
-              notificationPayload.message,
-            ]
-          );
-        } finally {
-          notificationClient.release();
-        }
-      } catch (notificationError) {
-        console.error("Notification insert error:", notificationError);
-      }
-    }
+    await sendLeaderNotificationBestEffort({
+      tripId: departure.trip_id,
+      departureId,
+      recipientUserId: turlederUserId,
+      actorUserId: userId,
+      actorUsername: user.username,
+    });
 
     return NextResponse.json(
       {
         success: true,
-        message: "Bindende påmelding registrert",
+        message: readyToConfirm
+          ? "Bindende påmelding registrert. Turen er klar til å bekreftes av turleder."
+          : "Bindende påmelding registrert",
         departure: {
           id: departure.id,
           trip_id: departure.trip_id,
@@ -305,10 +306,10 @@ export async function POST(request, context) {
           end_time: departure.end_time,
           min_participants: departure.min_participants,
           max_participants: departure.max_participants,
-          status: shouldConfirm ? "confirmed" : departure.status,
+          status: departure.status,
         },
         binding_count: bindingCount,
-        confirmed: shouldConfirm,
+        ready_to_confirm: readyToConfirm,
       },
       { status: 200 }
     );

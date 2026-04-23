@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import pool from "../../../../lib/db";
-import { getCurrentUser } from "../../../../lib/auth";
+import { getCurrentUser, requireAuth } from "../../../../lib/auth";
 
 async function ensureTurlederUserIdColumn(client) {
   await client.query(`
@@ -22,52 +22,11 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
-async function ensureTripAdminNotificationsTable(client) {
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS public.trip_admin_notifications (
-      id INT8 NOT NULL GENERATED ALWAYS AS IDENTITY,
-      trip_id INT8 NOT NULL,
-      departure_id INT8 NULL,
-      recipient_user_id UUID NOT NULL,
-      actor_user_id UUID NULL,
-      type STRING NOT NULL DEFAULT 'binding_signup',
-      message STRING NOT NULL,
-      is_read BOOL NOT NULL DEFAULT false,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      CONSTRAINT trip_admin_notifications_pkey PRIMARY KEY (id ASC),
-      CONSTRAINT fk_trip_admin_notifications_trip
-        FOREIGN KEY (trip_id) REFERENCES public.trips(id) ON DELETE CASCADE,
-      CONSTRAINT fk_trip_admin_notifications_departure
-        FOREIGN KEY (departure_id) REFERENCES public.trip_departures(id) ON DELETE SET NULL,
-      CONSTRAINT fk_trip_admin_notifications_recipient
-        FOREIGN KEY (recipient_user_id) REFERENCES public.users(id) ON DELETE CASCADE,
-      CONSTRAINT fk_trip_admin_notifications_actor
-        FOREIGN KEY (actor_user_id) REFERENCES public.users(id) ON DELETE SET NULL
-    )
-  `);
-
-  await client.query(`
-    CREATE INDEX IF NOT EXISTS idx_trip_admin_notifications_recipient
-    ON public.trip_admin_notifications (recipient_user_id ASC)
-  `);
-
-  await client.query(`
-    CREATE INDEX IF NOT EXISTS idx_trip_admin_notifications_trip
-    ON public.trip_admin_notifications (trip_id ASC)
-  `);
-
-  await client.query(`
-    CREATE INDEX IF NOT EXISTS idx_trip_admin_notifications_created_at
-    ON public.trip_admin_notifications (created_at DESC)
-  `);
-}
-
 export async function GET(request, { params }) {
   const client = await pool.connect();
 
   try {
     await ensureTurlederUserIdColumn(client);
-    await ensureTripAdminNotificationsTable(client);
 
     const { id } = await params;
     const tripId = Number(id);
@@ -220,7 +179,8 @@ export async function GET(request, { params }) {
     trip.can_withdraw_binding = false;
     trip.is_trip_admin = false;
     trip.binding_registrations = [];
-    trip.admin_notifications = [];
+    trip.binding_count = 0;
+    trip.can_confirm_departure = false;
 
     if (user?.id) {
       const interestResult = await client.query(
@@ -263,6 +223,20 @@ export async function GET(request, { params }) {
       trip.can_withdraw_interest = trip.is_interested;
       trip.can_withdraw_binding = trip.is_binding_registered;
 
+      if (trip.departure_id) {
+        const bindingCountResult = await client.query(
+          `
+          SELECT COUNT(*)::int AS binding_count
+          FROM public.trip_registrations
+          WHERE departure_id = $1
+            AND status = 'binding'
+          `,
+          [trip.departure_id]
+        );
+
+        trip.binding_count = bindingCountResult.rows[0]?.binding_count ?? 0;
+      }
+
       if (trip.is_trip_admin && trip.departure_id) {
         const registrationsResult = await client.query(
           `
@@ -285,29 +259,11 @@ export async function GET(request, { params }) {
         trip.binding_registrations = registrationsResult.rows;
       }
 
-      if (trip.is_trip_admin) {
-        const notificationsResult = await client.query(
-          `
-          SELECT
-            n.id,
-            n.message,
-            n.type,
-            n.is_read,
-            n.created_at,
-            u.username AS actor_username
-          FROM public.trip_admin_notifications n
-          LEFT JOIN public.users u
-            ON u.id = n.actor_user_id
-          WHERE n.trip_id = $1
-            AND n.recipient_user_id = $2
-          ORDER BY n.created_at DESC
-          LIMIT 20
-          `,
-          [tripId, user.id]
-        );
-
-        trip.admin_notifications = notificationsResult.rows;
-      }
+      trip.can_confirm_departure =
+        trip.is_trip_admin === true &&
+        Boolean(trip.departure_id) &&
+        trip.departure_status === "open" &&
+        Number(trip.binding_count || 0) >= Number(trip.min_participants || 0);
     }
 
     return NextResponse.json(trip);
@@ -315,6 +271,113 @@ export async function GET(request, { params }) {
     console.error("Trip details API GET error:", error);
     return NextResponse.json(
       { error: "Kunne ikke hente tur", details: error?.message || "Ukjent feil" },
+      { status: 500 }
+    );
+  } finally {
+    client.release();
+  }
+}
+
+export async function DELETE(request, { params }) {
+  const client = await pool.connect();
+
+  try {
+    const { user, response } = await requireAuth();
+    if (response) {
+      return response;
+    }
+
+    await ensureTurlederUserIdColumn(client);
+
+    const { id } = await params;
+    const tripId = Number(id);
+
+    if (!Number.isFinite(tripId)) {
+      return NextResponse.json(
+        { error: "Ugyldig tur-id" },
+        { status: 400 }
+      );
+    }
+
+    await client.query("BEGIN");
+
+    const tripResult = await client.query(
+      `
+      SELECT
+        id,
+        navn
+      FROM public.trips
+      WHERE id = $1
+      LIMIT 1
+      FOR UPDATE
+      `,
+      [tripId]
+    );
+
+    if (tripResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return NextResponse.json(
+        { error: "Fant ikke turen" },
+        { status: 404 }
+      );
+    }
+
+    const leaderResult = await client.query(
+      `
+      SELECT turleder_user_id
+      FROM public.tiu_trips
+      WHERE trip_id = $1
+      LIMIT 1
+      `,
+      [tripId]
+    );
+
+    const turlederUserId = leaderResult.rows[0]?.turleder_user_id ?? null;
+
+    const role = String(user.role || "").toUpperCase();
+    const isAdmin = role === "ADMIN";
+    const isLeaderForThisTrip =
+      turlederUserId && String(turlederUserId) === String(user.id);
+
+    if (!isAdmin && !isLeaderForThisTrip) {
+      await client.query("ROLLBACK");
+      return NextResponse.json(
+        { error: "Ingen tilgang" },
+        { status: 403 }
+      );
+    }
+
+    await client.query(
+      `
+      DELETE FROM public.trips
+      WHERE id = $1
+      `,
+      [tripId]
+    );
+
+    await client.query("COMMIT");
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Turen ble slettet",
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackError) {
+      console.error("Rollback error:", rollbackError);
+    }
+
+    console.error("Trip delete API error:", error);
+
+    return NextResponse.json(
+      {
+        error: "Kunne ikke slette tur",
+        details: error?.message || "Ukjent feil",
+      },
       { status: 500 }
     );
   } finally {
