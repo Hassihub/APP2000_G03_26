@@ -1,23 +1,33 @@
+// Importerer NextResponse for å returnere JSON-responser fra API-ruten.
 import { NextResponse } from "next/server";
+
+// Importerer databaseforbindelsen.
 import pool from "../../../../../lib/db";
+
+// Importerer autentiseringsfunksjonen som krever innlogging.
 import { requireAuth } from "../../../../../lib/auth";
 
-// Denne API-ruten håndterer påmelding til turavganger.
-// POST: Registrerer bruker for en avgang
-// DELETE: Avregistrerer bruker fra en avgang
+// Denne API-ruten håndterer bindende påmelding til turavganger.
+// POST = melde seg på bindende
+// DELETE = melde seg av bindende
 
-// Sikrer at turleder_user_id kolonnen finnes i tiu_trips tabellen
+
+// Denne hjelpefunksjonen sørger for at kolonnen turleder_user_id finnes.
+// Den brukes fordi eldre data kanskje bare hadde turleder_navn lagret.
 async function ensureTurlederUserIdColumn(client) {
+  // Legger til kolonnen hvis den ikke allerede finnes.
   await client.query(`
     ALTER TABLE public.tiu_trips
     ADD COLUMN IF NOT EXISTS turleder_user_id UUID NULL
   `);
 
+  // Lager indeks for raskere oppslag på turleder_user_id.
   await client.query(`
     CREATE INDEX IF NOT EXISTS idx_tiu_trips_turleder_user_id
     ON public.tiu_trips (turleder_user_id)
   `);
 
+  // Fyller inn turleder_user_id for gamle rader ved å matche username.
   await client.query(`
     UPDATE public.tiu_trips tt
     SET turleder_user_id = u.id
@@ -27,8 +37,11 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
-// Sikrer at user_notifications tabellen finnes for å sende varsler
+
+// Denne hjelpefunksjonen sørger for at user_notifications-tabellen finnes.
+// Den brukes når vi vil sende varsler til turleder via bjella i appen.
 async function ensureUserNotificationsTable(client) {
+  // Oppretter tabellen hvis den ikke finnes.
   await client.query(`
     CREATE TABLE IF NOT EXISTS public.user_notifications (
       id BIGSERIAL PRIMARY KEY,
@@ -45,11 +58,13 @@ async function ensureUserNotificationsTable(client) {
     )
   `);
 
+  // Lager indeks for raskere uthenting av varsler per bruker.
   await client.query(`
     CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created
     ON public.user_notifications (user_id, created_at DESC)
   `);
 
+  // Lager unik indeks slik at samme varsel ikke opprettes flere ganger.
   await client.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS uq_user_notifications_reference
     ON public.user_notifications (user_id, type, reference_id)
@@ -57,6 +72,9 @@ async function ensureUserNotificationsTable(client) {
   `);
 }
 
+
+// Denne funksjonen prøver å sende et varsel til turleder etter en påmelding.
+// "Best effort" betyr at hvis varslet feiler, skal ikke selve påmeldingen feile.
 async function sendLeaderNotificationBestEffort({
   tripId,
   departureId,
@@ -64,15 +82,20 @@ async function sendLeaderNotificationBestEffort({
   actorUserId,
   actorUsername,
 }) {
+  // Ikke send varsel hvis mottaker mangler eller hvis brukeren varsler seg selv.
   if (!recipientUserId || String(recipientUserId) === String(actorUserId)) {
     return;
   }
 
+  // Henter en egen databaseklient for varseloperasjonen.
   const client = await pool.connect();
 
   try {
+    // Sørger for at notifications-tabellen finnes.
     await ensureUserNotificationsTable(client);
 
+    // Oppretter et varsel i user_notifications.
+    // ON CONFLICT DO NOTHING hindrer dubletter.
     await client.query(
       `
       INSERT INTO public.user_notifications
@@ -97,27 +120,40 @@ async function sendLeaderNotificationBestEffort({
       ]
     );
   } catch (error) {
+    // Logger feilen, men lar den ikke stoppe resten av systemet.
     console.error("Notification insert error:", error);
   } finally {
+    // Frigir klienten tilbake til poolen.
     client.release();
   }
 }
 
+
+// POST-ruta brukes når en bruker vil melde seg bindende på en avgang.
 export async function POST(request, context) {
+  // Henter en databaseklient.
   const client = await pool.connect();
 
   try {
+    // Krever at brukeren er innlogget.
     const { user, response } = await requireAuth();
     if (response) {
       return response;
     }
 
+    // Sørger for at turleder_user_id finnes før vi bruker den.
     await ensureTurlederUserIdColumn(client);
 
+    // Leser departureId fra URL-parametrene.
     const { departureId: departureIdParam } = await context.params;
+
+    // Henter innlogget brukers ID.
     const userId = user.id;
+
+    // Gjør om departureId til tall.
     const departureId = Number(departureIdParam);
 
+    // Returnerer feil hvis departureId ikke er et gyldig tall.
     if (!Number.isFinite(departureId)) {
       return NextResponse.json(
         { error: "Ugyldig avgang" },
@@ -125,8 +161,10 @@ export async function POST(request, context) {
       );
     }
 
+    // Starter en transaksjon.
     await client.query("BEGIN");
 
+    // Henter avgangen og låser raden med FOR UPDATE.
     const departureResult = await client.query(
       `
       SELECT
@@ -144,6 +182,7 @@ export async function POST(request, context) {
       [departureId]
     );
 
+    // Hvis avgangen ikke finnes, rull tilbake og returner 404.
     if (departureResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
@@ -152,8 +191,10 @@ export async function POST(request, context) {
       );
     }
 
+    // Henter avgangsdata.
     const departure = departureResult.rows[0];
 
+    // Henter turleder for turen for å kunne sende varsel etterpå.
     const leaderResult = await client.query(
       `
       SELECT turleder_user_id
@@ -166,6 +207,7 @@ export async function POST(request, context) {
 
     const turlederUserId = leaderResult.rows[0]?.turleder_user_id ?? null;
 
+    // Hvis avgangen er avlyst, kan man ikke melde seg på.
     if (departure.status === "cancelled") {
       await client.query("ROLLBACK");
       return NextResponse.json(
@@ -174,6 +216,7 @@ export async function POST(request, context) {
       );
     }
 
+    // Hvis turen allerede er bekreftet, lar denne koden ikke flere melde seg på.
     if (departure.status === "confirmed") {
       await client.query("ROLLBACK");
       return NextResponse.json(
@@ -182,6 +225,7 @@ export async function POST(request, context) {
       );
     }
 
+    // Sjekker om brukeren allerede har en annen overlappende bindende påmelding.
     const overlapResult = await client.query(
       `
       SELECT
@@ -204,6 +248,7 @@ export async function POST(request, context) {
       [userId, departure.start_time, departure.end_time, departureId]
     );
 
+    // Hvis brukeren allerede har en overlappende tur, returneres feil.
     if (overlapResult.rowCount > 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
@@ -212,6 +257,7 @@ export async function POST(request, context) {
       );
     }
 
+    // Sjekker om brukeren allerede har en registrering på denne avgangen.
     const existingRegistrationResult = await client.query(
       `
       SELECT id, status
@@ -223,6 +269,7 @@ export async function POST(request, context) {
       [departureId, userId]
     );
 
+    // Hvis brukeren allerede er bindende registrert, returneres feil.
     if (
       existingRegistrationResult.rowCount > 0 &&
       existingRegistrationResult.rows[0].status === "binding"
@@ -234,6 +281,7 @@ export async function POST(request, context) {
       );
     }
 
+    // Hvis det finnes maks antall deltakere, sjekk kapasiteten.
     if (departure.max_participants !== null) {
       const capacityResult = await client.query(
         `
@@ -247,6 +295,7 @@ export async function POST(request, context) {
 
       const currentBindingCount = capacityResult.rows[0].binding_count;
 
+      // Hvis turen er full, returneres feil.
       if (currentBindingCount >= departure.max_participants) {
         await client.query("ROLLBACK");
         return NextResponse.json(
@@ -256,6 +305,8 @@ export async function POST(request, context) {
       }
     }
 
+    // Hvis brukeren allerede finnes i tabellen med annen status,
+    // oppdater status til binding.
     if (existingRegistrationResult.rowCount > 0) {
       await client.query(
         `
@@ -267,6 +318,7 @@ export async function POST(request, context) {
         [departureId, userId]
       );
     } else {
+      // Ellers opprettes en helt ny bindende registrering.
       await client.query(
         `
         INSERT INTO public.trip_registrations (departure_id, user_id, status)
@@ -276,6 +328,7 @@ export async function POST(request, context) {
       );
     }
 
+    // Teller hvor mange bindende påmeldte avgangen nå har.
     const countResult = await client.query(
       `
       SELECT COUNT(*)::int AS binding_count
@@ -287,10 +340,14 @@ export async function POST(request, context) {
     );
 
     const bindingCount = countResult.rows[0].binding_count;
+
+    // Sjekker om turen nå har nok påmeldte til å kunne bekreftes av turleder.
     const readyToConfirm = bindingCount >= departure.min_participants;
 
+    // Fullfører transaksjonen.
     await client.query("COMMIT");
 
+    // Sender varsel til turleder etter at påmeldingen er lagret.
     await sendLeaderNotificationBestEffort({
       tripId: departure.trip_id,
       departureId,
@@ -299,6 +356,7 @@ export async function POST(request, context) {
       actorUsername: user.username,
     });
 
+    // Returnerer suksessrespons med info om påmeldingen.
     return NextResponse.json(
       {
         success: true,
@@ -320,14 +378,17 @@ export async function POST(request, context) {
       { status: 200 }
     );
   } catch (error) {
+    // Hvis noe går galt, prøv å rulle tilbake transaksjonen.
     try {
       await client.query("ROLLBACK");
     } catch (rollbackError) {
       console.error("Rollback error:", rollbackError);
     }
 
+    // Logger backend-feilen.
     console.error("Register API error:", error);
 
+    // Returnerer 500-feil til klienten.
     return NextResponse.json(
       {
         error: "Kunne ikke registrere bindende påmelding",
@@ -336,22 +397,29 @@ export async function POST(request, context) {
       { status: 500 }
     );
   } finally {
+    // Frigir klienten tilbake til poolen.
     client.release();
   }
 }
 
+
+// DELETE-ruta brukes når en bruker vil melde seg av en bindende påmelding.
 export async function DELETE(request, context) {
+  // Henter databaseklient.
   const client = await pool.connect();
 
   try {
+    // Krever at brukeren er innlogget.
     const { user, response } = await requireAuth();
     if (response) {
       return response;
     }
 
+    // Leser departureId fra URL.
     const { departureId: departureIdParam } = await context.params;
     const departureId = Number(departureIdParam);
 
+    // Returnerer feil hvis departureId ikke er gyldig.
     if (!Number.isFinite(departureId)) {
       return NextResponse.json(
         { error: "Ugyldig avgang" },
@@ -359,8 +427,10 @@ export async function DELETE(request, context) {
       );
     }
 
+    // Starter transaksjon.
     await client.query("BEGIN");
 
+    // Henter registreringen som tilhører denne brukeren og avgangen.
     const registrationResult = await client.query(
       `
       SELECT
@@ -379,6 +449,7 @@ export async function DELETE(request, context) {
       [departureId, user.id]
     );
 
+    // Hvis ingen bindende påmelding finnes, returneres 404.
     if (registrationResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
@@ -387,6 +458,7 @@ export async function DELETE(request, context) {
       );
     }
 
+    // Oppdaterer registreringen til status cancelled i stedet for å slette raden.
     await client.query(
       `
       UPDATE public.trip_registrations
@@ -397,6 +469,7 @@ export async function DELETE(request, context) {
       [departureId, user.id]
     );
 
+    // Henter avgangsdata for å sjekke om status må justeres.
     const departureResult = await client.query(
       `
       SELECT
@@ -413,6 +486,7 @@ export async function DELETE(request, context) {
     if (departureResult.rowCount > 0) {
       const departure = departureResult.rows[0];
 
+      // Teller hvor mange bindende påmeldte som fortsatt finnes etter avmelding.
       const countResult = await client.query(
         `
         SELECT COUNT(*)::int AS binding_count
@@ -425,6 +499,8 @@ export async function DELETE(request, context) {
 
       const bindingCount = countResult.rows[0].binding_count;
 
+      // Hvis turen var confirmed, men nå har for få deltakere,
+      // settes status tilbake til open.
       if (
         departure.status === "confirmed" &&
         bindingCount < departure.min_participants
@@ -440,8 +516,10 @@ export async function DELETE(request, context) {
       }
     }
 
+    // Fullfører transaksjonen.
     await client.query("COMMIT");
 
+    // Returnerer suksessrespons.
     return NextResponse.json(
       {
         success: true,
@@ -450,19 +528,23 @@ export async function DELETE(request, context) {
       { status: 200 }
     );
   } catch (error) {
+    // Hvis noe feiler, prøv rollback.
     try {
       await client.query("ROLLBACK");
     } catch (rollbackError) {
       console.error("Rollback error:", rollbackError);
     }
 
+    // Logger feilen.
     console.error("Unregister API error:", error);
 
+    // Returnerer 500-feil.
     return NextResponse.json(
       { error: "Kunne ikke melde deg av turen" },
       { status: 500 }
     );
   } finally {
+    // Frigir klienten.
     client.release();
   }
 }

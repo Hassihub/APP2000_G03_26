@@ -1,20 +1,27 @@
+// Importerer NextResponse for å kunne returnere JSON-responser fra API-ruter.
 import { NextResponse } from "next/server";
+
+// Importerer databaseforbindelsen/poolen.
 import pool from "../../../lib/db";
+
+// Importerer autentiserings- og autorisasjonsfunksjoner.
 import { requireAuth, requireRole } from "../../../lib/auth";
+
+// Importerer rolle-konstanter som brukes for tilgangskontroll.
 import { ROLE_ADMIN, ROLE_TURLEDER } from "../../../lib/roles";
 
-// Denne API-ruten håndterer opprettelse og henting av turer.
-// GET: Henter liste over turer med filtre
-// POST: Oppretter en ny tur og varsler admin om TiU-turer
 
-// Varsler admin-brukere om nye TiU-turer som trenger godkjenning
+// Sender varsel til alle admin-brukere når en ny TiU-tur er opprettet.
+// Varslingsfeil skal ikke stoppe selve opprettelsen av turen.
 async function notifyAdmins(client, tripId, tripNavn) {
   try {
+    // Henter alle brukere med admin-rolle.
     const adminsResult = await client.query(
       `SELECT id::text AS id FROM public.users WHERE role = $1`,
       [ROLE_ADMIN]
     );
 
+    // Oppretter ett varsel per admin.
     for (const admin of adminsResult.rows) {
       await client.query(
         `
@@ -36,16 +43,22 @@ async function notifyAdmins(client, tripId, tripNavn) {
       );
     }
   } catch {
-    // varslingsfeil skal ikke stoppe opprettelse av tur
+    // Varslingsfeil skal ikke stoppe opprettelse av tur.
   }
 }
 
+
+// En enkel cache-variabel så vi slipper å prøve å opprette trip_cabins-tabellen flere ganger unødvendig.
 let tripCabinsTableReady = false;
 
-// Sikrer at trip_cabins-tabellen finnes for å knytte hytter til turer
+
+// Sørger for at tabellen trip_cabins finnes.
+// Denne tabellen brukes for å knytte hytter til turer, og i hvilken rekkefølge de hører til.
 async function ensureTripCabinsTable(client) {
+  // Hvis vi allerede har kjørt dette i denne serverprosessen, hopp over.
   if (tripCabinsTableReady) return;
 
+  // Oppretter tabellen hvis den ikke finnes.
   await client.query(`
     CREATE TABLE IF NOT EXISTS public.trip_cabins (
       trip_id BIGINT NOT NULL,
@@ -56,30 +69,39 @@ async function ensureTripCabinsTable(client) {
     )
   `);
 
+  // Lager indeks for raskere oppslag per tur.
   await client.query(`
     CREATE INDEX IF NOT EXISTS idx_trip_cabins_trip_id
     ON public.trip_cabins (trip_id)
   `);
 
+  // Sørger for at sort_order-kolonnen finnes, også hvis tabellen eksisterte fra før i eldre format.
   await client.query(`
     ALTER TABLE public.trip_cabins
     ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0
   `);
 
+  // Marker som ferdig initialisert.
   tripCabinsTableReady = true;
 }
 
+
+// Sørger for at turleder_user_id finnes i tiu_trips-tabellen.
+// Denne brukes for å koble en TiU-turleder til faktisk bruker-ID.
 async function ensureTurlederUserIdColumn(client) {
+  // Legger til kolonnen hvis den mangler.
   await client.query(`
     ALTER TABLE public.tiu_trips
     ADD COLUMN IF NOT EXISTS turleder_user_id UUID NULL
   `);
 
+  // Lager indeks for raskere oppslag.
   await client.query(`
     CREATE INDEX IF NOT EXISTS idx_tiu_trips_turleder_user_id
     ON public.tiu_trips (turleder_user_id)
   `);
 
+  // Fyller inn turleder_user_id for gamle rader ved å matche username mot turleder_navn.
   await client.query(`
     UPDATE public.tiu_trips tt
     SET turleder_user_id = u.id
@@ -89,6 +111,9 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
+
+// Sjekker om trip_cabins-tabellen har kolonnen night_number.
+// Dette trengs fordi databasen kan være i litt ulike versjoner.
 async function hasTripCabinsNightNumberColumn(client) {
   const result = await client.query(
     `
@@ -105,8 +130,12 @@ async function hasTripCabinsNightNumberColumn(client) {
   return result.rows[0]?.exists === true;
 }
 
+
+// GET-ruta henter en liste over turer.
+// Den støtter filtrering på søk, type, vanskelighetsgrad, TiU-only og dato.
 export async function GET(request) {
   try {
+    // Leser query-parametere fra URL-en.
     const { searchParams } = new URL(request.url);
 
     const search = searchParams.get("search") || "";
@@ -116,6 +145,7 @@ export async function GET(request) {
     const startDate = searchParams.get("start_date") || "";
     const endDate = searchParams.get("end_date") || "";
 
+    // Basisspørring som henter turer, eventuell TiU-info og første aktive avgang.
     let query = `
       SELECT
         t.id,
@@ -164,22 +194,28 @@ export async function GET(request) {
         AND (tt.id IS NULL OR tt.planning_status NOT IN ('draft', 'rejected'))
     `;
 
+    // Første parameter er søket på navn.
     const values = [`%${search}%`];
 
+    // Filtrer på type hvis valgt.
     if (type !== "alle") {
       query += ` AND t.type = $${values.length + 1}`;
       values.push(type);
     }
 
+    // Filtrer på vanskelighetsgrad hvis valgt.
     if (difficulty !== "alle") {
       query += ` AND t.vanskelighetsgrad = $${values.length + 1}`;
       values.push(difficulty);
     }
 
+    // Filtrer til bare TiU-turer hvis det er huket av.
     if (onlyTiu) {
       query += ` AND tt.id IS NOT NULL`;
     }
 
+    // Dato-filter:
+    // Turen skal vises hvis enten en aktiv avgang eller et datoalternativ overlapper valgt datoperiode.
     if (startDate && endDate) {
       const startDateParam = `$${values.length + 1}`;
       values.push(startDate);
@@ -207,12 +243,19 @@ export async function GET(request) {
       `;
     }
 
+    // Sorterer resultatene på ID.
     query += ` ORDER BY t.id`;
 
+    // Kjører SQL-spørringen.
     const result = await pool.query(query, values);
+
+    // Returnerer turene som JSON.
     return NextResponse.json(result.rows);
   } catch (error) {
+    // Logger feil i server-konsollen.
     console.error("Trips API GET error:", error);
+
+    // Returnerer generell feilmelding til klienten.
     return NextResponse.json(
       { error: "Kunne ikke hente turer" },
       { status: 500 }
@@ -220,12 +263,17 @@ export async function GET(request) {
   }
 }
 
+
+// POST-ruta oppretter en ny tur.
 export async function POST(request) {
+  // Henter en klient fra poolen så vi kan bruke transaksjon.
   const client = await pool.connect();
 
   try {
+    // Leser request body som JSON.
     const body = await request.json();
 
+    // Henter og normaliserer vanlige felt.
     const navn = (body.navn || "").trim();
     const beskrivelse = body.beskrivelse ?? null;
     const lengde_km = Number(body.lengde_km);
@@ -234,16 +282,22 @@ export async function POST(request) {
     const bilde_url = body.bilde_url?.trim() || null;
     const geometry = body.geometry ?? null;
 
+    // Henter TiU-relaterte felt.
     const isTiu = body.isTiu === true;
     const turleder_navn = body.turleder_navn?.trim() || null;
 
+    // Henter info om fleksibel tur og datoalternativer.
     const isFlexible = body.isFlexible === true;
     const dateOptions = Array.isArray(body.dateOptions) ? body.dateOptions : [];
+
+    // Henter cabin_ids, rydder bort tomme verdier og dubletter.
     const cabinIdsRaw = Array.isArray(body.cabin_ids) ? body.cabin_ids : [];
     const cabin_ids = [...new Set(cabinIdsRaw.map((id) => String(id).trim()).filter(Boolean))];
 
+    // Bruker settes senere hvis auth trengs.
     let user = null;
 
+    // Hvis dette er en TiU-tur, må brukeren være innlogget og ha riktig rolle.
     if (isTiu) {
       const auth = await requireAuth();
       if (auth.response) {
@@ -258,10 +312,12 @@ export async function POST(request) {
       }
     }
 
+    // Validerer at navn finnes.
     if (!navn) {
       return NextResponse.json({ error: "Navn er påkrevd" }, { status: 400 });
     }
 
+    // Validerer at lengde_km er et positivt tall.
     if (!Number.isFinite(lengde_km) || lengde_km <= 0) {
       return NextResponse.json(
         { error: "Lengde (km) må være et positivt tall" },
@@ -269,11 +325,13 @@ export async function POST(request) {
       );
     }
 
+    // Validerer type.
     const allowedTypes = new Set(["fottur", "skitur", "sykkel"]);
     if (!allowedTypes.has(type)) {
       return NextResponse.json({ error: "Ugyldig type" }, { status: 400 });
     }
 
+    // Validerer vanskelighetsgrad.
     const allowedDiff = new Set(["lett", "middels", "krevende"]);
     if (!allowedDiff.has(vanskelighetsgrad)) {
       return NextResponse.json(
@@ -282,6 +340,7 @@ export async function POST(request) {
       );
     }
 
+    // Validerer geometri hvis den finnes.
     if (geometry !== null) {
       const isObject = typeof geometry === "object" && geometry !== null;
       const hasCoords =
@@ -297,6 +356,7 @@ export async function POST(request) {
       }
     }
 
+    // Begrens antall hytter som kan knyttes til turen.
     if (cabin_ids.length > 25) {
       return NextResponse.json(
         { error: "Du kan velge maks 25 hytter per tur" },
@@ -304,6 +364,7 @@ export async function POST(request) {
       );
     }
 
+    // TiU-turer må ha turledernavn.
     if (isTiu && !turleder_navn) {
       return NextResponse.json(
         { error: "Turleder må fylles ut for TiU-tur" },
@@ -311,6 +372,7 @@ export async function POST(request) {
       );
     }
 
+    // Fleksibel tur må være TiU-tur.
     if (isFlexible && !isTiu) {
       return NextResponse.json(
         { error: "Fleksibel fellestur må være en TiU-tur" },
@@ -318,6 +380,7 @@ export async function POST(request) {
       );
     }
 
+    // TiU-turer må være fleksible i denne løsningen.
     if (isTiu && !isFlexible) {
       return NextResponse.json(
         { error: "TiU-turer må ha fleksible startdatoer" },
@@ -325,6 +388,7 @@ export async function POST(request) {
       );
     }
 
+    // TiU-turer må ha mellom 3 og 5 datoalternativer.
     if (isTiu && (dateOptions.length < 3 || dateOptions.length > 5)) {
       return NextResponse.json(
         { error: "Fleksibel fellestur må ha 3–5 datoalternativer" },
@@ -332,6 +396,7 @@ export async function POST(request) {
       );
     }
 
+    // Validerer hvert datoalternativ for TiU-turer.
     if (isTiu) {
       for (const option of dateOptions) {
         const start = option?.start_time;
@@ -360,6 +425,7 @@ export async function POST(request) {
       }
     }
 
+    // Sjekker at alle cabin_ids faktisk finnes i cabins-tabellen.
     const cabinsResult = await client.query(
       `
         SELECT id::text AS id, name
@@ -376,13 +442,18 @@ export async function POST(request) {
       );
     }
 
+    // Lager et map fra cabin-id til cabin-rad for senere bruk i responsen.
     const cabinsById = new Map(cabinsResult.rows.map((row) => [String(row.id), row]));
 
+    // Starter transaksjon.
     await client.query("BEGIN");
+
+    // Sørger for at nødvendige tabeller/kolonner finnes.
     await ensureTripCabinsTable(client);
     await ensureTurlederUserIdColumn(client);
     const hasNightNumberColumn = await hasTripCabinsNightNumberColumn(client);
 
+    // SQL for å opprette selve turen i trips-tabellen.
     const insertTripQuery = `
       INSERT INTO public.trips
         (
@@ -408,6 +479,7 @@ export async function POST(request) {
         geometry
     `;
 
+    // Verdiene til insert-spørringen.
     const tripValues = [
       navn,
       beskrivelse,
@@ -418,10 +490,13 @@ export async function POST(request) {
       geometry,
     ];
 
+    // Oppretter turen og henter den tilbake.
     const tripResult = await client.query(insertTripQuery, tripValues);
     const trip = tripResult.rows[0];
 
+    // Hvis det er en TiU-tur, oppretter vi også rad i tiu_trips.
     if (isTiu) {
+      // Nye TiU-turer starter som draft.
       const planningStatus = "draft";
 
       const tiuResult = await client.query(
@@ -439,12 +514,14 @@ export async function POST(request) {
         [trip.id, turleder_navn, user.id, isFlexible, planningStatus]
       );
 
+      // Legger TiU-informasjonen inn i responsobjektet.
       trip.tiu_trip_id = tiuResult.rows[0].id;
       trip.turleder_navn = tiuResult.rows[0].turleder_navn;
       trip.turleder_user_id = tiuResult.rows[0].turleder_user_id;
       trip.is_flexible = tiuResult.rows[0].is_flexible;
       trip.planning_status = tiuResult.rows[0].planning_status;
     } else {
+      // Hvis det ikke er TiU-tur, sett feltene til null/falsk.
       trip.tiu_trip_id = null;
       trip.turleder_navn = null;
       trip.turleder_user_id = null;
@@ -452,8 +529,10 @@ export async function POST(request) {
       trip.planning_status = null;
     }
 
+    // Knytter valgte hytter til turen i trip_cabins.
     for (let i = 0; i < cabin_ids.length; i += 1) {
       if (hasNightNumberColumn) {
+        // Hvis kolonnen night_number finnes, bruk den også.
         await client.query(
           `
             INSERT INTO public.trip_cabins (trip_id, cabin_id, sort_order, night_number)
@@ -462,6 +541,7 @@ export async function POST(request) {
           [trip.id, cabin_ids[i], i, i + 1]
         );
       } else {
+        // Eldre databaseskjema uten night_number.
         await client.query(
           `
             INSERT INTO public.trip_cabins (trip_id, cabin_id, sort_order)
@@ -472,6 +552,7 @@ export async function POST(request) {
       }
     }
 
+    // Hvis det er en TiU-tur, opprett alle datoalternativene.
     if (isTiu) {
       for (const option of dateOptions) {
         await client.query(
@@ -484,26 +565,36 @@ export async function POST(request) {
       }
     }
 
+    // Legger til cabin-info i responsobjektet.
     trip.cabins = cabin_ids
       .map((id) => cabinsById.get(id))
       .filter(Boolean)
       .map((row) => ({ id: row.id, name: row.name }));
 
+    // Fullfører transaksjonen.
     await client.query("COMMIT");
 
+    // Etter commit: varsle adminer hvis dette er en TiU-tur.
     if (isTiu) {
       await notifyAdmins(client, trip.id, trip.navn);
     }
 
+    // Returnerer den opprettede turen.
     return NextResponse.json(trip, { status: 201 });
   } catch (error) {
+    // Hvis noe feiler, prøv rollback.
     await client.query("ROLLBACK");
+
+    // Logger feilen i server-konsollen.
     console.error("Trips API POST error:", error);
+
+    // Returnerer generell feilmelding til klienten.
     return NextResponse.json(
       { error: "Kunne ikke opprette tur" },
       { status: 500 }
     );
   } finally {
+    // Frigir databaseklienten tilbake til poolen.
     client.release();
   }
 }

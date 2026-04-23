@@ -1,32 +1,76 @@
 "use client";
 
-// Denne siden viser detaljer om en spesifikk tur, inkludert bilder, kart, vær og muligheter for påmelding eller interesse.
-// Brukere kan også slette eller bekrefte avganger hvis de har rettigheter.
+// Denne siden kjører som en client component i Next.js.
+// Det betyr at hooks som useState, useEffect, useRouter og useParams kan brukes.
 
+// Denne siden viser detaljene for én spesifikk tur.
+// Her kan brukeren:
+// - se bilder, kart og vær
+// - melde interesse
+// - melde seg bindende på
+// - trekke interesse eller melde seg av
+// - åpne turgruppe
+// - velge dato hvis brukeren er turleder/admin
+// - bekrefte tur hvis den er klar
+// - slette tur hvis brukeren har tilgang
+
+// Komponent som viser en karusell med bilder for turen.
 import TripImageCarousel from "./TripImageCarousel";
+
+// React-hooks:
+// useState for lokal state
+// useEffect for sideeffekter
+// useCallback for memoiserte funksjoner
+// useMemo for utregnet verdi som bare oppdateres når avhengigheter endres
 import { useCallback, useEffect, useMemo, useState } from "react";
+
+// Next.js hooks for å lese URL-parametere og navigere mellom sider.
 import { useParams, useRouter } from "next/navigation";
+
+// CSS-modulen for detaljsiden.
 import styles from "./tripDetails.module.css";
+
+// Komponent som viser værdata for et sted.
 import CabinWeather from "../../reserver/CabinWeather";
+
+// Komponent som viser kart/rute for turen.
 import TripMap from "./TripMap";
 
+
+// Hovedkomponenten for turdetaljsiden.
 export default function TripDetailsPage() {
+  // Henter route-parametere fra URL-en, f.eks. /explore/12 -> id = 12
   const params = useParams();
+
+  // Router brukes for navigasjon til andre sider.
   const router = useRouter();
 
-  // State for turdata, lasting og feil
+  // State for selve turdataene som hentes fra backend.
   const [trip, setTrip] = useState(null);
+
+  // State for om siden holder på å laste.
   const [loading, setLoading] = useState(true);
+
+  // State for eventuell feil som oppstår når turen hentes.
   const [error, setError] = useState("");
 
-  // State for handling av interesse eller påmelding
+  // State som brukes for handlinger som:
+  // - ikke-bindende interesse
+  // - bindende påmelding
+  // - trekke interesse
+  // - melde seg av
   const [actionState, setActionState] = useState({
     loading: false,
     message: "",
     error: "",
   });
 
-  // State for valg av dato og deltakere
+  // State for admin/turleder når endelig dato velges.
+  // Inneholder:
+  // - hvilket datoalternativ som er valgt
+  // - minimum antall deltakere
+  // - maksimum antall deltakere
+  // - loading / error / message
   const [dateSelection, setDateSelection] = useState({
     dateOptionId: "",
     minParticipants: 1,
@@ -36,51 +80,63 @@ export default function TripDetailsPage() {
     message: "",
   });
 
-  // State for sletting av tur
+  // State for sletting av tur.
   const [deleteState, setDeleteState] = useState({
     loading: false,
     error: "",
   });
 
-  // State for bekreftelse av avgang
+  // State for bekreftelse av tur/avgang.
   const [confirmState, setConfirmState] = useState({
     loading: false,
     error: "",
     message: "",
   });
 
-  // Henter turdetaljer fra API
+  // Denne funksjonen henter detaljdata om turen fra backend.
+  // useCallback brukes for å unngå at funksjonen opprettes på nytt
+  // for hver render med mindre params.id endres.
   const fetchTrip = useCallback(async () => {
     try {
+      // Starter laste-state og nullstiller tidligere feil.
       setLoading(true);
       setError("");
 
+      // Henter turdata fra API.
       const res = await fetch(`/api/trips/${params.id}`, {
         credentials: "include",
       });
 
+      // Leser responsen som JSON.
       const data = await res.json();
 
+      // Hvis API-et ikke returnerte OK, kastes en feil.
       if (!res.ok) {
         throw new Error(data?.details || data?.error || "Kunne ikke hente tur");
       }
 
+      // Lagrer turdata i state.
       setTrip(data);
     } catch (err) {
+      // Lagrer feilmelding hvis noe går galt.
       setError(err.message || "Noe gikk galt");
     } finally {
+      // Slår av laste-state uansett om det gikk bra eller ikke.
       setLoading(false);
     }
   }, [params?.id]);
 
-  // Henter tur når komponenten monteres eller ID endres
+  // Henter turen når komponenten lastes første gang,
+  // og hver gang params.id endres.
   useEffect(() => {
     if (params?.id) {
       fetchTrip();
     }
   }, [params?.id, fetchTrip]);
 
-  // Setter standard dato-valg basert på tilgjengelige alternativer
+  // Setter standard valgt dato i admin-panelet når trip.date_options er lastet.
+  // Hvis en dato allerede er markert som valgt, brukes den.
+  // Hvis ikke brukes første datoalternativ.
   useEffect(() => {
     if (!trip?.date_options?.length) return;
 
@@ -93,10 +149,12 @@ export default function TripDetailsPage() {
     }));
   }, [trip?.date_options]);
 
-  // Håndterer påmelding til turavgang
+  // Håndterer bindende påmelding til turen.
   const handleRegister = async () => {
+    // Hvis turen ikke har en departure_id, finnes det ingen aktiv avgang å melde seg på.
     if (!trip?.departure_id) return;
 
+    // Setter loading og nullstiller gamle meldinger.
     setActionState({
       loading: true,
       message: "",
@@ -104,6 +162,7 @@ export default function TripDetailsPage() {
     });
 
     try {
+      // Kaller API for bindende påmelding.
       const res = await fetch(`/api/departures/${trip.departure_id}/register`, {
         method: "POST",
         credentials: "include",
@@ -111,19 +170,26 @@ export default function TripDetailsPage() {
 
       const data = await res.json();
 
+      // Ved feil fra backend kastes feilen.
       if (!res.ok) {
         throw new Error(data?.error || "Kunne ikke registrere bindende påmelding");
       }
 
+      // Viser suksessmelding.
       setActionState({
         loading: false,
         message: data?.message || "Bindende påmelding registrert",
         error: "",
       });
 
+      // Henter oppdatert turdata fra backend.
       await fetchTrip();
+
+      // Varsler resten av appen om at notifications bør oppdateres.
+      // Dette brukes blant annet av bjella i headeren.
       window.dispatchEvent(new Event("ff-notifications-updated"));
     } catch (err) {
+      // Viser feilmelding hvis noe gikk galt.
       setActionState({
         loading: false,
         message: "",
@@ -132,7 +198,7 @@ export default function TripDetailsPage() {
     }
   };
 
-  // Håndterer avmelding fra bindende påmelding
+  // Håndterer avmelding fra bindende påmelding.
   const handleWithdrawBinding = async () => {
     if (!trip?.departure_id) return;
 
@@ -143,6 +209,7 @@ export default function TripDetailsPage() {
     });
 
     try {
+      // DELETE brukes for å melde brukeren av turen.
       const res = await fetch(`/api/departures/${trip.departure_id}/register`, {
         method: "DELETE",
         credentials: "include",
@@ -160,6 +227,7 @@ export default function TripDetailsPage() {
         error: "",
       });
 
+      // Oppdaterer turdata etter avmelding.
       await fetchTrip();
     } catch (err) {
       setActionState({
@@ -170,7 +238,7 @@ export default function TripDetailsPage() {
     }
   };
 
-  // Håndterer registrering av ikke-bindende interesse for turen
+  // Håndterer registrering av ikke-bindende interesse.
   const handleInterest = async () => {
     setActionState({
       loading: true,
@@ -179,6 +247,7 @@ export default function TripDetailsPage() {
     });
 
     try {
+      // Kaller API-ruta for interesse.
       const res = await fetch(`/api/trips/${trip.id}/interest`, {
         method: "POST",
         credentials: "include",
@@ -196,6 +265,7 @@ export default function TripDetailsPage() {
         error: "",
       });
 
+      // Oppdaterer turdata etter vellykket registrering.
       await fetchTrip();
     } catch (err) {
       setActionState({
@@ -206,7 +276,7 @@ export default function TripDetailsPage() {
     }
   };
 
-  // Håndterer trekking av interesse
+  // Håndterer trekking av ikke-bindende interesse.
   const handleWithdrawInterest = async () => {
     setActionState({
       loading: true,
@@ -215,6 +285,7 @@ export default function TripDetailsPage() {
     });
 
     try {
+      // DELETE brukes for å trekke interesse.
       const res = await fetch(`/api/trips/${trip.id}/interest`, {
         method: "DELETE",
         credentials: "include",
@@ -232,6 +303,7 @@ export default function TripDetailsPage() {
         error: "",
       });
 
+      // Oppdaterer turdata etter endringen.
       await fetchTrip();
     } catch (err) {
       setActionState({
@@ -242,8 +314,10 @@ export default function TripDetailsPage() {
     }
   };
 
-  // Håndterer valg av dato for turen
+  // Håndterer valg av endelig dato for turen.
+  // Dette brukes av turleder/admin.
   const handleSelectDate = async () => {
+    // Hvis tur eller datoalternativ mangler, avslutt.
     if (!trip?.id || !dateSelection.dateOptionId) return;
 
     setDateSelection((prev) => ({
@@ -254,6 +328,7 @@ export default function TripDetailsPage() {
     }));
 
     try {
+      // Sender valgt dato og min/maks deltakere til backend.
       const res = await fetch(`/api/trips/${trip.id}/select-date`, {
         method: "POST",
         credentials: "include",
@@ -283,7 +358,10 @@ export default function TripDetailsPage() {
         message: data?.message || "Dato valgt og bindende påmelding åpnet",
       }));
 
+      // Oppdater siden med ny turstatus.
       await fetchTrip();
+
+      // Oppdater bjellevarslinger.
       window.dispatchEvent(new Event("ff-notifications-updated"));
     } catch (err) {
       setDateSelection((prev) => ({
@@ -295,7 +373,8 @@ export default function TripDetailsPage() {
     }
   };
 
-  // Håndterer bekreftelse av turavgang (kun for turleder eller admin)
+  // Håndterer bekreftelse av turen når nok bindende påmeldinger er nådd.
+  // Kun turleder/admin skal kunne bruke denne.
   const handleConfirmDeparture = async () => {
     if (!trip?.departure_id) return;
 
@@ -306,6 +385,7 @@ export default function TripDetailsPage() {
     });
 
     try {
+      // Kaller API-ruta som bekrefter turen.
       const res = await fetch(`/api/departures/${trip.departure_id}/confirm`, {
         method: "POST",
         credentials: "include",
@@ -323,6 +403,7 @@ export default function TripDetailsPage() {
         message: data?.message || "Turen er bekreftet",
       });
 
+      // Oppdaterer turdata etter bekreftelse.
       await fetchTrip();
     } catch (err) {
       setConfirmState({
@@ -333,7 +414,8 @@ export default function TripDetailsPage() {
     }
   };
 
-  // Håndterer sletting av turen (kun for admin eller turleder)
+  // Håndterer sletting av turen.
+  // Brukeren må først bekrefte i en standard browser-confirm dialog.
   const handleDeleteTrip = async () => {
     if (!trip?.id) return;
 
@@ -349,6 +431,7 @@ export default function TripDetailsPage() {
     });
 
     try {
+      // Kaller DELETE på turens API-rute.
       const res = await fetch(`/api/trips/${trip.id}`, {
         method: "DELETE",
         credentials: "include",
@@ -360,6 +443,7 @@ export default function TripDetailsPage() {
         throw new Error(data?.error || "Kunne ikke slette tur");
       }
 
+      // Hvis sletting lykkes, send brukeren tilbake til explore.
       router.push("/explore");
     } catch (err) {
       setDeleteState({
@@ -369,14 +453,23 @@ export default function TripDetailsPage() {
     }
   };
 
+  // Navigerer til turgruppa/chatten for denne turen.
   const goToGroup = () => {
     if (!trip?.id) return;
     router.push(`/explore/${trip.id}/group`);
   };
 
+  // Bindende påmelding er mulig hvis turen har avgang
+  // og brukeren ikke allerede er bindende registrert.
   const canRegisterBinding =
     Boolean(trip?.departure_id) && trip?.is_binding_registered !== true;
 
+  // Ikke-bindende interesse kan vises hvis:
+  // - turen er TiU-tur
+  // - turen er fleksibel
+  // - planstatus er interest_open
+  // - brukeren ikke allerede er interessert
+  // - brukeren ikke allerede er bindende påmeldt
   const canExpressInterest =
     Boolean(trip?.tiu_trip_id) &&
     trip?.is_flexible === true &&
@@ -384,19 +477,27 @@ export default function TripDetailsPage() {
     trip?.is_interested !== true &&
     trip?.is_binding_registered !== true;
 
+  // Om brukeren kan åpne gruppe/chat for turen.
   const canShowGroupButton = trip?.can_open_group === true;
 
+  // Kun admin/turleder skal kunne velge endelig dato,
+  // og bare hvis turen har datoalternativer og ingen avgang enda.
   const canSelectDate =
     trip?.is_trip_admin === true &&
     Array.isArray(trip?.date_options) &&
     trip.date_options.length > 0 &&
     !trip?.departure_id;
 
+  // Kun admin/turleder kan slette tur.
   const canDeleteTrip = trip?.is_trip_admin === true;
+
+  // Kun admin/turleder kan bekrefte tur hvis backend sier den er klar.
   const canConfirmDeparture = trip?.can_confirm_departure === true;
 
+  // Lager en pen tekstversjon av valgt dato.
   const selectedDateLabel = useMemo(() => {
     if (!trip?.date_options?.length) return null;
+
     const selected = trip.date_options.find((option) => option.is_selected);
     if (!selected) return null;
 
@@ -405,6 +506,7 @@ export default function TripDetailsPage() {
     ).toLocaleString("no-NO")}`;
   }, [trip?.date_options]);
 
+  // Hvis siden fortsatt laster, vis enkel laste-tekst.
   if (loading) {
     return (
       <main className={styles.container}>
@@ -413,6 +515,7 @@ export default function TripDetailsPage() {
     );
   }
 
+  // Hvis en feil oppstod, vis tilbakeknapp og feilmelding.
   if (error) {
     return (
       <main className={styles.container}>
@@ -428,6 +531,7 @@ export default function TripDetailsPage() {
     );
   }
 
+  // Hvis ingen tur ble funnet, vis fallback.
   if (!trip) {
     return (
       <main className={styles.container}>
@@ -443,8 +547,10 @@ export default function TripDetailsPage() {
     );
   }
 
+  // Selve UI-et for turdetaljsiden.
   return (
     <main className={styles.container}>
+      {/* Tilbakeknapp til oversikten */}
       <button
         className={styles.backButton}
         onClick={() => router.push("/explore")}
@@ -454,17 +560,21 @@ export default function TripDetailsPage() {
       </button>
 
       <article className={styles.detailsCard}>
+        {/* Viser bilder hvis turen har det */}
         {Array.isArray(trip.bilde_urls) && trip.bilde_urls.length > 0 ? (
           <TripImageCarousel images={trip.bilde_urls} altBase={trip.navn} />
         ) : trip.bilde_url ? (
           <TripImageCarousel images={[trip.bilde_url]} altBase={trip.navn} />
         ) : (
+          // Hvis ingen bilder finnes, vis placeholder
           <div className={styles.imagePlaceholder}>Ingen bilde</div>
         )}
 
         <div className={styles.content}>
+          {/* Turens navn */}
           <h1 className={styles.title}>{trip.navn}</h1>
 
+          {/* Badges med viktig metadata */}
           <div className={styles.metaRow}>
             <span className={styles.metaBadge}>{trip.type}</span>
             <span className={styles.metaBadge}>{trip.lengde_km} km</span>
@@ -474,6 +584,7 @@ export default function TripDetailsPage() {
             )}
           </div>
 
+          {/* Kartseksjon hvis geometri finnes */}
           {trip.geometry && (
             <section className={styles.section}>
               <h2>Rute</h2>
@@ -481,6 +592,7 @@ export default function TripDetailsPage() {
             </section>
           )}
 
+          {/* Beskrivelse og værseksjon */}
           <section className={styles.section}>
             <h2>Om turen</h2>
             <p>{trip.beskrivelse || "Ingen beskrivelse lagt til."}</p>
@@ -497,6 +609,7 @@ export default function TripDetailsPage() {
             </div>
           </section>
 
+          {/* Seksjon som viser hvem som organiserer turen */}
           <section className={styles.section}>
             <h2>Organisering</h2>
             {trip.tiu_trip_id ? (
@@ -520,6 +633,7 @@ export default function TripDetailsPage() {
             )}
           </section>
 
+          {/* Seksjon for datoalternativer */}
           {trip.date_options?.length > 0 && (
             <section className={styles.section}>
               <h2>Datoalternativer</h2>
@@ -538,12 +652,14 @@ export default function TripDetailsPage() {
                 <strong>Antall interesserte:</strong> {trip.interested_count ?? 0}
               </p>
 
+              {/* Viser valgt dato hvis en dato er markert */}
               {selectedDateLabel && (
                 <p className={styles.selectedDateInfo}>
                   <strong>Valgt dato:</strong> {selectedDateLabel}
                 </p>
               )}
 
+              {/* Adminpanel for valg av dato */}
               {canSelectDate && (
                 <div className={styles.adminPanel}>
                   <h3>Velg endelig dato</h3>
@@ -604,6 +720,7 @@ export default function TripDetailsPage() {
                     </label>
                   </div>
 
+                  {/* Meldinger for dato-valg */}
                   {dateSelection.message && (
                     <p className={styles.successMessage}>{dateSelection.message}</p>
                   )}
@@ -627,6 +744,7 @@ export default function TripDetailsPage() {
             </section>
           )}
 
+          {/* Seksjon med info om aktiv avgang */}
           <section className={styles.section}>
             <h2>Avgang</h2>
             {trip.departure_start_time ? (
@@ -650,6 +768,7 @@ export default function TripDetailsPage() {
             )}
           </section>
 
+          {/* Liste over bindende påmeldte hvis bruker er admin/turleder */}
           {trip.is_trip_admin && trip.binding_registrations?.length > 0 && (
             <section className={styles.section}>
               <h2>Bindende påmeldte</h2>
@@ -667,6 +786,7 @@ export default function TripDetailsPage() {
             </section>
           )}
 
+          {/* Meldinger for bekreftelse */}
           {confirmState.message && (
             <p className={styles.successMessage}>{confirmState.message}</p>
           )}
@@ -675,6 +795,7 @@ export default function TripDetailsPage() {
             <p className={styles.errorMessage}>{confirmState.error}</p>
           )}
 
+          {/* Meldinger for påmelding/interesse */}
           {actionState.message && (
             <p className={styles.successMessage}>{actionState.message}</p>
           )}
@@ -683,10 +804,12 @@ export default function TripDetailsPage() {
             <p className={styles.errorMessage}>{actionState.error}</p>
           )}
 
+          {/* Feil ved sletting */}
           {deleteState.error && (
             <p className={styles.errorMessage}>{deleteState.error}</p>
           )}
 
+          {/* Handlingsknapper */}
           <div className={styles.actions}>
             {canExpressInterest && (
               <button
@@ -768,6 +891,7 @@ export default function TripDetailsPage() {
               </button>
             )}
 
+            {/* Fallback-tekst hvis ingen handlinger er tilgjengelige */}
             {!canExpressInterest &&
               !trip?.can_withdraw_interest &&
               !canRegisterBinding &&

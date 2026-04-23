@@ -1,13 +1,20 @@
+// Importerer databaseforbindelsen som brukes til SQL-spørringer.
 import pool from "../../../../../../lib/db";
+
+// Importerer funksjon for å hente nåværende innloggede bruker.
 import { getCurrentUser } from "../../../../../../lib/auth";
 
+// Tvinger route-handleren til å være dynamisk.
+// Dette er viktig for streaming med Server-Sent Events slik at responsen ikke caches.
 export const dynamic = "force-dynamic";
 
 // Denne filen håndterer streaming av gruppechat-meldinger for en tur ved hjelp av Server-Sent Events (SSE).
-// Den sender nye meldinger i realtid til klienten etter siste mottatte melding-ID.
+// Den sender nye meldinger i sanntid til klienten etter siste mottatte melding-ID.
 
-// Sikrer at nødvendige databasetabeller for gruppechat finnes
+
+// Sørger for at nødvendige databasetabeller for gruppechat finnes.
 async function ensureTripGroupTables(client) {
+  // Oppretter tabellen for selve gruppechatten hvis den ikke finnes.
   await client.query(`
     CREATE TABLE IF NOT EXISTS public.trip_group_chats (
       id INT8 NOT NULL GENERATED ALWAYS AS IDENTITY,
@@ -19,11 +26,13 @@ async function ensureTripGroupTables(client) {
     )
   `);
 
+  // Sikrer at det bare finnes én gruppechat per tur.
   await client.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS uq_trip_group_chats_trip_id
     ON public.trip_group_chats (trip_id ASC)
   `);
 
+  // Oppretter tabellen for meldinger i gruppechatten hvis den ikke finnes.
   await client.query(`
     CREATE TABLE IF NOT EXISTS public.trip_group_messages (
       id INT8 NOT NULL GENERATED ALWAYS AS IDENTITY,
@@ -41,18 +50,22 @@ async function ensureTripGroupTables(client) {
     )
   `);
 
+  // Indeks for rask henting av meldinger per chat.
   await client.query(`
     CREATE INDEX IF NOT EXISTS idx_trip_group_messages_chat_id
     ON public.trip_group_messages (chat_id ASC)
   `);
 
+  // Indeks for rask sortering og uthenting etter tidspunkt.
   await client.query(`
     CREATE INDEX IF NOT EXISTS idx_trip_group_messages_created_at
     ON public.trip_group_messages (created_at ASC)
   `);
 }
 
-// Sjekker om brukeren har tilgang til turgruppen (enten interessert eller påmeldt)
+
+// Sjekker om brukeren har tilgang til turgruppen.
+// Brukeren må enten være interessert i turen eller være bindende påmeldt.
 async function userHasAccess(client, tripId, userId) {
   const result = await client.query(
     `
@@ -77,11 +90,15 @@ async function userHasAccess(client, tripId, userId) {
     [tripId, userId]
   );
 
+  // Returnerer true hvis brukeren har tilgang, ellers false.
   return result.rowCount > 0;
 }
 
-// Sikrer at det finnes en gruppechat for turen, oppretter hvis ikke
+
+// Sørger for at det finnes en gruppechat for turen.
+// Hvis den ikke finnes, opprettes den automatisk.
 async function ensureChatForTrip(client, tripId) {
+  // Prøver først å hente eksisterende chat.
   let chatResult = await client.query(
     `
     SELECT id, trip_id, created_at
@@ -92,6 +109,7 @@ async function ensureChatForTrip(client, tripId) {
     [tripId]
   );
 
+  // Hvis ingen chat finnes, opprett en ny.
   if (chatResult.rowCount === 0) {
     chatResult = await client.query(
       `
@@ -103,10 +121,13 @@ async function ensureChatForTrip(client, tripId) {
     );
   }
 
+  // Returnerer chat-objektet.
   return chatResult.rows[0];
 }
 
-// Henter meldinger etter en spesifikk melding-ID for å få nye meldinger
+
+// Henter alle meldinger med ID større enn lastMessageId.
+// Dette brukes av streamen for å finne nye meldinger siden sist klienten oppdaterte.
 async function getMessagesAfter(client, chatId, lastMessageId) {
   const result = await client.query(
     `
@@ -130,28 +151,32 @@ async function getMessagesAfter(client, chatId, lastMessageId) {
   return result.rows;
 }
 
-// Hovedfunksjon for GET-forespørsel: setter opp Server-Sent Events stream for gruppechat
+
+// Hovedfunksjon for GET-forespørsel.
+// Denne setter opp en Server-Sent Events-stream for gruppechatten.
 export async function GET(request, { params }) {
+  // Henter en databaseklient.
   const client = await pool.connect();
 
   try {
-    // Sikrer at databasetabeller finnes
+    // Sørger for at tabellene finnes før vi starter.
     await ensureTripGroupTables(client);
 
-    // Henter nåværende bruker
+    // Henter nåværende bruker.
     const user = await getCurrentUser();
 
+    // Hvis ingen er logget inn, returner 401.
     if (!user) {
       return new Response("Ikke innlogget", { status: 401 });
     }
 
-    // Validerer tur-ID
+    // Leser og validerer tur-ID fra route-parametrene.
     const tripId = Number(params.id);
     if (!Number.isFinite(tripId)) {
       return new Response("Ugyldig tur-id", { status: 400 });
     }
 
-    // Sjekker tilgang til turgruppen
+    // Sjekker om brukeren har tilgang til turgruppen.
     const hasAccess = await userHasAccess(client, tripId, user.id);
     if (!hasAccess) {
       return new Response(
@@ -160,25 +185,27 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Sikrer at gruppechat finnes for turen
+    // Sørger for at gruppechat finnes for turen.
     const chat = await ensureChatForTrip(client, tripId);
-    // Henter siste melding-ID fra query-parametere
+
+    // Leser siste melding-ID klienten allerede kjenner til fra query-parametrene.
     const { searchParams } = new URL(request.url);
     let lastMessageId = Number(searchParams.get("lastMessageId") || "0");
 
+    // Hvis lastMessageId er ugyldig eller negativ, bruk 0 som fallback.
     if (!Number.isFinite(lastMessageId) || lastMessageId < 0) {
       lastMessageId = 0;
     }
 
-    // Setter opp TextEncoder for å sende data som tekst
+    // TextEncoder brukes for å sende tekst som bytes i streamen.
     const encoder = new TextEncoder();
 
-    // Oppretter ReadableStream for Server-Sent Events
+    // Oppretter en ReadableStream som sender SSE-events.
     const stream = new ReadableStream({
       start(controller) {
         let closed = false;
 
-        // Hjelpefunksjon for å sende events til klienten
+        // Hjelpefunksjon for å sende et SSE-event til klienten.
         const send = (event, data) => {
           if (closed) return;
           controller.enqueue(
@@ -186,7 +213,7 @@ export async function GET(request, { params }) {
           );
         };
 
-        // Sender "ready" event for å bekrefte at streamen er startet
+        // Sender et "ready"-event når streamen er startet opp.
         send("ready", {
           ok: true,
           tripId,
@@ -194,35 +221,37 @@ export async function GET(request, { params }) {
           currentUserId: user.id,
         });
 
-        // Setter opp heartbeat for å holde forbindelsen åpen
+        // Sender heartbeat/ping hvert 20. sekund for å holde forbindelsen åpen.
         const heartbeat = setInterval(() => {
           send("ping", { ts: Date.now() });
         }, 20000);
 
-        // Poller for nye meldinger hver 1.5 sekund
+        // Poller databasen hvert 1.5 sekund for nye meldinger.
         const poll = setInterval(async () => {
           if (closed) return;
 
           try {
-            // Henter nye meldinger etter siste ID
+            // Henter meldinger nyere enn siste meldings-ID klienten har.
             const rows = await getMessagesAfter(client, chat.id, lastMessageId);
 
             if (rows.length > 0) {
               for (const row of rows) {
-                // Sender hver nye melding som event
+                // Sender hver ny melding som et "message"-event.
                 send("message", row);
+
+                // Oppdaterer siste melding-ID slik at samme melding ikke sendes igjen.
                 lastMessageId = Math.max(lastMessageId, Number(row.id));
               }
             }
           } catch (error) {
-            // Sender feil-event hvis noe går galt
+            // Hvis polling feiler, send et error-event til klienten.
             send("error", {
               message: error?.message || "Klarte ikke hente nye meldinger",
             });
           }
         }, 1500);
 
-        // Lytter på abort-signal for å rydde opp
+        // Lytter på abort-signal når klienten lukker forbindelsen.
         request.signal.addEventListener("abort", () => {
           closed = true;
           clearInterval(heartbeat);
@@ -233,15 +262,16 @@ export async function GET(request, { params }) {
           client.release();
         });
       },
+
+      // Rydd opp hvis streamen kanselleres.
       cancel() {
-        // Rydder opp databaseforbindelse ved kansellering
         try {
           client.release();
         } catch {}
       },
     });
 
-    // Returnerer Response med stream og riktige headers for SSE
+    // Returnerer Response med riktig content-type og headers for SSE.
     return new Response(stream, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
@@ -250,12 +280,12 @@ export async function GET(request, { params }) {
       },
     });
   } catch (error) {
-    // Rydder opp databaseforbindelse ved feil
+    // Frigir databaseklienten ved feil.
     try {
       client.release();
     } catch {}
 
-    // Returnerer feilrespons
+    // Returnerer en vanlig tekstrespons med feilmelding.
     return new Response(error?.message || "Kunne ikke starte stream", {
       status: 500,
     });

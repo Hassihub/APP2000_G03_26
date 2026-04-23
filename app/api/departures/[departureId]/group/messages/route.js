@@ -1,7 +1,15 @@
+// Importerer NextResponse for å kunne sende JSON-responser fra API-ruten.
 import { NextResponse } from "next/server";
+
+// Importerer databaseforbindelsen.
 import pool from "../../../../../../lib/db";
+
+// Importerer autentiseringsfunksjonen som krever at brukeren er innlogget.
 import { requireAuth } from "../../../../../../lib/auth";
 
+
+// Denne hjelpefunksjonen sjekker om brukeren har tilgang til gruppechatten.
+// For å kunne sende meldinger må brukeren være bindende påmeldt på avgangen.
 async function ensureAccess(client, departureId, userId) {
   const accessResult = await client.query(
     `
@@ -15,24 +23,35 @@ async function ensureAccess(client, departureId, userId) {
     [departureId, userId]
   );
 
+  // Returnerer true hvis brukeren har tilgang, ellers false.
   return accessResult.rowCount > 0;
 }
 
+
+// POST-ruta brukes for å sende en ny melding i gruppechatten for en avgang.
 export async function POST(request, { params }) {
+  // Henter databaseklient fra poolen.
   const client = await pool.connect();
 
   try {
+    // Krever at brukeren er innlogget.
     const { user, response } = await requireAuth();
+
+    // Hvis requireAuth returnerer en ferdig response, send den tilbake.
     if (response) return response;
 
+    // Leser departureId fra URL-parametrene og gjør den om til tall.
     const departureId = Number(params.departureId);
 
+    // Hvis departureId ikke er gyldig, returneres 400-feil.
     if (!Number.isFinite(departureId)) {
       return NextResponse.json({ error: "Ugyldig avgang" }, { status: 400 });
     }
 
+    // Sjekker om brukeren har tilgang til gruppechatten.
     const access = await ensureAccess(client, departureId, user.id);
 
+    // Hvis brukeren ikke er bindende påmeldt, nektes tilgang.
     if (!access) {
       return NextResponse.json(
         { error: "Du har ikke tilgang til denne turgruppen" },
@@ -40,9 +59,13 @@ export async function POST(request, { params }) {
       );
     }
 
+    // Leser request body og henter ut meldingen.
     const body = await request.json();
+
+    // Fjerner whitespace i starten/slutten av meldingen.
     const message = (body.message || "").trim();
 
+    // Hvis meldingen er tom etter trim, returneres 400-feil.
     if (!message) {
       return NextResponse.json(
         { error: "Meldingen kan ikke være tom" },
@@ -50,6 +73,7 @@ export async function POST(request, { params }) {
       );
     }
 
+    // Enkel lengdesjekk for å unngå altfor lange meldinger.
     if (message.length > 2000) {
       return NextResponse.json(
         { error: "Meldingen er for lang" },
@@ -57,8 +81,10 @@ export async function POST(request, { params }) {
       );
     }
 
+    // Starter en transaksjon.
     await client.query("BEGIN");
 
+    // Prøver å hente eksisterende chat for denne avgangen.
     let chatResult = await client.query(
       `
       SELECT id
@@ -69,6 +95,7 @@ export async function POST(request, { params }) {
       [departureId]
     );
 
+    // Hvis chatten ikke finnes ennå, opprettes den automatisk.
     if (chatResult.rowCount === 0) {
       chatResult = await client.query(
         `
@@ -80,8 +107,10 @@ export async function POST(request, { params }) {
       );
     }
 
+    // Henter chat-id for gruppa.
     const chatId = chatResult.rows[0].id;
 
+    // Lagrer den nye meldingen i trip_group_messages.
     const insertResult = await client.query(
       `
       INSERT INTO public.trip_group_messages (chat_id, user_id, message)
@@ -91,6 +120,8 @@ export async function POST(request, { params }) {
       [chatId, user.id, message]
     );
 
+    // Henter den nysendte meldingen tilbake med brukerinfo,
+    // slik at frontend får samme struktur som når meldinger hentes ellers.
     const messageResult = await client.query(
       `
       SELECT
@@ -109,8 +140,10 @@ export async function POST(request, { params }) {
       [insertResult.rows[0].id]
     );
 
+    // Fullfører transaksjonen.
     await client.query("COMMIT");
 
+    // Returnerer suksessrespons med den ferdige meldingen.
     return NextResponse.json(
       {
         success: true,
@@ -119,15 +152,21 @@ export async function POST(request, { params }) {
       { status: 201 }
     );
   } catch (error) {
+    // Hvis noe går galt, prøv å rulle tilbake transaksjonen.
     try {
       await client.query("ROLLBACK");
     } catch {}
+
+    // Logger backend-feilen i terminalen for debugging.
     console.error("Trip group message POST error:", error);
+
+    // Returnerer generell 500-feil til frontend.
     return NextResponse.json(
       { error: "Kunne ikke sende melding" },
       { status: 500 }
     );
   } finally {
+    // Frigir alltid databaseklienten tilbake til poolen.
     client.release();
   }
 }

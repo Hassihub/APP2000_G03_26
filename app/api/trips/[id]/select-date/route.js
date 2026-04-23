@@ -1,22 +1,36 @@
+// Importerer NextResponse for å kunne returnere JSON-responser fra API-ruten.
 import { NextResponse } from "next/server";
+
+// Importerer databaseforbindelsen.
 import pool from "../../../../../lib/db";
+
+// Importerer autentiseringsfunksjonen som krever at brukeren er innlogget.
 import { requireAuth } from "../../../../../lib/auth";
 
-// Denne API-ruten håndterer valg av dato for fleksible turer.
-// POST: Velger dato og åpner bindende påmelding
+// Denne API-ruten brukes når turleder/admin velger endelig dato for en fleksibel tur.
+// Når dato velges:
+// - ett datoalternativ markeres som valgt
+// - en avgang opprettes i trip_departures
+// - planning_status endres til binding_open
+// - brukere som hadde meldt ikke-bindende interesse får varsel
 
-// Sikrer at turleder_user_id kolonnen finnes
+
+// Denne hjelpefunksjonen sørger for at kolonnen turleder_user_id finnes i tiu_trips.
+// Den brukes fordi eldre data kan ha turleder_navn uten kobling til users.id.
 async function ensureTurlederUserIdColumn(client) {
+  // Legger til kolonnen hvis den mangler.
   await client.query(`
     ALTER TABLE public.tiu_trips
     ADD COLUMN IF NOT EXISTS turleder_user_id UUID NULL
   `);
 
+  // Lager indeks for raskere oppslag på turleder_user_id.
   await client.query(`
     CREATE INDEX IF NOT EXISTS idx_tiu_trips_turleder_user_id
     ON public.tiu_trips (turleder_user_id)
   `);
 
+  // Fyller inn turleder_user_id for gamle rader ved å matche username.
   await client.query(`
     UPDATE public.tiu_trips tt
     SET turleder_user_id = u.id
@@ -26,7 +40,11 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
+
+// Denne hjelpefunksjonen sørger for at user_notifications-tabellen finnes.
+// Den brukes når brukere skal varsles i bjella om at dato er valgt.
 async function ensureUserNotificationsTable(client) {
+  // Oppretter tabellen hvis den ikke finnes.
   await client.query(`
     CREATE TABLE IF NOT EXISTS public.user_notifications (
       id BIGSERIAL PRIMARY KEY,
@@ -43,11 +61,13 @@ async function ensureUserNotificationsTable(client) {
     )
   `);
 
+  // Lager indeks for rask uthenting av varsler per bruker.
   await client.query(`
     CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created
     ON public.user_notifications (user_id, created_at DESC)
   `);
 
+  // Lager unik indeks slik at samme varsel ikke settes inn flere ganger.
   await client.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS uq_user_notifications_reference
     ON public.user_notifications (user_id, type, reference_id)
@@ -55,22 +75,28 @@ async function ensureUserNotificationsTable(client) {
   `);
 }
 
-// Velger dato for en fleksibel tur og åpner bindende påmelding
+
+// POST-ruta brukes for å velge endelig dato på en fleksibel tur.
 export async function POST(request, context) {
+  // Henter databaseklient fra poolen.
   const client = await pool.connect();
 
   try {
+    // Krever at brukeren er innlogget.
     const { user, response } = await requireAuth();
     if (response) {
       return response;
     }
 
+    // Sørger for at nødvendige databasefelter/tabeller finnes.
     await ensureTurlederUserIdColumn(client);
     await ensureUserNotificationsTable(client);
 
+    // Leser tur-ID fra route-parametrene.
     const { id } = await context.params;
     const tripId = Number(id);
 
+    // Returnerer feil hvis tur-ID ikke er gyldig.
     if (!Number.isFinite(tripId)) {
       return NextResponse.json(
         { error: "Ugyldig tur-id" },
@@ -78,10 +104,17 @@ export async function POST(request, context) {
       );
     }
 
+    // Leser request body som JSON.
     const body = await request.json();
 
+    // Leser valgt datoalternativ-ID.
     const dateOptionId = Number(body?.dateOptionId);
+
+    // Leser minimum antall deltakere, med fallback til 1.
     const minParticipants = Number(body?.min_participants ?? 1);
+
+    // Leser maksimum antall deltakere.
+    // Hvis feltet er tomt/null/undefined brukes null.
     const maxParticipants =
       body?.max_participants === null ||
       body?.max_participants === undefined ||
@@ -89,6 +122,7 @@ export async function POST(request, context) {
         ? null
         : Number(body.max_participants);
 
+    // Validerer at datoalternativ-ID er gyldig.
     if (!Number.isFinite(dateOptionId)) {
       return NextResponse.json(
         { error: "Ugyldig datoalternativ" },
@@ -96,6 +130,7 @@ export async function POST(request, context) {
       );
     }
 
+    // Validerer minParticipants.
     if (!Number.isFinite(minParticipants) || minParticipants < 1) {
       return NextResponse.json(
         { error: "Minste antall deltakere må være minst 1" },
@@ -103,6 +138,7 @@ export async function POST(request, context) {
       );
     }
 
+    // Hvis maxParticipants er satt, valider at den er gyldig og >= minimum.
     if (maxParticipants !== null) {
       if (!Number.isFinite(maxParticipants) || maxParticipants < minParticipants) {
         return NextResponse.json(
@@ -112,8 +148,10 @@ export async function POST(request, context) {
       }
     }
 
+    // Starter transaksjon.
     await client.query("BEGIN");
 
+    // Henter turen og tilhørende TiU-info, og låser raden med FOR UPDATE.
     const tripResult = await client.query(
       `
       SELECT
@@ -133,6 +171,7 @@ export async function POST(request, context) {
       [tripId]
     );
 
+    // Hvis turen ikke finnes, returner 404.
     if (tripResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
@@ -141,14 +180,19 @@ export async function POST(request, context) {
       );
     }
 
+    // Henter turdataene.
     const trip = tripResult.rows[0];
 
+    // Sjekker om brukeren er admin.
     const role = String(user.role || "").toUpperCase();
     const isAdmin = role === "ADMIN";
+
+    // Sjekker om brukeren er turleder for denne turen.
     const isLeaderForThisTrip =
       trip.turleder_user_id &&
       String(trip.turleder_user_id) === String(user.id);
 
+    // Kun admin eller turleder for turen skal få velge dato.
     if (!isAdmin && !isLeaderForThisTrip) {
       await client.query("ROLLBACK");
       return NextResponse.json(
@@ -157,6 +201,7 @@ export async function POST(request, context) {
       );
     }
 
+    // Turen må være fleksibel for at dato skal kunne velges på denne måten.
     if (!trip.is_flexible) {
       await client.query("ROLLBACK");
       return NextResponse.json(
@@ -165,6 +210,7 @@ export async function POST(request, context) {
       );
     }
 
+    // Sjekker om turen allerede har en aktiv avgang.
     const existingDepartureResult = await client.query(
       `
       SELECT id
@@ -176,6 +222,7 @@ export async function POST(request, context) {
       [tripId]
     );
 
+    // Hvis en aktiv avgang allerede finnes, kan ikke ny dato velges.
     if (existingDepartureResult.rowCount > 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
@@ -184,6 +231,7 @@ export async function POST(request, context) {
       );
     }
 
+    // Henter alle datoalternativer for turen.
     const optionResult = await client.query(
       `
       SELECT
@@ -199,6 +247,7 @@ export async function POST(request, context) {
       [tripId]
     );
 
+    // Hvis turen ikke har datoalternativer, returneres 404.
     if (optionResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
@@ -207,10 +256,12 @@ export async function POST(request, context) {
       );
     }
 
+    // Finner det valgte datoalternativet blant alternativene til turen.
     const selectedOption = optionResult.rows.find(
       (option) => Number(option.id) === dateOptionId
     );
 
+    // Hvis valgt datoalternativ ikke tilhører turen, returneres 404.
     if (!selectedOption) {
       await client.query("ROLLBACK");
       return NextResponse.json(
@@ -224,6 +275,7 @@ export async function POST(request, context) {
       );
     }
 
+    // Nullstiller først alle tidligere valgte datoalternativer for turen.
     await client.query(
       `
       UPDATE public.trip_date_options
@@ -233,6 +285,7 @@ export async function POST(request, context) {
       [tripId]
     );
 
+    // Marker valgt datoalternativ som is_selected = true.
     await client.query(
       `
       UPDATE public.trip_date_options
@@ -243,6 +296,7 @@ export async function POST(request, context) {
       [dateOptionId, tripId]
     );
 
+    // Oppretter en ny avgang i trip_departures basert på det valgte alternativet.
     const departureResult = await client.query(
       `
       INSERT INTO public.trip_departures (
@@ -272,8 +326,11 @@ export async function POST(request, context) {
       ]
     );
 
+    // Henter den opprettede avgangen.
     const departure = departureResult.rows[0];
 
+    // Oppdaterer TiU-planstatus til binding_open,
+    // siden turen nå er klar for bindende påmelding.
     await client.query(
       `
       UPDATE public.tiu_trips
@@ -283,6 +340,7 @@ export async function POST(request, context) {
       [tripId]
     );
 
+    // Henter alle brukere som har meldt ikke-bindende interesse.
     const interestedUsersResult = await client.query(
       `
       SELECT ti.user_id
@@ -293,6 +351,7 @@ export async function POST(request, context) {
       [tripId]
     );
 
+    // Oppretter ett varsel per interessert bruker.
     for (const row of interestedUsersResult.rows) {
       await client.query(
         `
@@ -320,8 +379,10 @@ export async function POST(request, context) {
       );
     }
 
+    // Fullfører transaksjonen.
     await client.query("COMMIT");
 
+    // Returnerer suksessrespons med info om avgangen.
     return NextResponse.json(
       {
         success: true,
@@ -331,14 +392,17 @@ export async function POST(request, context) {
       { status: 200 }
     );
   } catch (error) {
+    // Hvis noe går galt, prøv rollback.
     try {
       await client.query("ROLLBACK");
     } catch (rollbackError) {
       console.error("Rollback error:", rollbackError);
     }
 
+    // Logger feilen i terminalen.
     console.error("Select date API error:", error);
 
+    // Returnerer 500-feil til frontend.
     return NextResponse.json(
       {
         error: "Kunne ikke velge datoalternativ",
@@ -347,6 +411,7 @@ export async function POST(request, context) {
       { status: 500 }
     );
   } finally {
+    // Frigir databaseklienten tilbake til poolen.
     client.release();
   }
 }
