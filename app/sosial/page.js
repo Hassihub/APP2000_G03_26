@@ -172,21 +172,6 @@ async function toggleLike(postid) {
   }
 }
 
-  function sharePost(postid) {
-    if (typeof window !== "undefined") {
-      const url = `${window.location.origin}/sosial#post-${postid}`
-
-      if (navigator.share) {
-        navigator.share({ url })
-      } else {
-        navigator.clipboard.writeText(url)
-        alert("link copied")
-      }
-    } else {
-      console.warn("sharePost called on server-side; window is not defined.")
-    }
-  }
-
 async function deletePost(postid) {
   try {
     const res = await fetch("/api/sosial/posts", {
@@ -317,10 +302,6 @@ function handleImageUploadChange(event) {
                   <Image src={LikerKnappAv} alt="Liker Av" width={24} height={24} className="test" />
                 </button>
               )}
-
-              <button onClick={() => sharePost(p.postid)}>
-                <Image src={DelKnapp} alt="Del" width={24} height={24} className="test"/>
-              </button>
 
               {p.canDelete && (
               <button onClick={() => deletePost(p.postid)}>
