@@ -147,6 +147,44 @@ const PRESET_CABINS = [
   },
 ];
 
+// ── Forhåndsinnstilte sosiale innlegg ────────────────────────────────────────
+// Hvert innlegg kobles til én av brukerne via userIndex (indeks i PRESET_USERS).
+// image er filnavnet på et bilde fra public/images/seed/ som leses og lagres
+// som binærdata i post_pictures-tabellen.
+// hoursAgo brukes til å spre innleggene utover i tid slik at feeden ser naturlig ut.
+const PRESET_POSTS = [
+  {
+    userIndex: 3, // Bruker4
+    caption: "Helgetur til Lifjell! Sola belyste hele dalen – nesten for vakkert. Anbefalt for alle 🏔️☀️",
+    image: "001_Bo_i_Telemark_-_foto_Geir_Johansen.jpg",
+    hoursAgo: 2,
+  },
+  {
+    userIndex: 4, // Bruker5
+    caption: "Skogsstien rundt Bø var perfekt i dag! Spiste nistepakke ved bekken. Livet er bra 😄",
+    image: "iamnordic-28-10-19--3_1003920891.jpg",
+    hoursAgo: 24,
+  },
+  {
+    userIndex: 1, // Bruker2 (Turleder)
+    caption: "Guidet 12 km-tur gjennomført! Alle fullførte selv i bakkene. Neste tur om to uker 💪",
+    image: "20190113-050.jpg",
+    hoursAgo: 48,
+  },
+  {
+    userIndex: 5, // Bruker6
+    caption: "Første vintertur i år! Snøen lå som et hvitt teppe og det var helt stille ❄️",
+    image: "20190113-244.jpg",
+    hoursAgo: 72,
+  },
+  {
+    userIndex: 2, // Bruker3 (Utleier)
+    caption: "En times gåtur etter en lang uke – nok til å nullstille hodet. Kom deg ut i helgen! 🌿",
+    image: "20190710-371-360x240.jpg",
+    hoursAgo: 120,
+  },
+];
+
 // Kobler GPX-filnavn til et forsidebilde for turen.
 // Nøklene er unike ord fra filnavnet (lowercase), verdiene er bilde-URL-er.
 const TRIP_IMAGES = {
@@ -351,6 +389,7 @@ export async function POST() {
 
     await db.query(`DELETE FROM public.post_comments`).catch(() => {});          // kommentarer på innlegg
     await db.query(`DELETE FROM public.post_liked`).catch(() => {});             // likes på innlegg
+    await db.query(`DELETE FROM public.post_pictures`).catch(() => {});          // bilder tilknyttet innlegg
     await db.query(`DELETE FROM public.posts`).catch(() => {});                  // innlegg i sosial-feeden
     await db.query(`DELETE FROM public.user_follows`).catch(() => {});           // følger-relasjoner
     await db.query(`DELETE FROM public.messages`).catch(() => {});               // meldinger mellom brukere
@@ -469,6 +508,40 @@ export async function POST() {
           t.geometry ? JSON.stringify(t.geometry) : null,
         ],
       );
+    }
+
+    // ── Steg 5: Opprett forhåndsinnstilte sosiale innlegg ──────────────────────
+    // Bildene leses fra public/images/seed/ og lagres som binærdata (Buffer)
+    // i post_pictures-tabellen, akkurat slik appen selv gjør det ved opplasting.
+    const seedImgDir = path.join(process.cwd(), "public", "images", "seed");
+
+    for (const p of PRESET_POSTS) {
+      // Slå opp brukeren som skal eie innlegget via indeksen i PRESET_POSTS
+      const author = insertedUsers[p.userIndex];
+      if (!author) continue; // hopp over hvis indeksen er feil
+
+      // Beregn timestamp: NOW() minus antall timer bakover i tid.
+      // Dette gjør at innleggene ser ut som om de ble publisert til ulike tider.
+      // interval er PostgreSQL-syntaks for tidsintervaller.
+      const { rows } = await db.query(
+        `INSERT INTO public.posts (userid, tripid, caption, "timestamp")
+         VALUES ($1, NULL, $2, NOW() - interval '${p.hoursAgo} hours')
+         RETURNING postid`,
+        [author.id, p.caption],
+      );
+      const postid = rows[0].postid;
+
+      // Les bildefilen fra disk og lagre som bytea i post_pictures.
+      // fs.readFile() uten encoding-argument returnerer en Buffer (binærdata).
+      try {
+        const imageBuffer = await fs.readFile(path.join(seedImgDir, p.image));
+        await db.query(
+          `INSERT INTO public.post_pictures (postid, picture) VALUES ($1, $2)`,
+          [postid, imageBuffer],
+        );
+      } catch {
+        // Hopp over bildet hvis filen ikke finnes – innlegget opprettes uansett
+      }
     }
 
     // Alt gikk bra – send suksessmelding tilbake til nettleseren.
