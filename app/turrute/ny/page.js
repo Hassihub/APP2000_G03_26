@@ -287,7 +287,7 @@ export default function NewTripRoutePage() {
         try {
           addMaskLayer(map, L);
         } catch (error) {
-          console.error("Kunne ikke legge til maske for Norge:", error);
+          console.error("Kunne ikke legge til maske for Utopia:", error);
         }
       });
 

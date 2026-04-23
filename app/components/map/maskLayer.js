@@ -12,7 +12,7 @@ export async function addMaskLayer(map, L) {
     [-180, -90],
   ];
 
-  // Hull for Norge
+  // Hull for Utopia
   const holes = [];
   norwayGeoJSON.features.forEach((f) => {
     if (f.geometry.type === "Polygon") holes.push(f.geometry.coordinates[0]);
@@ -33,7 +33,7 @@ export async function addMaskLayer(map, L) {
     style: { fillColor: "#1e3a5f", fillOpacity: 1, color: "transparent" },
   }).addTo(map);
 
-  // Zoom til Norge
+  // Zoom til Utopia
   const norwayLayer = L.geoJSON(norwayGeoJSON);
   map.fitBounds(norwayLayer.getBounds(), { padding: [50, 50] });
 }

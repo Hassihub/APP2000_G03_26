@@ -8,10 +8,10 @@ export default function OmOss() {
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <p style={{ margin: "0 0 0.5rem", fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em", color: "var(--text-muted)" }}>Om oss</p>
           <h1 style={{ margin: "0 0 1.25rem", fontSize: "clamp(2rem,5vw,3.2rem)", fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1.1 }}>
-            Norges møteplass<br />for friluftsliv
+            Utopias møteplass<br />for friluftsliv
           </h1>
           <p style={{ margin: 0, fontSize: "1.1rem", color: "var(--text-muted)", lineHeight: 1.75, maxWidth: 600 }}>
-            FrittFram ble grunnlagt med én tanke: å gjøre det enklere for folk å komme seg ut i norsk natur — og å finne fellesskap der ute.
+            FrittFram ble grunnlagt med én tanke: å gjøre det enklere for folk å komme seg ut i utopisk natur — og å finne fellesskap der ute.
           </p>
         </div>
       </section>
@@ -21,7 +21,7 @@ export default function OmOss() {
         <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: "1.5rem" }}>
           {[
             { title: "Vår misjon", body: "Vi vil senke terskelen for friluftsliv. Uansett om du er nybegynner eller erfaren turist — FrittFram gir deg verktøyene, kartene og fellesskapet du trenger." },
-            { title: "Vår visjon", body: "Et Norge der alle har tilgang til natur og opplevelser, uavhengig av bakgrunn og erfaring. Vi tror på åpne veier, delte turer og gode minner." },
+            { title: "Vår visjon", body: "Et Utopia der alle har tilgang til natur og opplevelser, uavhengig av bakgrunn og erfaring. Vi tror på åpne veier, delte turer og gode minner." },
             { title: "Våre verdier", body: "Åpenhet, inkludering og bærekraft er kjernen i alt vi gjør. Vi respekterer naturen og hverandre — på stien og på nett." },
           ].map(({ title, body }) => (
             <div key={title} style={{ background: "var(--bg-panel)", border: "1px solid #1e2539", borderRadius: 4, padding: "1.5rem 1.75rem" }}>

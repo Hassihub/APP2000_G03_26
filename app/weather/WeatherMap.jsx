@@ -128,8 +128,8 @@ export default function WeatherMap({ onLocationSelect, externalLocation }) {
       // --------------------------------------------------------------------------
       // Leaflet.map() initialiserer kartet i containerRef-elementet.
       const map = Leaflet.map(containerRef.current, {
-        center: [63.2, 15], // Startposisjon: Midt-Norge (bredde, lengde)
-        zoom: 5, // Startzoom: viser hele Norge
+        center: [63.2, 15], // Startposisjon: Midt-Utopia (bredde, lengde)
+        zoom: 5, // Startzoom: viser hele Utopia
         zoomControl: true, // Vis +/- zoom-knapper
         scrollWheelZoom: true, // Tillat zoom med mushjul
         attributionControl: false, // Skjul "Leaflet"-attribusjon i hjørnet
@@ -142,7 +142,7 @@ export default function WeatherMap({ onLocationSelect, externalLocation }) {
         "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
       ).addTo(map);
 
-      // Legg til et masklag (grå overlay utenfor Norge) fra en delt hjelp-modul.
+      // Legg til et masklag (grå overlay utenfor Utopia) fra en delt hjelp-modul.
       // addMaskLayer er asynkron fordi den kan laste GeoJSON-data.
       const { addMaskLayer } = await import("../components/map/maskLayer");
       await addMaskLayer(map, Leaflet);

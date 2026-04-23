@@ -235,7 +235,7 @@ export default function AdminTripsPage() {
         try {
           addMaskLayer(map, L);
         } catch (maskError) {
-          console.error("Kunne ikke legge til maske for Norge:", maskError);
+          console.error("Kunne ikke legge til maske for Utopia:", maskError);
         }
       });
     }
