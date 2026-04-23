@@ -346,12 +346,10 @@ export async function GET(req) {
     await markCompletedReservations();
 
     const enabled = await userAllowsNotifications(user.id);
-    if (!enabled) {
-      return NextResponse.json({ notifications: [], unread_count: 0 }, { status: 200 });
+    if (enabled) {
+      await createReservationCreatedNotifications(user);
+      await createReservationReceivedNotifications(user);
     }
-
-    await createReservationCreatedNotifications(user);
-    await createReservationReceivedNotifications(user);
 
     const hasTable = await ensureNotificationsTable();
     if (!hasTable) {
