@@ -186,6 +186,31 @@ async function toggleLike(postid) {
     }
   }
 
+async function deletePost(postid) {
+  try {
+    const res = await fetch("/api/sosial/posts", {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postid })
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await res.json()
+      : await res.text();
+
+    if (!res.ok) {
+      console.error("Failed to delete post:", data);
+      return;
+    }
+
+    loadPosts();
+  } catch (err) {
+    console.error("deletePost crashed:", err);
+  }
+}
+
 function handleImageUploadChange(event) {
   console.log("upload event:", event)
 
@@ -223,7 +248,6 @@ function handleImageUploadChange(event) {
         placeholder="Skriv ditt innlegg her!"
       />
       
-
      {uploadPublicKey ? (
   <SimpleFileUpload
     key={uploaderKey}
@@ -245,7 +269,7 @@ function handleImageUploadChange(event) {
       {posts.map(p => {
         const liked = p.liked
         
-
+        
     
 
         return (
@@ -296,6 +320,12 @@ function handleImageUploadChange(event) {
               <button onClick={() => sharePost(p.postid)}>
                 <Image src={DelKnapp} alt="Del" width={24} height={24} className="test"/>
               </button>
+
+              {p.canDelete && (
+              <button onClick={() => deletePost(p.postid)}>
+                <Image src={DelKnapp} alt="Slett" width={24} height={24} className="test"/>
+              </button>
+              )}
 
             </div>
                 {showComments[p.postid] && (
