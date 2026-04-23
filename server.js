@@ -547,14 +547,14 @@ appNext.prepare().then(() => {
 
   // Current user
   authRouter.get("/me", (req, res) => {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
+    if (!req.isAuthenticated?.()) {
       return res.status(401).json({ user: null });
     }
     return res.json({ user: req.user });
   });
 
   app.get("/api/profile", async (req, res) => {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
+    if (!req.isAuthenticated?.()) {
       return res.status(401).json({ error: "Ikke logget inn" });
     }
 
@@ -568,7 +568,7 @@ appNext.prepare().then(() => {
   });
 
   app.put("/api/profile", async (req, res) => {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
+    if (!req.isAuthenticated?.()) {
       return res.status(401).json({ error: "Ikke logget inn" });
     }
 
@@ -741,7 +741,7 @@ appNext.prepare().then(() => {
 
   // Update username
   authRouter.post("/update-profile", async (req, res) => {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
+    if (!req.isAuthenticated?.()) {
       return res.status(401).json({ error: "Ikke logget inn" });
     }
 
@@ -784,7 +784,7 @@ appNext.prepare().then(() => {
 
   // Change password
   authRouter.post("/change-password", async (req, res) => {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
+    if (!req.isAuthenticated?.()) {
       return res.status(401).json({ error: "Ikke logget inn" });
     }
 
@@ -829,7 +829,7 @@ appNext.prepare().then(() => {
 
   // Delete account
   authRouter.post("/delete-account", async (req, res) => {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
+    if (!req.isAuthenticated?.()) {
       return res.status(401).json({ error: "Ikke logget inn" });
     }
 
@@ -853,7 +853,7 @@ appNext.prepare().then(() => {
 
   // Create a new one-to-one message
   app.post("/api/messages", async (req, res) => {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
+    if (!req.isAuthenticated?.()) {
       return res.status(401).json({ error: "Ikke logget inn" });
     }
 
@@ -890,7 +890,7 @@ appNext.prepare().then(() => {
 
   // Get all messages in a one-to-one conversation
   app.get("/api/messages/:otherUserId", async (req, res) => {
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
+    if (!req.isAuthenticated?.()) {
       return res.status(401).json({ error: "Ikke logget inn" });
     }
 

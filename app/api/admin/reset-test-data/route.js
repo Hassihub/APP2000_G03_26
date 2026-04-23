@@ -50,12 +50,6 @@ const PRESET_USERS = [
     role: "USER",
   },
 ];
-/* bruker1@usn.no (admin)
-bruker2@usn.no (turleder)
-bruker3@usn.no (hytteeier)
-bruker4@usn.no (bruker)
-bruker5@usn.no (bruker)
-bruker6@usn.no (bruker) */
 
 const PRESET_CABINS = [
   {
