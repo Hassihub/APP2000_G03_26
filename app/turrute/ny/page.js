@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SimpleFileUpload } from "simple-file-upload-react";
@@ -111,6 +112,8 @@ export default function NewTripRoutePage() {
   const [cabins, setCabins] = useState([]);
   const [loadingCabins, setLoadingCabins] = useState(true);
   const [selectedCabinIds, setSelectedCabinIds] = useState([]);
+  const [requestedBedsByCabinId, setRequestedBedsByCabinId] = useState({});
+  const [stayRequestMessage, setStayRequestMessage] = useState("");
 
   const [routeMode, setRouteMode] = useState("straight"); // straight | path
   const routeModeRef = useRef("straight");
@@ -142,6 +145,7 @@ export default function NewTripRoutePage() {
     user?.role === ROLE_TURLEDER;
 
   const isTiuMode = creationMode === "tiu";
+  const showCabinSelectionPanel = isTiuMode && canCreateTiu;
 
   function setRouteModeImmediate(nextMode) {
     routeModeRef.current = nextMode;
@@ -393,6 +397,8 @@ export default function NewTripRoutePage() {
       const L = await import("leaflet");
       selectedCabinLayer.clearLayers();
 
+      if (!isTiuMode) return;
+
       const selectedCabins = cabins
         .filter((cabin) => selectedCabinIds.includes(String(cabin.id)))
         .map((cabin) => {
@@ -440,7 +446,7 @@ export default function NewTripRoutePage() {
     }
 
     redrawSelectedCabins();
-  }, [cabins, selectedCabinIds]);
+  }, [cabins, selectedCabinIds, isTiuMode, addCabinPointToRoute]);
 
   useEffect(() => {
     async function redraw() {
@@ -492,15 +498,33 @@ export default function NewTripRoutePage() {
 
   function toggleCabin(id) {
     const cabinId = String(id);
-    setSelectedCabinIds((prev) =>
-      prev.includes(cabinId) ? prev.filter((item) => item !== cabinId) : [...prev, cabinId]
-    );
+    setSelectedCabinIds((prev) => {
+      const wasSelected = prev.includes(cabinId);
+
+      if (wasSelected) {
+        setRequestedBedsByCabinId((current) => {
+          const next = { ...current };
+          delete next[cabinId];
+          return next;
+        });
+        return prev.filter((item) => item !== cabinId);
+      }
+
+      return [...prev, cabinId];
+    });
   }
 
   function handleCreationModeChange(nextMode) {
     setCreationMode(nextMode);
     setStatus({ type: "idle", message: "" });
     setRouteModeMessage("");
+
+    if (nextMode !== "tiu") {
+      setSelectedCabinIds([]);
+      setRequestedBedsByCabinId({});
+      setStayRequestMessage("");
+      resetTiuFields();
+    }
   }
 
   function updateDateOption(index, field, value) {
@@ -531,6 +555,7 @@ export default function NewTripRoutePage() {
   }
 
   function addCabinPointToRoute(cabin) {
+    if (!isTiuMode) return;
     if (!cabin) return;
 
     const lat = Number(cabin.latitude);
@@ -560,11 +585,23 @@ export default function NewTripRoutePage() {
   }
 
   function clearRoute() {
-    setSelectedCabinIds([]);
+    if (isTiuMode) {
+      setSelectedCabinIds([]);
+      setRequestedBedsByCabinId({});
+      setStayRequestMessage("");
+    }
     setAnchorPoints([]);
     setSegmentModes([]);
     setRoutePoints([]);
     setRouteModeMessage("");
+  }
+
+  function updateRequestedBeds(cabinId, value) {
+    const key = String(cabinId);
+    setRequestedBedsByCabinId((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   }
 
   function undoLastPoint() {
@@ -631,6 +668,7 @@ export default function NewTripRoutePage() {
         setSegmentModes(Array.from({ length: Math.max(0, importedPoints.length - 1) }, () => "straight"));
         setGpxFileName(file.name);
         setRouteMode("straight");
+        routeModeRef.current = "straight";
         setRouteModeMessage("GPX-import bruker eksisterende punkter som rette linjer.");
         setStatus({
           type: "success",
@@ -721,6 +759,37 @@ export default function NewTripRoutePage() {
       coordinates: routePoints.map((p) => [p.lon, p.lat]),
     };
 
+    const stayRequests = [];
+    if (isTiu && selectedCabinIds.length > 0) {
+      for (const cabinId of selectedCabinIds) {
+        const selectedCabin = cabins.find((item) => String(item.id) === String(cabinId));
+        const capacity = Number(selectedCabin?.capacity);
+        const requestedBedsRaw = requestedBedsByCabinId[String(cabinId)];
+        const requestedBeds = Number(requestedBedsRaw);
+
+        if (!Number.isInteger(requestedBeds) || requestedBeds <= 0) {
+          setStatus({
+            type: "error",
+            message: `Velg gyldig antall sengeplasser for ${selectedCabin?.name || "valgt hytte"}.`,
+          });
+          return;
+        }
+
+        if (Number.isFinite(capacity) && requestedBeds > capacity) {
+          setStatus({
+            type: "error",
+            message: `Antall sengeplasser for ${selectedCabin?.name || "hytte"} kan ikke overstige kapasitet (${capacity}).`,
+          });
+          return;
+        }
+
+        stayRequests.push({
+          cabin_id: String(cabinId),
+          requested_beds: requestedBeds,
+        });
+      }
+    }
+
     const payload = isTiu
       ? {
           navn: form.navn.trim(),
@@ -746,7 +815,6 @@ export default function NewTripRoutePage() {
           type: form.type,
           vanskelighetsgrad: form.vanskelighetsgrad,
           geometry,
-          cabin_ids: selectedCabinIds,
           bilde_urls: form.bilde_urls,
         };
 
@@ -768,11 +836,39 @@ export default function NewTripRoutePage() {
         throw new Error(data?.error || "Kunne ikke lagre turruten.");
       }
 
+      let statusType = "success";
+      let statusMessage = isTiu
+        ? `TiU-turen ble sendt til admin for godkjenning med ID ${data?.id}.`
+        : `Turruten ble sendt til verifisering med ID ${data?.verification_route_id}.`;
+
+      if (isTiu && stayRequests.length > 0 && Number.isInteger(Number(data?.id))) {
+        const stayRes = await fetch("/api/cabin-stay-requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            trip_id: Number(data.id),
+            requests: stayRequests,
+            message: stayRequestMessage.trim() || null,
+          }),
+        });
+
+        const stayData = await stayRes.json().catch(() => ({}));
+
+        if (!stayRes.ok) {
+          statusType = "error";
+          const detailText = typeof stayData?.details === "string" && stayData.details.trim()
+            ? ` Detaljer: ${stayData.details.trim()}`
+            : "";
+          statusMessage = `Turen ble opprettet (ID ${data?.id}), men kunne ikke sende hytteforesporsler: ${stayData?.error || "ukjent feil"}.${detailText}`;
+        } else {
+          statusMessage += ` ${stayRequests.length} foresporsel${stayRequests.length === 1 ? "" : "er"} sendt til hytteeier.`;
+        }
+      }
+
       setStatus({
-        type: "success",
-        message: isTiu
-          ? `TiU-turen ble sendt til admin for godkjenning med ID ${data?.id}.`
-          : `Turruten ble sendt til verifisering med ID ${data?.verification_route_id}.`,
+        type: statusType,
+        message: statusMessage,
       });
 
       setForm((prev) => ({
@@ -784,14 +880,16 @@ export default function NewTripRoutePage() {
       }));
       setUploadStatus("");
       setSelectedCabinIds([]);
+      setRequestedBedsByCabinId({});
+      setStayRequestMessage("");
+      setStayRequestStartDate("");
+      setStayRequestEndDate("");
       setAnchorPoints([]);
       setSegmentModes([]);
       setRoutePoints([]);
       setGpxFileName("");
       setRouteModeMessage("");
-      if (isTiu) {
-        resetTiuFields();
-      }
+      resetTiuFields();
     } catch (error) {
       setStatus({ type: "error", message: error?.message || "Ukjent feil oppstod." });
     } finally {
@@ -839,7 +937,7 @@ export default function NewTripRoutePage() {
         </section>
 
         <form className={styles.grid} onSubmit={handleSubmit}>
-          <section className={`${styles.card} ${styles.main}`}>
+          <section className={`${styles.card} ${styles.main} ${!isTiuMode ? styles.mainFull : ""}`}>
             <div className={styles.modeRow}>
               <span className={styles.modeLabel}>Opprettelsestype</span>
               <div className={styles.modeButtons}>
@@ -968,10 +1066,12 @@ export default function NewTripRoutePage() {
                 <div className={styles.previewWrap}>
                   {form.bilde_urls.map((url, idx) => (
                     <div key={url + idx} style={{ display: "inline-block", marginRight: 8 }}>
-                      <img
+                      <Image
                         src={url}
                         alt={`Forhåndsvisning bilde ${idx + 1}`}
                         className={styles.previewImage}
+                        width={120}
+                        height={120}
                       />
                       <button
                         type="button"
@@ -1079,7 +1179,7 @@ export default function NewTripRoutePage() {
               )}
             </div>
 
-            <div className={styles.mapWrap}>
+            <div className={`${styles.mapWrap} ${!isTiuMode ? styles.mapWrapLegacy : ""}`}>
               <div className={styles.modeOverlay}>
                 <div className={styles.modeButtons}>
                   <button
@@ -1094,7 +1194,7 @@ export default function NewTripRoutePage() {
                     className={routeMode === "path" ? styles.modeBtnActive : styles.modeBtn}
                     onClick={() => setRouteModeImmediate("path")}
                   >
-                      Følg sti/vei
+                    Følg sti/vei
                   </button>
                 </div>
               </div>
@@ -1122,60 +1222,101 @@ export default function NewTripRoutePage() {
             )}
           </section>
 
-          <aside className={`${styles.card} ${styles.side}`}>
-            {isTiuMode && (
-              <>
-                <h2>TiU-oppsummering</h2>
-                <div className={`${styles.status} ${styles.warn}`}>
-                  Ruten blir synlig i explore, men kan ikke brukes til interessemelding før godkjenning.
-                </div>
-              </>
-            )}
-
-            <h2>Velg hytter i ruten</h2>
-
-            {canManageCabins && (
-              <div className={styles.ownerActions}>
-                <Link href="/reserver/ny?next=/turrute/ny" className={styles.btn}>
-                  Legg til egen hytte
-                </Link>
-                <p className={styles.ownerNote}>
-                  Etter at hytten er opprettet kan du lage adkomstrute hit fra denne siden.
-                </p>
+          {isTiuMode && (
+            <aside className={`${styles.card} ${styles.side}`}>
+              <h2>TiU-oppsummering</h2>
+              <div className={`${styles.status} ${styles.warn}`}>
+                Ruten blir synlig i explore, men kan ikke brukes til interessemelding før godkjenning.
               </div>
-            )}
 
-            {loadingCabins ? (
-              <div className={`${styles.status} ${styles.warn}`}>Laster hytter...</div>
-            ) : cabins.length === 0 ? (
-              <div className={`${styles.status} ${styles.warn}`}>Fant ingen hytter.</div>
-            ) : (
-              <div className={styles.cabinList}>
-                {cabins.map((cabin) => {
-                  const cabinId = String(cabin.id);
-                  const checked = selectedCabinIds.includes(cabinId);
-                  return (
-                    <label key={cabinId} className={styles.cabinItem}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleCabin(cabinId)}
+              {showCabinSelectionPanel && (
+                <>
+                  <h2>Velg hytter i ruten</h2>
+
+                  <div className={styles.ownerActions}>
+                    <Link href="/reserver/foresporsler" className={styles.btnAlt}>
+                      Se overnattingsforesporsler
+                    </Link>
+                  </div>
+
+                  {canManageCabins && (
+                    <div className={styles.ownerActions}>
+                      <Link href="/reserver/ny?next=/turrute/ny" className={styles.btn}>
+                        Legg til egen hytte
+                      </Link>
+                      <p className={styles.ownerNote}>
+                        Etter at hytten er opprettet kan du lage adkomstrute hit fra denne siden.
+                      </p>
+                    </div>
+                  )}
+
+                  {loadingCabins ? (
+                    <div className={`${styles.status} ${styles.warn}`}>Laster hytter...</div>
+                  ) : cabins.length === 0 ? (
+                    <div className={`${styles.status} ${styles.warn}`}>Fant ingen hytter.</div>
+                  ) : (
+                    <div className={styles.cabinList}>
+                      {cabins.map((cabin) => {
+                        const cabinId = String(cabin.id);
+                        const checked = selectedCabinIds.includes(cabinId);
+                        const capacity = Number(cabin.capacity);
+
+                        return (
+                          <label key={cabinId} className={styles.cabinItem}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleCabin(cabinId)}
+                            />
+                            <div className={styles.cabinInfo}>
+                              <span className={styles.cabinName}>{cabin.name || "Uten navn"}</span>
+                              <span className={styles.cabinMeta}>
+                                {cabin.location || "Ukjent sted"}
+                                {Number.isFinite(capacity)
+                                  ? ` | Kapasitet: ${capacity} pers`
+                                  : ""}
+                                {Number.isFinite(Number(cabin.price_per_night))
+                                  ? ` | ${cabin.price_per_night} kr/natt`
+                                  : ""}
+                              </span>
+
+                              {checked && (
+                                <div className={styles.requestInputRow}>
+                                  <label htmlFor={`requested-beds-${cabinId}`}>Sengeplasser i foresporsel</label>
+                                  <input
+                                    id={`requested-beds-${cabinId}`}
+                                    type="number"
+                                    min={1}
+                                    max={Number.isFinite(capacity) ? capacity : undefined}
+                                    value={requestedBedsByCabinId[cabinId] ?? ""}
+                                    onChange={(event) => updateRequestedBeds(cabinId, event.target.value)}
+                                    placeholder={Number.isFinite(capacity) ? `1-${capacity}` : "Antall"}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {selectedCabinIds.length > 0 && (
+                    <div className={styles.field}>
+                      <label htmlFor="stay-request-message">Melding til hytteeier (valgfritt)</label>
+                      <textarea
+                        id="stay-request-message"
+                        rows={3}
+                        value={stayRequestMessage}
+                        onChange={(event) => setStayRequestMessage(event.target.value)}
+                        placeholder="Skriv kort om gruppen, tidspunkt og behov for overnatting."
                       />
-                      <div className={styles.cabinInfo}>
-                        <span className={styles.cabinName}>{cabin.name || "Uten navn"}</span>
-                        <span className={styles.cabinMeta}>
-                          {cabin.location || "Ukjent sted"}
-                          {Number.isFinite(Number(cabin.price_per_night))
-                            ? ` | ${cabin.price_per_night} kr/natt`
-                            : ""}
-                        </span>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </aside>
+                    </div>
+                  )}
+                </>
+              )}
+            </aside>
+          )}
         </form>
       </div>
     </main>

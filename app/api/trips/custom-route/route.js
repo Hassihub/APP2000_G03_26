@@ -1,6 +1,39 @@
 import { NextResponse } from "next/server";
 import pool from "../../../../lib/db";
 import { requireAuth } from "../../../../lib/auth";
+import { ROLE_ADMIN } from "../../../../lib/roles";
+
+async function notifyAdmins(routeId, routeName) {
+  try {
+    const adminsResult = await pool.query(
+      `SELECT id::text AS id FROM public.users WHERE role = $1`,
+      [ROLE_ADMIN]
+    );
+
+    for (const admin of adminsResult.rows) {
+      await pool.query(
+        `
+          INSERT INTO public.user_notifications
+            (user_id, type, reference_id, title, message, action_url, metadata)
+          VALUES
+            ($1, $2, $3, $4, $5, $6, $7::jsonb)
+          ON CONFLICT DO NOTHING
+        `,
+        [
+          admin.id,
+          "new_verification_route",
+          `verification-route:${routeId}`,
+          "Ny turrute til verifisering",
+          `Turruten "${routeName}" er sendt inn og venter på verifisering.`,
+          `/admin/turer`,
+          JSON.stringify({ verification_route_id: routeId }),
+        ]
+      );
+    }
+  } catch {
+    // varslingsfeil skal ikke stoppe opprettelse av turrute
+  }
+}
 
 let customRouteTablesReady = false;
 
@@ -204,6 +237,8 @@ export async function POST(request) {
     }
 
     await client.query("COMMIT");
+
+    await notifyAdmins(routeVerificationId, navn);
 
     const cabins = cabin_ids
       .map((id) => cabinsById.get(id))

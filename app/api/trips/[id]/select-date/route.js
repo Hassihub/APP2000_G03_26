@@ -22,6 +22,35 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
+async function ensureUserNotificationsTable(client) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS public.user_notifications (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      reference_id TEXT,
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      action_url TEXT,
+      metadata JSONB,
+      is_read BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      read_at TIMESTAMPTZ
+    )
+  `);
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_notifications_user_created
+    ON public.user_notifications (user_id, created_at DESC)
+  `);
+
+  await client.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_user_notifications_reference
+    ON public.user_notifications (user_id, type, reference_id)
+    WHERE reference_id IS NOT NULL
+  `);
+}
+
 export async function POST(request, context) {
   const client = await pool.connect();
 
@@ -32,6 +61,7 @@ export async function POST(request, context) {
     }
 
     await ensureTurlederUserIdColumn(client);
+    await ensureUserNotificationsTable(client);
 
     const { id } = await context.params;
     const tripId = Number(id);
@@ -83,6 +113,7 @@ export async function POST(request, context) {
       `
       SELECT
         t.id,
+        t.navn,
         tt.id AS tiu_trip_id,
         tt.is_flexible,
         tt.planning_status,
@@ -236,6 +267,8 @@ export async function POST(request, context) {
       ]
     );
 
+    const departure = departureResult.rows[0];
+
     await client.query(
       `
       UPDATE public.tiu_trips
@@ -245,13 +278,50 @@ export async function POST(request, context) {
       [tripId]
     );
 
+    const interestedUsersResult = await client.query(
+      `
+      SELECT ti.user_id
+      FROM public.trip_interest ti
+      WHERE ti.trip_id = $1
+        AND ti.status = 'interested'
+      `,
+      [tripId]
+    );
+
+    for (const row of interestedUsersResult.rows) {
+      await client.query(
+        `
+        INSERT INTO public.user_notifications
+          (user_id, type, reference_id, title, message, action_url, metadata)
+        VALUES
+          ($1, $2, $3, $4, $5, $6, $7::jsonb)
+        ON CONFLICT DO NOTHING
+        `,
+        [
+          String(row.user_id),
+          "trip_date_selected",
+          `trip:${tripId}:departure:${departure.id}:date_selected`,
+          "Dato valgt for tur",
+          `Dato for turen "${trip.navn}" er valgt. Du kan nå melde deg bindende på.`,
+          `/explore/${tripId}`,
+          JSON.stringify({
+            trip_id: tripId,
+            departure_id: departure.id,
+            trip_name: trip.navn,
+            selected_start_time: selectedOption.start_time,
+            selected_end_time: selectedOption.end_time,
+          }),
+        ]
+      );
+    }
+
     await client.query("COMMIT");
 
     return NextResponse.json(
       {
         success: true,
         message: "Dato valgt og avgang opprettet",
-        departure: departureResult.rows[0],
+        departure,
       },
       { status: 200 }
     );
