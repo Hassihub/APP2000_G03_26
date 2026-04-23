@@ -165,6 +165,9 @@ export async function GET() {
             rvc.route_verification_id::text AS route_id,
             c.id::text AS cabin_id,
             c.name,
+            c.location,
+            c.latitude,
+            c.longitude,
             rvc.sort_order
           FROM public.route_verification_cabins rvc
           JOIN public.cabins c ON c.id::text = rvc.cabin_id::text
@@ -177,7 +180,7 @@ export async function GET() {
       cabinsByRouteId = cabinResult.rows.reduce((map, row) => {
         const key = String(row.route_id);
         const list = map.get(key) || [];
-        list.push({ id: row.cabin_id, name: row.name, sort_order: row.sort_order });
+        list.push({ id: row.cabin_id, name: row.name, location: row.location, latitude: row.latitude, longitude: row.longitude, sort_order: row.sort_order });
         map.set(key, list);
         return map;
       }, new Map());

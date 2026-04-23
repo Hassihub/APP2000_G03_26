@@ -458,7 +458,7 @@ export default function TripDetailsPage() {
           {trip.geometry && (
             <section className={styles.section}>
               <h2>Rute</h2>
-              <TripMap geometry={trip.geometry} />
+              <TripMap geometry={trip.geometry} cabins={trip.cabins ?? []} />
             </section>
           )}
 
