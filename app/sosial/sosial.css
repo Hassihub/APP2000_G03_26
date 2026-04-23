@@ -1,8 +1,3 @@
-body {
-  color: black;
-  font-family: Arial, sans-serif;
-}
-
 .sosial-container {
   max-width: 600px;
   margin: 0 auto;
@@ -28,11 +23,6 @@ textarea {
   background: lightgrey;
   color: black;
   margin-bottom: 10px;
-}
-
-input[type="file"] {
-  margin-bottom: 10px;
-  color: white;
 }
 
 .buttonSend {
@@ -63,7 +53,7 @@ input[type="file"] {
   transition: 0.2s;
   float: right;
 }
-.buttonpPost:hover {
+.buttonPost:hover {
   background: #216def;
 }
 

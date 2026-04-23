@@ -343,10 +343,14 @@ export async function POST(request, context) {
     // Henter alle brukere som har meldt ikke-bindende interesse.
     const interestedUsersResult = await client.query(
       `
-      SELECT ti.user_id
-      FROM public.trip_interest ti
-      WHERE ti.trip_id = $1
-        AND ti.status = 'interested'
+      SELECT
+        tc.cabin_id::text AS cabin_id,
+        c.owner_id::text AS owner_id,
+        c.name AS cabin_name
+      FROM public.trip_cabins tc
+      JOIN public.cabins c ON c.id::text = tc.cabin_id::text
+      WHERE tc.trip_id = $1
+        AND c.owner_id IS NOT NULL
       `,
       [tripId]
     );
@@ -362,18 +366,19 @@ export async function POST(request, context) {
         ON CONFLICT DO NOTHING
         `,
         [
-          String(row.user_id),
-          "trip_date_selected",
-          `trip:${tripId}:departure:${departure.id}:date_selected`,
-          "Dato valgt for tur",
-          `Dato for turen "${trip.navn}" er valgt. Du kan nå melde deg bindende på.`,
-          `/explore/${tripId}`,
+          String(row.owner_id),
+          "cabin_stay_binding_requested",
+          referenceId,
+          "Bekreft bindende sengeplasser",
+          `Dato for turen "${trip.navn}" er valgt. Bekreft eller trekk bindende sengeplasser for ${String(row.cabin_name || "hytta")}.`,
+          `/reserver/foresporsler?view=incoming${stayReq ? `&requestId=${encodeURIComponent(String(stayReq.stay_request_id))}` : ""}`,
           JSON.stringify({
+            stay_request_id: stayReq?.stay_request_id ?? null,
             trip_id: tripId,
             departure_id: departure.id,
             trip_name: trip.navn,
-            selected_start_time: selectedOption.start_time,
-            selected_end_time: selectedOption.end_time,
+            cabin_name: row.cabin_name,
+            offered_beds: stayReq?.offered_beds ?? null,
           }),
         ]
       );

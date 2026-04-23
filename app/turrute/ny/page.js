@@ -882,8 +882,6 @@ export default function NewTripRoutePage() {
       setSelectedCabinIds([]);
       setRequestedBedsByCabinId({});
       setStayRequestMessage("");
-      setStayRequestStartDate("");
-      setStayRequestEndDate("");
       setAnchorPoints([]);
       setSegmentModes([]);
       setRoutePoints([]);
@@ -1232,6 +1230,7 @@ export default function NewTripRoutePage() {
               {showCabinSelectionPanel && (
                 <>
                   <h2>Velg hytter i ruten</h2>
+                  <p className={styles.ownerNote}>Du kan velge hytter i ruten (valgfritt).</p>
 
                   <div className={styles.ownerActions}>
                     <Link href="/reserver/foresporsler" className={styles.btnAlt}>
