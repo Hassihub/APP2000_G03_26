@@ -8,8 +8,6 @@ export default function TripImageCarousel({ images, altBase }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  if (!images || images.length === 0) return null;
-
   const prev = () => setCurrent((c) => (c === 0 ? images.length - 1 : c - 1));
   const next = () => setCurrent((c) => (c === images.length - 1 ? 0 : c + 1));
 
@@ -30,6 +28,8 @@ export default function TripImageCarousel({ images, altBase }) {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [lightboxOpen, images.length]);
+
+  if (!images || images.length === 0) return null;
 
   return (
     <>
@@ -103,10 +103,14 @@ export default function TripImageCarousel({ images, altBase }) {
                 &#8592;
               </button>
             )}
-            <img
+            <Image
               src={images[lightboxIndex]}
               alt={`${altBase} bilde ${lightboxIndex + 1}`}
               className={styles.lightboxImage}
+              unoptimized
+              width={1920}
+              height={1080}
+              style={{ width: "auto", height: "auto" }}
             />
             {images.length > 1 && (
               <button

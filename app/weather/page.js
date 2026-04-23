@@ -309,11 +309,11 @@ export default function WeatherPage() {
    * Gjør om en ISO-datostreng til et lesbart format tilpasset valgt språk.
    *
    * @param {string} dateStr - F.eks. "2026-03-25"
-   * @returns {string} - F.eks. "tirsdag 25. mars" (norsk) eller "Tuesday 25 March" (engelsk)
+  * @returns {string} - F.eks. "tirsdag 25. mars" (utopisk) eller "Tuesday 25 March" (engelsk)
    *
    * toLocaleDateString() er et innebygd JS-API for lokalisert datovisning.
    * Locale-strengen bestemmer språk og format:
-   *   "nb-NO" → norsk bokmål
+  *   "nb-NO" → utopisk bokmål
    *   "en-GB" → britisk engelsk (dag-måneds-rekkefølge)
    */
   const formatDate = (dateStr) => {

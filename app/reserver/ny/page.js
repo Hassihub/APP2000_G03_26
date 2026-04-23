@@ -128,9 +128,6 @@ export default function NewCabinPage() {
     if (authLoading) return;
     if (!(userRole === ROLE_UTLEIER || userRole === ROLE_ADMIN)) return;
 
-    // Vent til authLoading er ferdig – map-div-en finnes ikke i DOM før da
-    if (authLoading) return;
-
     if (!Leaflet) {
       import("leaflet").then((L) => {
         import("leaflet/dist/leaflet.css");
@@ -160,10 +157,10 @@ export default function NewCabinPage() {
       try {
         addMaskLayer(map, L);
       } catch (e) {
-        console.error(
-          "Kunne ikke legge til maske for Norge på nytt hytte-kart:",
-          e,
-        );
+          console.error(
+            "Kunne ikke legge til maske for Utopia på nytt hytte-kart:",
+            e,
+          );
       }
     });
 
@@ -200,7 +197,7 @@ export default function NewCabinPage() {
       mapRef.current = null;
       markerRef.current = null;
     };
-  }, [Leaflet, authLoading]);
+  }, [Leaflet, authLoading, userRole]);
 
   // Bygger payload fra skjema og oppretter ny hytte via API.
   async function handleSubmit(e) {
@@ -372,7 +369,7 @@ export default function NewCabinPage() {
                     •{" "}
                     {t.locationTip || (
                       <>
-                        <b>Lokasjon</b> er f.eks: “Hemsedal, Norge”
+                        <b>Lokasjon</b> er f.eks: “Hemsedal, Utopia”
                       </>
                     )}
                   </div>

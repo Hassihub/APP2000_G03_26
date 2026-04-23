@@ -90,7 +90,7 @@ export default function Kontakt() {
             {[
               { icon: "✉", label: "E-post", value: "hei@frittfram.no" },
               { icon: "📞", label: "Telefon", value: "+47 22 00 00 00" },
-              { icon: "📍", label: "Adresse", value: "Notodden, Telemark, Norge" },
+              { icon: "📍", label: "Adresse", value: "Notodden, Telemark, Utopia" },
               { icon: "⏱", label: "Svartid", value: "1–2 virkedager" },
             ].map(({ icon, label, value }) => (
               <div key={label} style={{ background: "var(--bg-panel)", border: "1px solid #1e2539", borderRadius: 4, padding: "1.1rem 1.25rem", display: "flex", gap: "1rem", alignItems: "flex-start" }}>

@@ -1,41 +1,75 @@
 "use client"
 
+// Koden er laget av Nikolai
+// Denne filen er frontend-siden for sosialfeedet, hvor brukere kan se, lage, like og kommentere innlegg.
+// Den bruker React hooks for state-håndtering og fetch for API-kall.
+
 import { useEffect, useState } from "react"
+import { SimpleFileUpload } from "simple-file-upload-react"
 import Image from "next/image"
-import DelKnapp from "./post_buttons/DelKnapp.png"
 import KommentarKnapp from "./post_buttons/KommentarKnapp.png"
 import LikerKnappAv from "./post_buttons/LikerKnappAv.png"
 import LikerKnappPaa from "./post_buttons/LikerKnappPaa.png"
+import SlettKnapp from "./post_buttons/SlettKnapp.png"
 import "./sosial.css"
 
 export default function SosialPage() {
+  // State-variabler for å holde data om innlegg, kommentarer, osv.
   const [posts, setPosts] = useState([])
   const [caption, setCaption] = useState("")
   const [comments, setComments] = useState({})
   const [showComments, setShowComments] = useState({})
   const [newComment, setNewComment] = useState({})
-  const [image, setImage] = useState(null)
+  const [imageUrl, setImageUrl] = useState("")
+  const [uploadPublicKey, setUploadPublicKey] = useState("")
+  const [uploadStatus, setUploadStatus] = useState("")
+  const [uploaderKey, setUploaderKey] = useState(0)
 
-  async function loadPosts() {
+  // Funksjon for å laste innlegg fra API-et
+async function loadPosts() {
+  try {
     const res = await fetch("/api/sosial/posts")
-    setPosts(await res.json())
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      console.error("Failed to load posts:", data.error)
+      return
+    }
+
+    setPosts(data)
+  } catch (err) {
+    console.error("loadPosts crashed:", err)
   }
-
-  async function loadComments(postid) {
-  const res = await fetch(`/api/sosial/comments?postid=${postid}`)
-  const data = await res.json()
-
-  setComments(prev => ({
-    ...prev,
-    [postid]: data
-  }))
 }
 
+  // Funksjon for å laste kommentarer for et spesifikt innlegg
+async function loadComments(postid) {
+  try {
+    const res = await fetch(`/api/sosial/comments?postid=${postid}`)
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      console.error("Failed to load comments:", data.error)
+      return
+    }
+
+    setComments(prev => ({
+      ...prev,
+      [postid]: data
+    }))
+  } catch (err) {
+    console.error("loadComments crashed:", err)
+  }
+}
+
+  // Funksjon for å sende en ny kommentar til API-et
 async function submitComment(postid) {
   const text = newComment[postid]
   if (!text?.trim()) return
 
-  await fetch("/api/sosial/comments", {
+  const res = await fetch("/api/sosial/comments", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -44,55 +78,181 @@ async function submitComment(postid) {
     })
   })
 
+  if (!res.ok) {
+    const errorText = await res.text()
+    console.error("Failed to submit comment:", errorText)
+    return
+  }
+
   setNewComment(prev => ({ ...prev, [postid]: "" }))
   loadComments(postid)
 }
 
+  // useEffect for å laste innlegg når komponenten monteres
   useEffect(() => {
     loadPosts()
   }, [])
 
-  async function submitPost() {
-  if (!caption.trim()) return
+  // useEffect for å laste opp public key for filopplasting
+ useEffect(() => {
+  let alive = true
+// funksjon som kaller på SimpleFileUpload api'en for å laste opp bilder
+  async function loadUploadPublicKey() {
+    try {
+      const res = await fetch("/api/simple-file-upload/public-key", {
+        method: "GET",
+        cache: "no-store",
+      })
 
-  const formData = new FormData()
-  formData.append("caption", caption)
-  formData.append("image", image)
+      if (!res.ok) {
+        const text = await res.text()
+        console.error("Failed to load Simple File Upload key:", text)
+        return
+      }
 
-  await fetch("/api/sosial/posts", {
-    method: "POST",
-    body: formData
-  })
+      if (!alive) return
 
-  setCaption("")
-  setImage(null)
-  loadPosts()
-}
+      const data = await res.json()
+      const key = typeof data?.publicKey === "string" ? data.publicKey.trim() : ""
 
-  async function toggleLike(postid, liked) {
-  await fetch("/api/sosial/likes", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      postid,
-      userid: "00000000-0000-0000-0000-000000000000" //MÅ byttes ut med userid?
-    })
-  })
-  
-    loadPosts()
-  }
-
-  function sharePost(postid) {
-    const url = `${window.location.origin}/sosial#post-${postid}`
-
-    if (navigator.share) {
-      navigator.share({ url })
-    } else {
-      navigator.clipboard.writeText(url)
-      alert("link copied")
+      if (key && alive) {
+        setUploadPublicKey(key)
+      }
+    } catch (err) {
+      console.error("loadUploadPublicKey crashed:", err)
+      if (alive) setUploadPublicKey("")
     }
   }
 
+  loadUploadPublicKey()
+
+  return () => {
+    alive = false
+  }
+}, [])
+
+  // Funksjon for å sende et nytt innlegg til API-et
+async function submitPost() {
+  if (!caption.trim()) return
+
+  const res = await fetch("/api/sosial/posts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      caption,
+      imageUrl
+    })
+  })
+
+  const data = await res.json().catch(() => ({}))
+  console.log("submit response:", data)
+
+  if (!res.ok) {
+    console.error("Post creation failed:", data.error || data)
+    return
+  }
+
+  setCaption("")
+  setImageUrl("")
+  setUploadStatus("")
+  setUploaderKey(prev => prev + 1)
+  loadPosts()
+}
+
+  // Funksjon for å toggle like-status på et innlegg
+async function toggleLike(postid) {
+  try {
+    const res = await fetch("/api/sosial/likes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postid })
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      console.error("Failed to toggle like:", data.error)
+      return
+    }
+
+    loadPosts()
+  } catch (err) {
+    console.error("toggleLike crashed:", err)
+  }
+}
+
+  // Funksjon for å slette et innlegg
+async function deletePost(postid) {
+  try {
+    const res = await fetch("/api/sosial/posts", {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postid })
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await res.json()
+      : await res.text();
+
+    if (!res.ok) {
+      console.error("Failed to delete post:", data);
+      return;
+    }
+
+    loadPosts();
+  } catch (err) {
+    console.error("deletePost crashed:", err);
+  }
+}
+
+  // Funksjon for å formatere dato og tid
+function formatDate(timestamp) {
+  const d = new Date(timestamp)
+
+  const time = d.toLocaleTimeString("no-NO", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+
+  const date = d.toLocaleDateString("no-NO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+
+  return `${time} ${date.replace(/\./g, "-")}`
+}
+
+  // Funksjon for å håndtere bildeopplasting
+function handleImageUploadChange(event) {
+  console.log("upload event:", event)
+
+  const files = Array.isArray(event?.allFiles)
+    ? event.allFiles
+    : event?.file
+      ? [event.file]
+      : []
+
+  const firstUrl =
+    files[0]?.cdnUrl ||
+    files[0]?.url ||
+    event?.cdnUrl ||
+    ""
+
+  console.log("resolved firstUrl:", firstUrl)
+
+  if (!firstUrl) {
+    setUploadStatus("Fant ikke bilde-URL etter opplasting.")
+    return
+  }
+
+  setImageUrl(firstUrl)
+  setUploadStatus("Bilde lastet opp.")
+}
+
+  // JSX for å vise komponentene
   return (
     <div className="sosial-container">
       <h1>sosial</h1>
@@ -104,25 +264,43 @@ async function submitComment(postid) {
         placeholder="Skriv ditt innlegg her!"
       />
       
+     {uploadPublicKey ? (
+  <SimpleFileUpload
+    key={uploaderKey}
+    publicKey={uploadPublicKey}
+    multiple={false}
+    maxFileSize={5 * 1024 * 1024}
+    onChange={handleImageUploadChange}
+  />
+) : (
+  <p>Mangler nøkkel for Simple File Upload.</p>
+)}
 
-      <input
-      type="file"
-      accept="image/*"
-      onChange={e => setImage(e.target.files[0])}
-      />
+{uploadStatus && <p>{uploadStatus}</p>}
+{imageUrl && <p>Opplastet URL: {imageUrl}</p>}
 
       <button onClick={submitPost} className="buttonPost">post</button>
       </div>
 
       {posts.map(p => {
-        console.log(p)
         const liked = p.liked
         
-
+        
     
 
         return (
           <div key={p.postid} id={`post-${p.postid}`} className="post">
+            <div className="post-user">
+              <img
+                src={p.avatar || "/images/profilbilde.jpg"}
+                alt={p.username ? `${p.username} sitt profilbilde` : "Profilbilde"}
+                className="post-avatar"
+              />
+              <div className="post-user-info">
+                <strong>{p.username}</strong>
+                <small>{formatDate(p.timestamp)}</small>
+              </div>
+            </div>
             <p>{p.caption}</p>
               {p.image && (
               <Image
@@ -132,12 +310,10 @@ async function submitComment(postid) {
                 height={300}
                 unoptimized
                 style={{ width: "300px", height: "auto" }}
+                className="post-image"
               />
                )}
                <div className="post-header">
-            <small>
-              {new Date(p.timestamp).toISOString()}
-            </small>
             </div>
             <div>likes: {p.likes}</div>
 
@@ -157,18 +333,20 @@ async function submitComment(postid) {
 
 
               {liked ? (
-                <button onClick={() => toggleLike(p.postid, true)}>
+                <button onClick={() => toggleLike(p.postid)}>
                   <Image src={LikerKnappPaa} alt="Liker Paa" width={24} height={24} className="test"/>
                 </button>
               ) : (
-                <button onClick={() => toggleLike(p.postid, false)}>
+                <button onClick={() => toggleLike(p.postid)}>
                   <Image src={LikerKnappAv} alt="Liker Av" width={24} height={24} className="test" />
                 </button>
               )}
 
-              <button onClick={() => sharePost(p.postid)}>
-                <Image src={DelKnapp} alt="Del" width={24} height={24} className="test"/>
+              {p.canDelete && (
+              <button onClick={() => deletePost(p.postid)}>
+                <Image src={SlettKnapp} alt="Slett" width={24} height={24} className="test"/>
               </button>
+              )}
 
             </div>
                 {showComments[p.postid] && (

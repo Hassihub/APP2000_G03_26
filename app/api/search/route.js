@@ -166,7 +166,7 @@ export async function GET(request) {
     // Number.parseFloat() konverterer "59.91" (streng) til 59.91 (tall).
     const normalizedLocations = Array.isArray(locations)
       ? locations.map((loc) => ({
-          name: loc.display_name,               // fullt lesbart navn, f.eks. "Oslo, Norge"
+          name: loc.display_name,               // fullt lesbart navn, f.eks. "Oslo, Utopia"
           lat:  Number.parseFloat(loc.lat),     // breddegrad som tall
           lon:  Number.parseFloat(loc.lon),     // lengdegrad som tall
           type: loc.type,                       // "city", "village" osv.

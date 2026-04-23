@@ -1,14 +1,13 @@
-body {
-  color: black;
-  font-family: Arial, sans-serif;
-}
-
+/* sosial-siden sin style sheet */
+/* Koden er laget av Nikolai */
+/* Setter bredde, margin og padding for hovedinnpakningen */
 .sosial-container {
   max-width: 600px;
   margin: 0 auto;
   padding: 20px;
 }
 
+/* Stiler for boksen der brukeren skriver nytt innlegg */
 .post-box {
   background: white;
   border-style: solid;
@@ -19,6 +18,7 @@ body {
   margin-bottom: 20px;
 }
 
+/* Stiler for tekstfeltet der brukeren skriver melding */
 textarea {
   width: 95%;
   padding: 10px;
@@ -30,11 +30,7 @@ textarea {
   margin-bottom: 10px;
 }
 
-input[type="file"] {
-  margin-bottom: 10px;
-  color: white;
-}
-
+/* Knapp for å sende kommentarer */
 .buttonSend {
   background: #3e7fef;
   border: solid;
@@ -52,6 +48,7 @@ input[type="file"] {
   background: #216def;
 }
 
+/* Knapp for å publisere nytt innlegg */
 .buttonPost {
   background: #3e7fef;
   border: solid;
@@ -63,10 +60,11 @@ input[type="file"] {
   transition: 0.2s;
   float: right;
 }
-.buttonpPost:hover {
+.buttonPost:hover {
   background: #216def;
 }
 
+/* Hver post vises som kort med hvit bakgrunn og svak skygge */
 .post {
   background: #fff;
   border: white;
@@ -78,39 +76,46 @@ input[type="file"] {
   box-shadow: 10px 10px 5px lightgrey;
 }
 
-.post img {
+/* Bilder i innlegg skaleres for å dekke hele bredden av post-kortet */
+.post-image {
   width: 100%;
   border-radius: 10px;
   margin-top: 10px;
 }
 
+/* Tekst i post-headeren gjøres litt mindre og mer dempet */
 .post-header {
   font-size: 14px;
   opacity: 0.7;
   margin-bottom: 5px;
 }
 
+/* Handlings-knappene vises i en rad med avstand imellom */
 .post-actions {
   display: flex;
   gap: 10px;
   margin-top: 10px;
 }
 
+/* Kommentarseksjonen får en adskillelse med topplinje og ekstra margin */
 .comments {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid #333;
 }
 
+/* Hver kommentar har mindre tekst og litt avstand under seg */
 .comment {
   font-size: 14px;
   margin-bottom: 5px;
 }
 
+/* Brukernavn i kommentarene får egen farge for å skille dem fra kommentarteksten */
 .comment strong {
   color: #3b82f6;
 }
 
+/* Inndatafelt for nye kommentarer ligger i en rad med litt luft mellom elementene */
 .comment-input {
   display: flex;
   gap: 5px;
@@ -118,6 +123,7 @@ input[type="file"] {
   width: 70%;
 }
 
+/* Kommentar-inputen får mørk bakgrunn og hvit tekst for god kontrast */
 .comment-input input {
   flex: 1;
   padding: 6px;
@@ -127,10 +133,38 @@ input[type="file"] {
   color: white;
 }
 
+/* Rekkefølge og avstand for brukerinfo øverst i hvert innlegg */
+.post-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+/* Brukerbildet får rund form og lik størrelse for alle innlegg */
+.post-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Informasjon om brukeren i innlegget vises i en vertikal kolonne */
+.post-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Dato/brukerinfo i innlegg vises mindre og med lav kontrast */
+.post-user-info small {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Mini-klasse for ikoner i knappene, justerer størrelse og posisjon (ser nå at jeg har glemt å endre navn, men vil ikke ødelegge koden)*/
 .test {
     height: 30px;
     width: 30px;
     position: relative;
-    bottom: 4px;
-    right: 1px;
 }

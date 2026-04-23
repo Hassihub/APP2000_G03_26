@@ -5,7 +5,7 @@ import Link from "next/link";
 
 const SLIDES = [
   {
-    title: "Oppdag norske fjell",
+    title: "Oppdag utopiske fjell",
     description:
       "Finn de beste fotturer rett utenfor din dør. Mer enn 500 merkede ruter over hele landet.",
     cta: "Utforsk turer →",
@@ -15,7 +15,7 @@ const SLIDES = [
   {
     title: "Reserver hytte i dag",
     description:
-      "Velg blant hundrevis av hytter i norsk natur. Bestill enkelt og trygt.",
+      "Velg blant hundrevis av hytter i utopisk natur. Bestill enkelt og trygt.",
     cta: "Se hytter →",
     href: "/reserver",
     accent: "#1a4a8a",
@@ -120,7 +120,7 @@ export default function Hjem() {
             margin: "0 0 2.5rem",
           }}
         >
-          Finn turer, reserver hytter og del opplevelser i norsk natur.
+          Finn turer, reserver hytter og del opplevelser i utopisk natur.
         </p>
         <Link
           href="/explore"
