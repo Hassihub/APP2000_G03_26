@@ -7,6 +7,7 @@ import DelKnapp from "./post_buttons/DelKnapp.png"
 import KommentarKnapp from "./post_buttons/KommentarKnapp.png"
 import LikerKnappAv from "./post_buttons/LikerKnappAv.png"
 import LikerKnappPaa from "./post_buttons/LikerKnappPaa.png"
+import SlettKnapp from "./post_buttons/SlettKnapp.png"
 import "./sosial.css"
 
 export default function SosialPage() {
@@ -323,7 +324,7 @@ function handleImageUploadChange(event) {
 
               {p.canDelete && (
               <button onClick={() => deletePost(p.postid)}>
-                <Image src={DelKnapp} alt="Slett" width={24} height={24} className="test"/>
+                <Image src={SlettKnapp} alt="Slett" width={24} height={24} className="test"/>
               </button>
               )}
 

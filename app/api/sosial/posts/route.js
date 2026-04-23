@@ -1,6 +1,25 @@
 import pool from "../../../../lib/db";
 import { cookies } from "next/headers";
 
+async function getSessionUserId() {
+  const cookieStore = await cookies();
+  const sid = cookieStore.get("connect.sid")?.value;
+
+  if (!sid) return null;
+
+  const sessionId = sid.split(".")[0].replace("s:", "");
+
+  const sessionRes = await pool.query(
+    `SELECT sess FROM session WHERE sid = $1`,
+    [sessionId]
+  );
+
+  if (sessionRes.rows.length === 0) return null;
+
+  const session = sessionRes.rows[0].sess;
+  return session.passport?.user || null;
+}
+
 export async function GET() {
 
   try {
@@ -48,7 +67,7 @@ export async function GET() {
       FROM posts p
       LEFT JOIN post_liked l ON p.postid = l.postid
       LEFT JOIN post_pictures pic ON p.postid = pic.postid
-      GROUP BY p.postid, p.caption, p.timestamp
+      GROUP BY p.postid, p.userid, p.caption, p.timestamp
       ORDER BY p.timestamp DESC
       `,
       [currentUserId]
@@ -59,7 +78,7 @@ export async function GET() {
       currentUserId &&
       (
         String(p.userid) === String(currentUserId) ||
-        currentUserRole === "admin"
+        currentUserRole === "ADMIN"
       )
     }));
 
