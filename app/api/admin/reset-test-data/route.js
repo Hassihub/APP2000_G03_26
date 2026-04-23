@@ -433,10 +433,8 @@ export async function POST() {
       insertedUsers.push(rows[0]);
     }
 
-    // Finn hytteeier-brukeren i listen vi nettopp opprettet
-    // slik at vi kan sette owner_id på hyttene.
-    // .find() returnerer det første elementet der betingelsen er sann.
-    const owner = insertedUsers.find((u) => u.email === "hytteeier@usn.no");
+    // Finn Bruker3 (UTLEIER) som eier av hyttene.
+    const owner = insertedUsers.find((u) => u.email === "bruker3@usn.no");
 
     // ── Steg 3: Opprett forhåndsinnstilte hytter ───────────────────────────
     for (const c of PRESET_CABINS) {
