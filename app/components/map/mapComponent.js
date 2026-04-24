@@ -1,3 +1,17 @@
+/**
+ * app/components/map/mapComponent.js
+ *
+ * Author: Hasnain Malik
+ *
+ * Hoved-kartkomponent for kart-siden (/map).
+ * Initialiserer Leaflet-kartet med OpenStreetMap-bakgrunnskart og maskelag,
+ * og gir brukeren mulighet til å:
+ *   - Se og filtrere hytter med markører på kartet
+ *   - Se og filtrere turforslag tegnet som fargekodede ruter
+ *   - Spore sin egen posisjon (live GPS-tracking med profilbilde)
+ *   - Slå på/av GeoJSON-lag for skiløyper, sykkelruter og andre ruter
+ *   - Se detaljpanel for valgt hytte eller tur i venstre sidepanel
+ */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -8,27 +22,40 @@ import { FiMenu, FiX, FiChevronLeft, FiChevronRight, FiNavigation } from "react-
 import { COMMON_AMENITIES } from "../../reserver/amenities";
 
 export default function MapComponent() {
-  const mapRef = useRef(null);
-  const [Leaflet, setLeaflet] = useState(null);
+  // --- Kart-refs: holder Leaflet-objekter som ikke skal trigge re-render ---
+  const mapRef = useRef(null);          // Leaflet-kartobjektet
+  const [Leaflet, setLeaflet] = useState(null); // Leaflet-biblioteket (lastes dynamisk)
   const [menuOpen, setMenuOpen] = useState(false);
-  const geojsonCleanupRef = useRef(null);
-  const userLocationLayerRef = useRef(null);
-  const geolocationWatchIdRef = useRef(null);
-  const avatarUrlRef = useRef(null);
+  const geojsonCleanupRef = useRef(null);         // Cleanup-funksjon for GeoJSON-lag
+  const userLocationLayerRef = useRef(null);      // Leaflet-lag for brukerposisjon
+  const geolocationWatchIdRef = useRef(null);     // Interval-ID for live GPS-tracking
+  const avatarUrlRef = useRef(null);              // Brukerens profilbilde-URL (for GPS-markør)
+
+  // --- GPS-tracking tilstand ---
   const [isTrackingUserLocation, setIsTrackingUserLocation] = useState(false);
   const [autoFollowUserLocation, setAutoFollowUserLocation] = useState(true);
-  const autoFollowUserLocationRef = useRef(true);
+  const autoFollowUserLocationRef = useRef(true); // Ref-kopi for bruk inne i callbacks
+
+  // --- Hytte-lag og detaljpanel ---
   const [showCabins, setShowCabins] = useState(false);
-  const cabinsLayerRef = useRef(null);
-  const [selectedCabin, setSelectedCabin] = useState(null);
+  const cabinsLayerRef = useRef(null);           // Leaflet-lag med hytte-markører
+  const [selectedCabin, setSelectedCabin] = useState(null); // Valgt hytte i sidepanelet
+
+  // --- Tur-lag og detaljpanel ---
   const [showTrips, setShowTrips] = useState(false);
-  const tripsLayerRef = useRef(null);
-  const selectedTripPointsLayerRef = useRef(null);
-  const [selectedTrip, setSelectedTrip] = useState(null);
+  const tripsLayerRef = useRef(null);            // Leaflet-lag med tur-ruter (GeoJSON)
+  const selectedTripPointsLayerRef = useRef(null); // Start/slutt/hytte-markører for valgt tur
+  const [selectedTrip, setSelectedTrip] = useState(null); // Valgt tur i sidepanelet
+
+  // --- Bilde-karusell-indekser for sidepanel ---
   const [cabinImgIndex, setCabinImgIndex] = useState(0);
   const [tripImgIndex, setTripImgIndex] = useState(0);
+
+  // --- UI-tilstand for filterpaneler ---
   const [hytterOpen, setHytterOpen] = useState(false);
   const [turforslagOpen, setTurforslagOpen] = useState(false);
+
+  // --- Filtere for hytter ---
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
   const [cabinSearchFilter, setCabinSearchFilter] = useState("");
@@ -36,11 +63,15 @@ export default function MapComponent() {
   const [cabinMinPriceFilter, setCabinMinPriceFilter] = useState("");
   const [cabinMaxPriceFilter, setCabinMaxPriceFilter] = useState("");
   const [cabinAmenitiesFilter, setCabinAmenitiesFilter] = useState([]);
+
+  // --- Filtere for turer ---
   const [tripTypeFilter, setTripTypeFilter] = useState("alle"); // fottur/skitur/sykkel/alle
   const [tripDifficultyFilter, setTripDifficultyFilter] = useState("alle"); // lett/middels/krevende/alle
   const [tripOnlyTiu, setTripOnlyTiu] = useState(false);
   const [tripStartDateFilter, setTripStartDateFilter] = useState("");
   const [tripEndDateFilter, setTripEndDateFilter] = useState("");
+
+  // --- Sidepanel synlighet og GeoJSON-rute-toggles ---
   const [panelVisible, setPanelVisible] = useState(true);
   const [routeToggles, setRouteToggles] = useState({
     annenrute: false,
@@ -48,6 +79,7 @@ export default function MapComponent() {
     sykkelrute: false,
     ruteinfopunkt: false,
   });
+  // Ref-kopi av routeToggles for bruk i kartevent-callbacks (unngår stale closure)
   const routeTogglesRef = useRef({
     annenrute: false,
     skiløype: false,
@@ -67,14 +99,17 @@ export default function MapComponent() {
     { label: "Logg inn", href: "/login" },
   ];
 
+  // Laster Leaflet-biblioteket dynamisk (kun klient-side) og henter brukerens profilbilde
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Dynamisk import av Leaflet – kan ikke lastes server-side (bruker nettleser-APIer)
     import("leaflet").then((L) => {
       import("leaflet/dist/leaflet.css");
       setLeaflet(L);
     });
 
+    // Hent innlogget brukers profilbilde for bruk på GPS-markøren
     fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
       .then((r) => r.ok ? r.json() : null)
       .then((d) => {
@@ -83,33 +118,39 @@ export default function MapComponent() {
       .catch(() => {});
   }, []);
 
+  // Initialiserer Leaflet-kartet etter at biblioteket er lastet
   useEffect(() => {
     if (!Leaflet || mapRef.current) return;
     const L = Leaflet;
 
+    // Opprett kartet sentrert over Utopia med passende startzoom
     const map = L.map("map", {
-      center: [63.2, 15],
+      center: [63.2, 15], // Geografisk midtpunkt i Utopia
       zoom: 5,
-      minZoom: 4,
-      zoomControl: false,
-      preferCanvas: true, // bedre ytelse for mange vektorobjekter
+      minZoom: 4,         // Hindrer at brukeren zoomer for langt ut
+      zoomControl: false, // Plasseres manuelt nede til høyre
+      preferCanvas: true, // Bedre ytelse for mange vektorobjekter (markører, ruter)
     });
     mapRef.current = map;
 
+    // Zoom-kontroll plassert nede til høyre (standardplassering er øverst til venstre)
     L.control.zoom({ position: "bottomright" }).addTo(map);
 
+    // Legg til OpenStreetMap-kartfliser som bakgrunnskart
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "© OpenStreetMap",
     }).addTo(map);
 
+    // Legg til maskelaget som skjuler området utenfor Utopia med mørk overlay
     import("./maskLayer").then(({ addMaskLayer }) => addMaskLayer(map, L));
 
+    // Aktiver dynamisk lasting av GeoJSON-ruter (skiløyper, sykkelruter, osv.)
     const getRouteToggles = () => routeTogglesRef.current;
     import("./geojsonRoutesLayer").then(({ enableGeojsonRoutes }) => {
       geojsonCleanupRef.current = enableGeojsonRoutes(map, L, getRouteToggles);
     });
 
-    // Hent posisjon automatisk ved oppstart
+    // Hent brukerens posisjon automatisk ved oppstart og vis markør
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -123,6 +164,7 @@ export default function MapComponent() {
       );
     }
 
+    // Cleanup: stopp GPS-tracking, fjern alle lag og ødelegg kartinstansen
     return () => {
       if (geolocationWatchIdRef.current !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(geolocationWatchIdRef.current);
@@ -146,10 +188,12 @@ export default function MapComponent() {
     };
   }, [Leaflet]);
 
+  // Synkroniser ref med state for routeToggles (brukes i kartlyttere uten re-render)
   useEffect(() => {
     routeTogglesRef.current = routeToggles;
   }, [routeToggles]);
 
+  // Synkroniser ref med state for autoFollow (brukes i GPS-callback)
   useEffect(() => {
     autoFollowUserLocationRef.current = autoFollowUserLocation;
   }, [autoFollowUserLocation]);
@@ -161,7 +205,8 @@ export default function MapComponent() {
     }
   }, [panelVisible]);
 
-  // 🔹 Vis hytter fra databasen ved hjelp av lagrede koordinater, med valgfritt datofilter
+  // Henter hytter fra API og plasserer markører på kartet med filtrering.
+  // Kjøres på nytt ved endring av showCabins eller et hvilket som helst filter.
   useEffect(() => {
     if (!Leaflet || !mapRef.current) return;
 
@@ -229,8 +274,10 @@ export default function MapComponent() {
         const cabins = Array.isArray(json.cabins) ? json.cabins : [];
         if (!cabins.length) return;
 
+        // Lag et gruppelag – alle hytte-markørene samles her for enkel fjerning
         const layer = L.layerGroup();
 
+        // Standard hytte-ikon (normal størrelse)
         const cabinIcon = L.icon({
           iconUrl: "/images/cabinPin.svg",
           iconSize: [32, 32],
@@ -238,6 +285,7 @@ export default function MapComponent() {
           popupAnchor: [0, -32],
         });
 
+        // Forstørret hytte-ikon ved hover
         const cabinHoverIcon = L.icon({
           iconUrl: "/images/cabinPin.svg",
           iconSize: [40, 40],
@@ -245,6 +293,7 @@ export default function MapComponent() {
           popupAnchor: [0, -40],
         });
 
+        // Iterer over alle hytter og plasser en markør for hver med gyldige koordinater
         for (const cabin of cabins) {
           const lat = Number(cabin.latitude);
           const lon = Number(cabin.longitude);
@@ -303,7 +352,9 @@ export default function MapComponent() {
     cabinAmenitiesFilter,
   ]);
 
-  // 🔹 Vis lagrede trips (fra /api/trips) på kartet, med filtrering
+  // Henter turforslag fra API og tegner dem som fargekodede ruter på kartet.
+  // Farge avhenger av type: skitur=blå, sykkel=grønn, fottur=rød.
+  // TiU-turer vises bare hvis status er "interest_open".
   useEffect(() => {
     if (!Leaflet || !mapRef.current) return;
 
@@ -379,6 +430,7 @@ export default function MapComponent() {
 
         if (!features.length) return;
 
+        // Farge-mapping for turtype: skitur=blå, sykkel=grønn, alle andre=rød
         const getTripStyle = (type) => {
           if (type === "skitur") return { color: "#1f77b4", weight: 4 };
           if (type === "sykkel") return { color: "#2ca02c", weight: 4 };
@@ -467,7 +519,8 @@ export default function MapComponent() {
     tripEndDateFilter,
   ]);
 
-  // Vis markorer for valgt tur: start, midtpunkt, slutt og hytter langs turen.
+  // Plasserer markører for valgt tur: start- og sluttpunkt + hytter langs ruten.
+  // Kjøres når brukeren klikker på en tur-linje i kartet.
   useEffect(() => {
     if (!Leaflet || !mapRef.current) return;
 
@@ -485,12 +538,15 @@ export default function MapComponent() {
     if (!showTrips || !selectedTrip) return;
 
     const geometry = selectedTrip.geometry;
+    // Hent koordinater fra LineString eller MultiLineString (flat ut til ett array)
     const coordsRaw = geometry?.type === "LineString"
       ? geometry.coordinates
       : geometry?.type === "MultiLineString"
         ? geometry.coordinates.flat()
         : [];
 
+    // Konverter koordinater fra [lon, lat] (GeoJSON) til [lat, lon] (Leaflet)
+    // og filtrer bort ugyldige punkter
     const routeCoords = Array.isArray(coordsRaw)
       ? coordsRaw
           .filter(
@@ -578,8 +634,21 @@ export default function MapComponent() {
   }, [Leaflet, showTrips, selectedTrip]);
 
 
-  // 🔵 Plasser brukerens posisjon på kartet – profilbilde hvis tilgjengelig, ellers blå sirkel
+  /**
+   * Plasserer brukerens GPS-posisjon på kartet.
+   * Viser profilbilde som markør hvis tilgjengelig, ellers en blå sirkel.
+   * Tegner en nøyaktighetsradius rundt posisjonen, og en retningspil ved live tracking.
+   *
+   * @param {L} L - Leaflet-biblioteket
+   * @param {L.Map} map - Kartobjektet
+   * @param {number} latitude - GPS-breddegrad
+   * @param {number} longitude - GPS-lengdegrad
+   * @param {number} accuracy - GPS-nøyaktighet i meter
+   * @param {boolean} shouldCenterMap - Sentrér kartet på posisjonen
+   * @param {number|null} heading - Kompassretning i grader (null = ingen pil)
+   */
   const placeUserMarker = (L, map, latitude, longitude, accuracy, shouldCenterMap = true, heading = null) => {
+    // Fjern forrige posisjonslag før vi plasserer nytt
     if (userLocationLayerRef.current) {
       map.removeLayer(userLocationLayerRef.current);
       userLocationLayerRef.current = null;
@@ -587,7 +656,7 @@ export default function MapComponent() {
 
     const group = L.layerGroup();
 
-    // Nøyaktighetsradius
+    // Nøyaktighetsradius: lyseblå sirkel som viser GPS-usikkerhet i meter
     L.circle([latitude, longitude], {
       radius: accuracy,
       color: "#2563eb",
@@ -599,6 +668,7 @@ export default function MapComponent() {
     const popup = `Din posisjon<br/>Lat: ${latitude.toFixed(5)}<br/>Lon: ${longitude.toFixed(5)}`;
     const avatar = avatarUrlRef.current;
 
+    // Retningspil over markøren – roteres etter kompassretning fra GPS-sensor
     const headingArrow = (heading !== null && !isNaN(heading))
       ? `<div style="
           position:absolute;
@@ -664,7 +734,7 @@ export default function MapComponent() {
     }
   };
 
-  // 🔵 Finn brukerens posisjon og vis på kartet
+  // Henter brukerens nåværende posisjon én gang og sentrerer kartet der
   const locateUser = () => {
     if (!Leaflet || !mapRef.current) return;
 
@@ -686,6 +756,8 @@ export default function MapComponent() {
     );
   };
 
+  // Slår live GPS-tracking av/på. Ved aktivering oppdateres markøren hvert sekund
+  // med ny posisjon og retningspil. Viser profilbilde på markøren hvis tilgjengelig.
   const toggleLiveUserTracking = () => {
     if (!Leaflet || !mapRef.current) return;
 
@@ -694,6 +766,7 @@ export default function MapComponent() {
       return;
     }
 
+    // Tracking er aktiv – stopp intervallet og nullstill tilstand
     if (geolocationWatchIdRef.current !== null) {
       clearInterval(geolocationWatchIdRef.current);
       geolocationWatchIdRef.current = null;
@@ -701,6 +774,7 @@ export default function MapComponent() {
       return;
     }
 
+    // Posisjonen oppdateres hvert sekund
     const UPDATE_INTERVAL_MS = 1000;
 
     let isFirstUpdate = true;
