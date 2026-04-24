@@ -1,3 +1,4 @@
+// Konrad - 274088
 import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
@@ -22,17 +23,17 @@ async function ensureTurlederUserIdColumn(client) {
   `);
 }
 
-  async function ensureCabinStayBindingColumns(client) {
-    await client.query(`
+async function ensureCabinStayBindingColumns(client) {
+  await client.query(`
       ALTER TABLE public.cabin_stay_requests
       ADD COLUMN IF NOT EXISTS binding_decision TEXT NOT NULL DEFAULT 'pending'
     `);
 
-    await client.query(`
+  await client.query(`
       ALTER TABLE public.cabin_stay_requests
       ADD COLUMN IF NOT EXISTS binding_beds INTEGER
     `);
-  }
+}
 
 export async function POST(request, context) {
   const client = await pool.connect();
@@ -49,10 +50,7 @@ export async function POST(request, context) {
     const departureId = Number(departureIdParam);
 
     if (!Number.isFinite(departureId)) {
-      return NextResponse.json(
-        { error: "Ugyldig avgang" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Ugyldig avgang" }, { status: 400 });
     }
 
     await client.query("BEGIN");
@@ -72,14 +70,14 @@ export async function POST(request, context) {
       WHERE d.id = $1
       LIMIT 1
       `,
-      [departureId]
+      [departureId],
     );
 
     if (departureResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Fant ikke avgangen" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -93,17 +91,14 @@ export async function POST(request, context) {
 
     if (!isAdmin && !isLeaderForThisTrip) {
       await client.query("ROLLBACK");
-      return NextResponse.json(
-        { error: "Ingen tilgang" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Ingen tilgang" }, { status: 403 });
     }
 
     if (departure.status === "cancelled") {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Avgangen er avlyst" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -111,7 +106,7 @@ export async function POST(request, context) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Turen er allerede bekreftet" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -122,7 +117,7 @@ export async function POST(request, context) {
       WHERE departure_id = $1
         AND status = 'binding'
       `,
-      [departureId]
+      [departureId],
     );
 
     const bindingCount = countResult.rows[0].binding_count;
@@ -133,12 +128,12 @@ export async function POST(request, context) {
         {
           error: "Turen har ikke nok bindende påmeldinger til å bekreftes ennå",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const stayTableExistsResult = await client.query(
-      `SELECT to_regclass('public.cabin_stay_requests') IS NOT NULL AS exists`
+      `SELECT to_regclass('public.cabin_stay_requests') IS NOT NULL AS exists`,
     );
 
     const stayTableExists = stayTableExistsResult.rows[0]?.exists === true;
@@ -168,7 +163,7 @@ export async function POST(request, context) {
         FROM public.cabin_stay_requests
         WHERE trip_id = $1
         `,
-        [departure.trip_id]
+        [departure.trip_id],
       );
 
       const bedsSummary = bedsSummaryResult.rows[0] || {};
@@ -180,9 +175,10 @@ export async function POST(request, context) {
         await client.query("ROLLBACK");
         return NextResponse.json(
           {
-            error: "Hytteeiere må bekrefte eller trekke bindende sengeplasser før turen kan bekreftes",
+            error:
+              "Hytteeiere må bekrefte eller trekke bindende sengeplasser før turen kan bekreftes",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -190,11 +186,12 @@ export async function POST(request, context) {
         await client.query("ROLLBACK");
         return NextResponse.json(
           {
-            error: "Ikke nok bekreftede sengeplasser til antall bindende påmeldte",
+            error:
+              "Ikke nok bekreftede sengeplasser til antall bindende påmeldte",
             binding_count: bindingCount,
             confirmed_beds: confirmedBeds,
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -205,7 +202,7 @@ export async function POST(request, context) {
       SET status = 'confirmed'
       WHERE id = $1
       `,
-      [departureId]
+      [departureId],
     );
 
     await client.query("COMMIT");
@@ -216,7 +213,7 @@ export async function POST(request, context) {
         message: "Turen er bekreftet",
         binding_count: bindingCount,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     try {
@@ -232,9 +229,10 @@ export async function POST(request, context) {
         error: "Kunne ikke bekrefte turen",
         details: error?.message || "Ukjent feil",
       },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
   }
 }
+

@@ -1,3 +1,4 @@
+// Konrad - 274088
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -35,7 +36,7 @@ export default function TripGroupPage() {
       if (!prev) return prev;
 
       const exists = (prev.messages || []).some(
-        (msg) => String(msg.id) === String(incomingMessage.id)
+        (msg) => String(msg.id) === String(incomingMessage.id),
       );
 
       if (exists) {
@@ -61,7 +62,9 @@ export default function TripGroupPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.details || data?.error || "Kunne ikke hente turgruppen");
+        throw new Error(
+          data?.details || data?.error || "Kunne ikke hente turgruppen",
+        );
       }
 
       setGroupData(data);
@@ -91,7 +94,7 @@ export default function TripGroupPage() {
     }
 
     const es = new EventSource(
-      `/api/trips/${params.id}/group/stream?lastMessageId=${lastMessageId}`
+      `/api/trips/${params.id}/group/stream?lastMessageId=${lastMessageId}`,
     );
 
     eventSourceRef.current = es;
@@ -107,7 +110,13 @@ export default function TripGroupPage() {
     return () => {
       es.close();
     };
-  }, [params?.id, groupData, lastMessageId, appendMessageIfMissing, scrollToBottom]);
+  }, [
+    params?.id,
+    groupData,
+    lastMessageId,
+    appendMessageIfMissing,
+    scrollToBottom,
+  ]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -176,7 +185,9 @@ export default function TripGroupPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.details || data?.error || "Kunne ikke sende melding");
+        throw new Error(
+          data?.details || data?.error || "Kunne ikke sende melding",
+        );
       }
 
       appendMessageIfMissing(data.message);
@@ -320,10 +331,14 @@ export default function TripGroupPage() {
                       />
                       <strong>
                         {msg.username}
-                        {msg.user_id === groupData.currentUserId ? " (deg)" : ""}
+                        {msg.user_id === groupData.currentUserId
+                          ? " (deg)"
+                          : ""}
                       </strong>
                     </div>
-                    <span>{new Date(msg.created_at).toLocaleString("no-NO")}</span>
+                    <span>
+                      {new Date(msg.created_at).toLocaleString("no-NO")}
+                    </span>
                   </div>
 
                   {msg.message_type === "image" && msg.image_url ? (
@@ -420,3 +435,4 @@ export default function TripGroupPage() {
     </>
   );
 }
+

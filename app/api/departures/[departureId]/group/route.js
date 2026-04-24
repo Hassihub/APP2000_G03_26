@@ -1,3 +1,4 @@
+// Konrad - 274088
 import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
@@ -22,7 +23,7 @@ async function ensureAccess(client, departureId, userId) {
       AND tr.status = 'binding'
     LIMIT 1
     `,
-    [departureId, userId]
+    [departureId, userId],
   );
 
   return accessResult.rows[0] ?? null;
@@ -46,7 +47,7 @@ export async function GET(request, { params }) {
     if (!access) {
       return NextResponse.json(
         { error: "Du har ikke tilgang til denne turgruppen" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -59,7 +60,7 @@ export async function GET(request, { params }) {
       WHERE departure_id = $1
       LIMIT 1
       `,
-      [departureId]
+      [departureId],
     );
 
     if (chatResult.rowCount === 0) {
@@ -69,7 +70,7 @@ export async function GET(request, { params }) {
         VALUES ($1)
         RETURNING id, departure_id, created_at
         `,
-        [departureId]
+        [departureId],
       );
     }
 
@@ -88,7 +89,7 @@ export async function GET(request, { params }) {
         AND tr.status = 'binding'
       ORDER BY u.username ASC
       `,
-      [departureId]
+      [departureId],
     );
 
     const messagesResult = await client.query(
@@ -107,7 +108,7 @@ export async function GET(request, { params }) {
       ORDER BY m.created_at ASC
       LIMIT 100
       `,
-      [chat.id]
+      [chat.id],
     );
 
     await client.query("COMMIT");
@@ -135,9 +136,10 @@ export async function GET(request, { params }) {
     console.error("Trip group GET error:", error);
     return NextResponse.json(
       { error: "Kunne ikke hente turgruppen" },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
   }
 }
+

@@ -1,3 +1,4 @@
+// Konrad - 274088
 import { NextResponse } from "next/server";
 import pool from "../../../../../../../lib/db";
 import { requireAuth } from "../../../../../../../lib/auth";
@@ -73,7 +74,7 @@ async function isTripParticipant(client, tripId, userId) {
         AND tr.status = 'binding'
     )
     `,
-    [tripId, userId]
+    [tripId, userId],
   );
 
   return result.rowCount > 0;
@@ -95,7 +96,7 @@ async function ensurePrivateChat(client, tripId, currentUserId, otherUserId) {
       AND user_two_id = $3
     LIMIT 1
     `,
-    [tripId, userOneId, userTwoId]
+    [tripId, userOneId, userTwoId],
   );
 
   if (result.rowCount === 0) {
@@ -105,7 +106,7 @@ async function ensurePrivateChat(client, tripId, currentUserId, otherUserId) {
       VALUES ($1, $2, $3)
       RETURNING id, trip_id, user_one_id, user_two_id, created_at
       `,
-      [tripId, userOneId, userTwoId]
+      [tripId, userOneId, userTwoId],
     );
   }
 
@@ -145,7 +146,7 @@ export async function POST(request, context) {
     if (!currentIsMember || !otherIsMember) {
       return NextResponse.json(
         { error: "Begge brukere må være med i turen for å bruke privat chat" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -159,18 +160,23 @@ export async function POST(request, context) {
     let imageUrl = null;
     let hasImage = false;
 
-    if (file && typeof file === "object" && "arrayBuffer" in file && file.size > 0) {
+    if (
+      file &&
+      typeof file === "object" &&
+      "arrayBuffer" in file &&
+      file.size > 0
+    ) {
       if (!String(file.type || "").startsWith("image/")) {
         return NextResponse.json(
           { error: "Du kan bare laste opp bildefiler" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       if (file.size > 3 * 1024 * 1024) {
         return NextResponse.json(
           { error: "Bildet er for stort. Maks 3 MB." },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -182,14 +188,14 @@ export async function POST(request, context) {
     if (!hasText && !hasImage) {
       return NextResponse.json(
         { error: "Meldingen må inneholde tekst eller bilde" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (message.length > 2000) {
       return NextResponse.json(
         { error: "Meldingen er for lang" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -212,7 +218,7 @@ export async function POST(request, context) {
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id
       `,
-      [chat.id, user.id, storedMessage, messageType, imageUrl]
+      [chat.id, user.id, storedMessage, messageType, imageUrl],
     );
 
     const fullMessageResult = await client.query(
@@ -232,7 +238,7 @@ export async function POST(request, context) {
       WHERE m.id = $1
       LIMIT 1
       `,
-      [insertResult.rows[0].id]
+      [insertResult.rows[0].id],
     );
 
     await client.query("COMMIT");
@@ -242,7 +248,7 @@ export async function POST(request, context) {
         success: true,
         message: fullMessageResult.rows[0],
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     try {
@@ -256,9 +262,10 @@ export async function POST(request, context) {
         error: "Kunne ikke sende privat melding",
         details: error?.message || "Ukjent feil",
       },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
   }
 }
+

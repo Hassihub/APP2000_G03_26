@@ -1,3 +1,4 @@
+// Konrad - 274088
 import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
@@ -53,7 +54,7 @@ async function ensureUserNotificationsTable(client) {
 
 async function hasCabinStayRequestsTable(client) {
   const result = await client.query(
-    `SELECT to_regclass('public.cabin_stay_requests') IS NOT NULL AS exists`
+    `SELECT to_regclass('public.cabin_stay_requests') IS NOT NULL AS exists`,
   );
 
   return result.rows[0]?.exists === true;
@@ -61,7 +62,7 @@ async function hasCabinStayRequestsTable(client) {
 
 async function hasTripInterestTable(client) {
   const result = await client.query(
-    `SELECT to_regclass('public.trip_interest') IS NOT NULL AS exists`
+    `SELECT to_regclass('public.trip_interest') IS NOT NULL AS exists`,
   );
 
   return result.rows[0]?.exists === true;
@@ -100,10 +101,7 @@ export async function POST(request, context) {
     const tripId = Number(id);
 
     if (!Number.isFinite(tripId)) {
-      return NextResponse.json(
-        { error: "Ugyldig tur-id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Ugyldig tur-id" }, { status: 400 });
     }
 
     const body = await request.json();
@@ -120,22 +118,27 @@ export async function POST(request, context) {
     if (!Number.isFinite(dateOptionId)) {
       return NextResponse.json(
         { error: "Ugyldig datoalternativ" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!Number.isFinite(minParticipants) || minParticipants < 1) {
       return NextResponse.json(
         { error: "Minste antall deltakere må være minst 1" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (maxParticipants !== null) {
-      if (!Number.isFinite(maxParticipants) || maxParticipants < minParticipants) {
+      if (
+        !Number.isFinite(maxParticipants) ||
+        maxParticipants < minParticipants
+      ) {
         return NextResponse.json(
-          { error: "Maks antall deltakere må være større enn eller lik minimum" },
-          { status: 400 }
+          {
+            error: "Maks antall deltakere må være større enn eller lik minimum",
+          },
+          { status: 400 },
         );
       }
     }
@@ -158,14 +161,14 @@ export async function POST(request, context) {
       LIMIT 1
       FOR UPDATE
       `,
-      [tripId]
+      [tripId],
     );
 
     if (tripResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Fant ikke fleksibel fellestur" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -179,17 +182,14 @@ export async function POST(request, context) {
 
     if (!isAdmin && !isLeaderForThisTrip) {
       await client.query("ROLLBACK");
-      return NextResponse.json(
-        { error: "Ingen tilgang" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Ingen tilgang" }, { status: 403 });
     }
 
     if (!trip.is_flexible) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Denne turen er ikke fleksibel" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -201,14 +201,14 @@ export async function POST(request, context) {
         AND status <> 'cancelled'
       LIMIT 1
       `,
-      [tripId]
+      [tripId],
     );
 
     if (existingDepartureResult.rowCount > 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Turen har allerede en aktiv avgang" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -224,19 +224,19 @@ export async function POST(request, context) {
       WHERE trip_id = $1
       ORDER BY start_time ASC
       `,
-      [tripId]
+      [tripId],
     );
 
     if (optionResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Denne turen har ingen datoalternativer" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const selectedOption = optionResult.rows.find(
-      (option) => Number(option.id) === dateOptionId
+      (option) => Number(option.id) === dateOptionId,
     );
 
     if (!selectedOption) {
@@ -248,7 +248,7 @@ export async function POST(request, context) {
           trip_id: tripId,
           available_option_ids: optionResult.rows.map((row) => row.id),
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -258,7 +258,7 @@ export async function POST(request, context) {
       SET is_selected = false
       WHERE trip_id = $1
       `,
-      [tripId]
+      [tripId],
     );
 
     await client.query(
@@ -268,7 +268,7 @@ export async function POST(request, context) {
       WHERE id = $1
         AND trip_id = $2
       `,
-      [dateOptionId, tripId]
+      [dateOptionId, tripId],
     );
 
     const departureResult = await client.query(
@@ -297,7 +297,7 @@ export async function POST(request, context) {
         selectedOption.end_time,
         minParticipants,
         maxParticipants,
-      ]
+      ],
     );
 
     const departure = departureResult.rows[0];
@@ -308,7 +308,7 @@ export async function POST(request, context) {
       SET planning_status = 'binding_open'
       WHERE trip_id = $1
       `,
-      [tripId]
+      [tripId],
     );
 
     const hasStayRequestsTable = await hasCabinStayRequestsTable(client);
@@ -326,7 +326,7 @@ export async function POST(request, context) {
         WHERE trip_id = $1
           AND status = 'approved'
         `,
-        [tripId]
+        [tripId],
       );
     }
 
@@ -340,7 +340,7 @@ export async function POST(request, context) {
         WHERE ti.trip_id = $1
           AND ti.status = 'interested'
         `,
-        [tripId]
+        [tripId],
       );
 
       for (const row of interestedUsersResult.rows) {
@@ -366,7 +366,7 @@ export async function POST(request, context) {
               selected_start_time: selectedOption.start_time,
               selected_end_time: selectedOption.end_time,
             }),
-          ]
+          ],
         );
       }
     }
@@ -383,7 +383,7 @@ export async function POST(request, context) {
       WHERE tc.trip_id = $1
         AND c.owner_id IS NOT NULL
       `,
-      [tripId]
+      [tripId],
     );
 
     const stayRequestMap = {};
@@ -397,7 +397,7 @@ export async function POST(request, context) {
         FROM public.cabin_stay_requests
         WHERE trip_id = $1
         `,
-        [tripId]
+        [tripId],
       );
       for (const r of stayReqResult.rows) {
         stayRequestMap[r.cabin_id] = r;
@@ -435,7 +435,7 @@ export async function POST(request, context) {
             cabin_name: row.cabin_name,
             offered_beds: stayReq?.offered_beds ?? null,
           }),
-        ]
+        ],
       );
     }
 
@@ -447,7 +447,7 @@ export async function POST(request, context) {
         message: "Dato valgt og avgang opprettet",
         departure,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     try {
@@ -463,7 +463,7 @@ export async function POST(request, context) {
         error: "Kunne ikke velge datoalternativ",
         details: error?.message || "Ukjent feil",
       },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();

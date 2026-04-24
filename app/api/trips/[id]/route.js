@@ -1,3 +1,4 @@
+// Konrad - 274088
 import { NextResponse } from "next/server";
 import pool from "../../../../lib/db";
 import { getCurrentUser, requireAuth } from "../../../../lib/auth";
@@ -32,10 +33,7 @@ export async function GET(request, { params }) {
     const tripId = Number(id);
 
     if (!Number.isFinite(tripId)) {
-      return NextResponse.json(
-        { error: "Ugyldig tur-id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Ugyldig tur-id" }, { status: 400 });
     }
 
     const query = `
@@ -83,10 +81,7 @@ export async function GET(request, { params }) {
     const result = await client.query(query, [tripId]);
 
     if (result.rowCount === 0) {
-      return NextResponse.json(
-        { error: "Fant ikke turen" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Fant ikke turen" }, { status: 404 });
     }
 
     const trip = result.rows[0];
@@ -94,7 +89,7 @@ export async function GET(request, { params }) {
     if (trip.bilde_urls === undefined) {
       const tripResult = await client.query(
         `SELECT bilde_urls FROM public.trips WHERE id = $1 LIMIT 1`,
-        [tripId]
+        [tripId],
       );
 
       if (tripResult.rowCount > 0 && tripResult.rows[0].bilde_urls) {
@@ -102,7 +97,7 @@ export async function GET(request, { params }) {
       } else if (!trip.bilde_url) {
         const customResult = await client.query(
           `SELECT bilde_urls FROM public.routes_to_verification WHERE name = $1 LIMIT 1`,
-          [trip.navn]
+          [trip.navn],
         );
 
         if (customResult.rowCount > 0 && customResult.rows[0].bilde_urls) {
@@ -126,7 +121,7 @@ export async function GET(request, { params }) {
       WHERE trip_id = $1
       ORDER BY start_time ASC
       `,
-      [tripId]
+      [tripId],
     );
 
     const interestCountResult = await client.query(
@@ -136,11 +131,11 @@ export async function GET(request, { params }) {
       WHERE trip_id = $1
         AND status = 'interested'
       `,
-      [tripId]
+      [tripId],
     );
 
     const tripCabinsTableResult = await client.query(
-      "SELECT to_regclass('public.trip_cabins') IS NOT NULL AS exists"
+      "SELECT to_regclass('public.trip_cabins') IS NOT NULL AS exists",
     );
 
     let cabins = [];
@@ -160,7 +155,7 @@ export async function GET(request, { params }) {
         WHERE tc.trip_id = $1
         ORDER BY tc.sort_order ASC
         `,
-        [tripId]
+        [tripId],
       );
 
       cabins = cabinsResult.rows;
@@ -192,7 +187,7 @@ export async function GET(request, { params }) {
           AND status = 'interested'
         LIMIT 1
         `,
-        [tripId, user.id]
+        [tripId, user.id],
       );
 
       const registrationResult = await client.query(
@@ -206,7 +201,7 @@ export async function GET(request, { params }) {
           AND tr.status = 'binding'
         LIMIT 1
         `,
-        [tripId, user.id]
+        [tripId, user.id],
       );
 
       const role = String(user.role || "").toUpperCase();
@@ -231,7 +226,7 @@ export async function GET(request, { params }) {
           WHERE departure_id = $1
             AND status = 'binding'
           `,
-          [trip.departure_id]
+          [trip.departure_id],
         );
 
         trip.binding_count = bindingCountResult.rows[0]?.binding_count ?? 0;
@@ -253,7 +248,7 @@ export async function GET(request, { params }) {
             AND tr.status = 'binding'
           ORDER BY tr.created_at ASC
           `,
-          [trip.departure_id]
+          [trip.departure_id],
         );
 
         trip.binding_registrations = registrationsResult.rows;
@@ -270,8 +265,11 @@ export async function GET(request, { params }) {
   } catch (error) {
     console.error("Trip details API GET error:", error);
     return NextResponse.json(
-      { error: "Kunne ikke hente tur", details: error?.message || "Ukjent feil" },
-      { status: 500 }
+      {
+        error: "Kunne ikke hente tur",
+        details: error?.message || "Ukjent feil",
+      },
+      { status: 500 },
     );
   } finally {
     client.release();
@@ -293,10 +291,7 @@ export async function DELETE(request, { params }) {
     const tripId = Number(id);
 
     if (!Number.isFinite(tripId)) {
-      return NextResponse.json(
-        { error: "Ugyldig tur-id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Ugyldig tur-id" }, { status: 400 });
     }
 
     await client.query("BEGIN");
@@ -311,15 +306,12 @@ export async function DELETE(request, { params }) {
       LIMIT 1
       FOR UPDATE
       `,
-      [tripId]
+      [tripId],
     );
 
     if (tripResult.rowCount === 0) {
       await client.query("ROLLBACK");
-      return NextResponse.json(
-        { error: "Fant ikke turen" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Fant ikke turen" }, { status: 404 });
     }
 
     const leaderResult = await client.query(
@@ -329,7 +321,7 @@ export async function DELETE(request, { params }) {
       WHERE trip_id = $1
       LIMIT 1
       `,
-      [tripId]
+      [tripId],
     );
 
     const turlederUserId = leaderResult.rows[0]?.turleder_user_id ?? null;
@@ -341,10 +333,7 @@ export async function DELETE(request, { params }) {
 
     if (!isAdmin && !isLeaderForThisTrip) {
       await client.query("ROLLBACK");
-      return NextResponse.json(
-        { error: "Ingen tilgang" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Ingen tilgang" }, { status: 403 });
     }
 
     await client.query(
@@ -352,7 +341,7 @@ export async function DELETE(request, { params }) {
       DELETE FROM public.trips
       WHERE id = $1
       `,
-      [tripId]
+      [tripId],
     );
 
     await client.query("COMMIT");
@@ -362,7 +351,7 @@ export async function DELETE(request, { params }) {
         success: true,
         message: "Turen ble slettet",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     try {
@@ -378,9 +367,10 @@ export async function DELETE(request, { params }) {
         error: "Kunne ikke slette tur",
         details: error?.message || "Ukjent feil",
       },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
   }
 }
+

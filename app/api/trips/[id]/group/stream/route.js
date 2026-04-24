@@ -1,3 +1,4 @@
+// Konrad - 274088
 import pool from "../../../../../../lib/db";
 import { getCurrentUser } from "../../../../../../lib/auth";
 
@@ -69,7 +70,7 @@ async function userHasAccess(client, tripId, userId) {
         AND tr.status = 'binding'
     )
     `,
-    [tripId, userId]
+    [tripId, userId],
   );
 
   return result.rowCount > 0;
@@ -83,7 +84,7 @@ async function ensureChatForTrip(client, tripId) {
     WHERE trip_id = $1
     LIMIT 1
     `,
-    [tripId]
+    [tripId],
   );
 
   if (chatResult.rowCount === 0) {
@@ -93,7 +94,7 @@ async function ensureChatForTrip(client, tripId) {
       VALUES ($1)
       RETURNING id, trip_id, created_at
       `,
-      [tripId]
+      [tripId],
     );
   }
 
@@ -117,7 +118,7 @@ async function getMessagesAfter(client, chatId, lastMessageId) {
       AND m.id > $2
     ORDER BY m.id ASC
     `,
-    [chatId, lastMessageId]
+    [chatId, lastMessageId],
   );
 
   return result.rows;
@@ -144,7 +145,7 @@ export async function GET(request, { params }) {
     if (!hasAccess) {
       return new Response(
         "Du må melde interesse eller være påmeldt for å åpne turgruppen",
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -165,7 +166,9 @@ export async function GET(request, { params }) {
         const send = (event, data) => {
           if (closed) return;
           controller.enqueue(
-            encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+            encoder.encode(
+              `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+            ),
           );
         };
 
@@ -233,3 +236,4 @@ export async function GET(request, { params }) {
     });
   }
 }
+

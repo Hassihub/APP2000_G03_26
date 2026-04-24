@@ -1,3 +1,4 @@
+// Konrad - 274088
 import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
@@ -16,10 +17,7 @@ export async function POST(request, { params }) {
     const tripId = Number(id);
 
     if (!Number.isFinite(tripId)) {
-      return NextResponse.json(
-        { error: "Ugyldig tur-id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Ugyldig tur-id" }, { status: 400 });
     }
 
     await client.query("BEGIN");
@@ -36,14 +34,14 @@ export async function POST(request, { params }) {
       WHERE t.id = $1
       FOR UPDATE
       `,
-      [tripId]
+      [tripId],
     );
 
     if (tripResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Fant ikke fleksibel fellestur" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -53,7 +51,7 @@ export async function POST(request, { params }) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Denne turen er ikke en fleksibel fellestur" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -61,7 +59,7 @@ export async function POST(request, { params }) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Turen er ikke åpen for ikke-bindende interesse" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -72,7 +70,7 @@ export async function POST(request, { params }) {
       ON CONFLICT (trip_id, user_id)
       DO UPDATE SET status = 'interested'
       `,
-      [tripId, userId]
+      [tripId, userId],
     );
 
     await client.query("COMMIT");
@@ -82,7 +80,7 @@ export async function POST(request, { params }) {
         success: true,
         message: "Ikke-bindende interesse registrert",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     try {
@@ -95,7 +93,7 @@ export async function POST(request, { params }) {
 
     return NextResponse.json(
       { error: "Kunne ikke registrere interesse" },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
@@ -116,10 +114,7 @@ export async function DELETE(request, { params }) {
     const tripId = Number(id);
 
     if (!Number.isFinite(tripId)) {
-      return NextResponse.json(
-        { error: "Ugyldig tur-id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Ugyldig tur-id" }, { status: 400 });
     }
 
     await client.query("BEGIN");
@@ -131,7 +126,7 @@ export async function DELETE(request, { params }) {
       WHERE trip_id = $1
         AND user_id = $2
       `,
-      [tripId, userId]
+      [tripId, userId],
     );
 
     await client.query("COMMIT");
@@ -141,7 +136,7 @@ export async function DELETE(request, { params }) {
         success: true,
         message: "Interesse trukket",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     try {
@@ -154,9 +149,10 @@ export async function DELETE(request, { params }) {
 
     return NextResponse.json(
       { error: "Kunne ikke trekke interesse" },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
   }
 }
+

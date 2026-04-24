@@ -1,3 +1,4 @@
+// Konrad - 274088
 import { NextResponse } from "next/server";
 import pool from "../../../../../../lib/db";
 import { requireAuth } from "../../../../../../lib/auth";
@@ -78,7 +79,7 @@ async function userHasAccess(client, tripId, userId) {
         AND tr.status = 'binding'
     )
     `,
-    [tripId, userId]
+    [tripId, userId],
   );
 
   return result.rowCount > 0;
@@ -104,18 +105,17 @@ export async function POST(request, { params }) {
     const tripId = Number(id);
 
     if (!Number.isFinite(tripId)) {
-      return NextResponse.json(
-        { error: "Ugyldig tur-id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Ugyldig tur-id" }, { status: 400 });
     }
 
     const hasAccess = await userHasAccess(client, tripId, user.id);
 
     if (!hasAccess) {
       return NextResponse.json(
-        { error: "Du må melde interesse eller være påmeldt for å sende melding" },
-        { status: 403 }
+        {
+          error: "Du må melde interesse eller være påmeldt for å sende melding",
+        },
+        { status: 403 },
       );
     }
 
@@ -129,18 +129,23 @@ export async function POST(request, { params }) {
     let imageUrl = null;
     let hasImage = false;
 
-    if (file && typeof file === "object" && "arrayBuffer" in file && file.size > 0) {
+    if (
+      file &&
+      typeof file === "object" &&
+      "arrayBuffer" in file &&
+      file.size > 0
+    ) {
       if (!String(file.type || "").startsWith("image/")) {
         return NextResponse.json(
           { error: "Du kan bare laste opp bildefiler" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       if (file.size > 3 * 1024 * 1024) {
         return NextResponse.json(
           { error: "Bildet er for stort. Maks 3 MB." },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -152,14 +157,14 @@ export async function POST(request, { params }) {
     if (!hasText && !hasImage) {
       return NextResponse.json(
         { error: "Meldingen må inneholde tekst eller bilde" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (message.length > 2000) {
       return NextResponse.json(
         { error: "Meldingen er for lang" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -172,7 +177,7 @@ export async function POST(request, { params }) {
       WHERE trip_id = $1
       LIMIT 1
       `,
-      [tripId]
+      [tripId],
     );
 
     if (chatResult.rowCount === 0) {
@@ -182,7 +187,7 @@ export async function POST(request, { params }) {
         VALUES ($1)
         RETURNING id
         `,
-        [tripId]
+        [tripId],
       );
     }
 
@@ -202,7 +207,7 @@ export async function POST(request, { params }) {
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id
       `,
-      [chatId, user.id, storedMessage, messageType, imageUrl]
+      [chatId, user.id, storedMessage, messageType, imageUrl],
     );
 
     const fullMessageResult = await client.query(
@@ -222,7 +227,7 @@ export async function POST(request, { params }) {
       WHERE m.id = $1
       LIMIT 1
       `,
-      [insertResult.rows[0].id]
+      [insertResult.rows[0].id],
     );
 
     await client.query("COMMIT");
@@ -232,7 +237,7 @@ export async function POST(request, { params }) {
         success: true,
         message: fullMessageResult.rows[0],
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     try {
@@ -246,9 +251,10 @@ export async function POST(request, { params }) {
         error: "Kunne ikke sende melding",
         details: error?.message || "Ukjent feil",
       },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
   }
 }
+

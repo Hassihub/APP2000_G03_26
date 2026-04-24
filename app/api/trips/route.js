@@ -1,3 +1,4 @@
+// Konrad - 274088
 import { NextResponse } from "next/server";
 import pool from "../../../lib/db";
 import { requireAuth, requireRole } from "../../../lib/auth";
@@ -7,7 +8,7 @@ async function notifyAdmins(client, tripId, tripNavn) {
   try {
     const adminsResult = await client.query(
       `SELECT id::text AS id FROM public.users WHERE role = $1`,
-      [ROLE_ADMIN]
+      [ROLE_ADMIN],
     );
 
     for (const admin of adminsResult.rows) {
@@ -27,7 +28,7 @@ async function notifyAdmins(client, tripId, tripNavn) {
           `Turen "${tripNavn}" er sendt inn og venter på godkjenning.`,
           `/admin/turer`,
           JSON.stringify({ trip_id: tripId }),
-        ]
+        ],
       );
     }
   } catch {
@@ -93,7 +94,7 @@ async function hasTripCabinsNightNumberColumn(client) {
           AND table_name = 'trip_cabins'
           AND column_name = 'night_number'
       ) AS exists
-    `
+    `,
   );
 
   return result.rows[0]?.exists === true;
@@ -209,7 +210,7 @@ export async function GET(request) {
     console.error("Trips API GET error:", error);
     return NextResponse.json(
       { error: "Kunne ikke hente turer" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -234,7 +235,9 @@ export async function POST(request) {
     const isFlexible = body.isFlexible === true;
     const dateOptions = Array.isArray(body.dateOptions) ? body.dateOptions : [];
     const cabinIdsRaw = Array.isArray(body.cabin_ids) ? body.cabin_ids : [];
-    const cabin_ids = [...new Set(cabinIdsRaw.map((id) => String(id).trim()).filter(Boolean))];
+    const cabin_ids = [
+      ...new Set(cabinIdsRaw.map((id) => String(id).trim()).filter(Boolean)),
+    ];
 
     let user = null;
 
@@ -259,7 +262,7 @@ export async function POST(request) {
     if (!Number.isFinite(lengde_km) || lengde_km <= 0) {
       return NextResponse.json(
         { error: "Lengde (km) må være et positivt tall" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -272,7 +275,7 @@ export async function POST(request) {
     if (!allowedDiff.has(vanskelighetsgrad)) {
       return NextResponse.json(
         { error: "Ugyldig vanskelighetsgrad" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -286,7 +289,7 @@ export async function POST(request) {
       if (!hasCoords) {
         return NextResponse.json(
           { error: "Ugyldig rute-geometri" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -294,35 +297,35 @@ export async function POST(request) {
     if (cabin_ids.length > 25) {
       return NextResponse.json(
         { error: "Du kan velge maks 25 hytter per tur" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (isTiu && !turleder_navn) {
       return NextResponse.json(
         { error: "Turleder må fylles ut for TiU-tur" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (isFlexible && !isTiu) {
       return NextResponse.json(
         { error: "Fleksibel fellestur må være en TiU-tur" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (isTiu && !isFlexible) {
       return NextResponse.json(
         { error: "TiU-turer må ha fleksible startdatoer" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (isTiu && (dateOptions.length < 3 || dateOptions.length > 5)) {
       return NextResponse.json(
         { error: "Fleksibel fellestur må ha 3–5 datoalternativer" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -334,7 +337,7 @@ export async function POST(request) {
         if (!start || !end) {
           return NextResponse.json(
             { error: "Alle datoalternativer må ha start- og sluttid" },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -348,7 +351,7 @@ export async function POST(request) {
         ) {
           return NextResponse.json(
             { error: "Ugyldige datoalternativer" },
-            { status: 400 }
+            { status: 400 },
           );
         }
       }
@@ -360,17 +363,19 @@ export async function POST(request) {
         FROM public.cabins
         WHERE id::text = ANY($1::text[])
       `,
-      [cabin_ids]
+      [cabin_ids],
     );
 
     if (cabinsResult.rowCount !== cabin_ids.length) {
       return NextResponse.json(
         { error: "En eller flere valgte hytter finnes ikke" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const cabinsById = new Map(cabinsResult.rows.map((row) => [String(row.id), row]));
+    const cabinsById = new Map(
+      cabinsResult.rows.map((row) => [String(row.id), row]),
+    );
 
     await client.query("BEGIN");
     await ensureTripCabinsTable(client);
@@ -430,7 +435,7 @@ export async function POST(request) {
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id, turleder_navn, turleder_user_id, is_flexible, planning_status
         `,
-        [trip.id, turleder_navn, user.id, isFlexible, planningStatus]
+        [trip.id, turleder_navn, user.id, isFlexible, planningStatus],
       );
 
       trip.tiu_trip_id = tiuResult.rows[0].id;
@@ -453,7 +458,7 @@ export async function POST(request) {
             INSERT INTO public.trip_cabins (trip_id, cabin_id, sort_order, night_number)
             VALUES ($1, $2, $3, $4)
           `,
-          [trip.id, cabin_ids[i], i, i + 1]
+          [trip.id, cabin_ids[i], i, i + 1],
         );
       } else {
         await client.query(
@@ -461,7 +466,7 @@ export async function POST(request) {
             INSERT INTO public.trip_cabins (trip_id, cabin_id, sort_order)
             VALUES ($1, $2, $3)
           `,
-          [trip.id, cabin_ids[i], i]
+          [trip.id, cabin_ids[i], i],
         );
       }
     }
@@ -473,7 +478,7 @@ export async function POST(request) {
           INSERT INTO public.trip_date_options (trip_id, start_time, end_time)
           VALUES ($1, $2, $3)
           `,
-          [trip.id, option.start_time, option.end_time]
+          [trip.id, option.start_time, option.end_time],
         );
       }
     }
@@ -495,9 +500,10 @@ export async function POST(request) {
     console.error("Trips API POST error:", error);
     return NextResponse.json(
       { error: "Kunne ikke opprette tur" },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
   }
 }
+

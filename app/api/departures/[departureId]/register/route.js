@@ -1,3 +1,4 @@
+// Konrad - 274088
 import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
@@ -88,7 +89,7 @@ async function sendLeaderNotificationBestEffort({
           actor_user_id: actorUserId,
           actor_username: actorUsername,
         }),
-      ]
+      ],
     );
   } catch (error) {
     console.error("Notification insert error:", error);
@@ -113,10 +114,7 @@ export async function POST(request, context) {
     const departureId = Number(departureIdParam);
 
     if (!Number.isFinite(departureId)) {
-      return NextResponse.json(
-        { error: "Ugyldig avgang" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Ugyldig avgang" }, { status: 400 });
     }
 
     await client.query("BEGIN");
@@ -135,14 +133,14 @@ export async function POST(request, context) {
       WHERE id = $1
       FOR UPDATE
       `,
-      [departureId]
+      [departureId],
     );
 
     if (departureResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Avgang ikke funnet" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -155,7 +153,7 @@ export async function POST(request, context) {
       WHERE trip_id = $1
       LIMIT 1
       `,
-      [departure.trip_id]
+      [departure.trip_id],
     );
 
     const turlederUserId = leaderResult.rows[0]?.turleder_user_id ?? null;
@@ -164,7 +162,7 @@ export async function POST(request, context) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Avgangen er avlyst" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -172,7 +170,7 @@ export async function POST(request, context) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Turen er allerede bekreftet" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -195,14 +193,14 @@ export async function POST(request, context) {
         AND d.id <> $4
       LIMIT 1
       `,
-      [userId, departure.start_time, departure.end_time, departureId]
+      [userId, departure.start_time, departure.end_time, departureId],
     );
 
     if (overlapResult.rowCount > 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Du har allerede en overlappende bindende påmelding" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -214,7 +212,7 @@ export async function POST(request, context) {
         AND user_id = $2
       LIMIT 1
       `,
-      [departureId, userId]
+      [departureId, userId],
     );
 
     if (
@@ -224,7 +222,7 @@ export async function POST(request, context) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Du er allerede bindende påmeldt denne avgangen" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -236,7 +234,7 @@ export async function POST(request, context) {
         WHERE departure_id = $1
           AND status = 'binding'
         `,
-        [departureId]
+        [departureId],
       );
 
       const currentBindingCount = capacityResult.rows[0].binding_count;
@@ -245,7 +243,7 @@ export async function POST(request, context) {
         await client.query("ROLLBACK");
         return NextResponse.json(
           { error: "Avgangen er fullbooket" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -258,7 +256,7 @@ export async function POST(request, context) {
         WHERE departure_id = $1
           AND user_id = $2
         `,
-        [departureId, userId]
+        [departureId, userId],
       );
     } else {
       await client.query(
@@ -266,7 +264,7 @@ export async function POST(request, context) {
         INSERT INTO public.trip_registrations (departure_id, user_id, status)
         VALUES ($1, $2, 'binding')
         `,
-        [departureId, userId]
+        [departureId, userId],
       );
     }
 
@@ -277,7 +275,7 @@ export async function POST(request, context) {
       WHERE departure_id = $1
         AND status = 'binding'
       `,
-      [departureId]
+      [departureId],
     );
 
     const bindingCount = countResult.rows[0].binding_count;
@@ -311,7 +309,7 @@ export async function POST(request, context) {
         binding_count: bindingCount,
         ready_to_confirm: readyToConfirm,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     try {
@@ -327,7 +325,7 @@ export async function POST(request, context) {
         error: "Kunne ikke registrere bindende påmelding",
         details: error?.message || "Ukjent feil",
       },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
@@ -347,10 +345,7 @@ export async function DELETE(request, context) {
     const departureId = Number(departureIdParam);
 
     if (!Number.isFinite(departureId)) {
-      return NextResponse.json(
-        { error: "Ugyldig avgang" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Ugyldig avgang" }, { status: 400 });
     }
 
     await client.query("BEGIN");
@@ -370,14 +365,14 @@ export async function DELETE(request, context) {
       LIMIT 1
       FOR UPDATE
       `,
-      [departureId, user.id]
+      [departureId, user.id],
     );
 
     if (registrationResult.rowCount === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Fant ingen bindende påmelding å melde av" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -388,7 +383,7 @@ export async function DELETE(request, context) {
       WHERE departure_id = $1
         AND user_id = $2
       `,
-      [departureId, user.id]
+      [departureId, user.id],
     );
 
     const departureResult = await client.query(
@@ -401,7 +396,7 @@ export async function DELETE(request, context) {
       WHERE id = $1
       LIMIT 1
       `,
-      [departureId]
+      [departureId],
     );
 
     if (departureResult.rowCount > 0) {
@@ -414,7 +409,7 @@ export async function DELETE(request, context) {
         WHERE departure_id = $1
           AND status = 'binding'
         `,
-        [departureId]
+        [departureId],
       );
 
       const bindingCount = countResult.rows[0].binding_count;
@@ -429,7 +424,7 @@ export async function DELETE(request, context) {
           SET status = 'open'
           WHERE id = $1
           `,
-          [departureId]
+          [departureId],
         );
       }
     }
@@ -441,7 +436,7 @@ export async function DELETE(request, context) {
         success: true,
         message: "Du er meldt av turen",
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
     try {
@@ -454,9 +449,10 @@ export async function DELETE(request, context) {
 
     return NextResponse.json(
       { error: "Kunne ikke melde deg av turen" },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
   }
 }
+

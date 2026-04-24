@@ -1,3 +1,4 @@
+// Konrad - 274088
 "use client";
 
 import TripImageCarousel from "./TripImageCarousel";
@@ -72,7 +73,9 @@ export default function TripDetailsPage() {
   useEffect(() => {
     if (!trip?.date_options?.length) return;
 
-    const selectedOption = trip.date_options.find((option) => option.is_selected);
+    const selectedOption = trip.date_options.find(
+      (option) => option.is_selected,
+    );
     const firstOption = selectedOption || trip.date_options[0];
 
     setDateSelection((prev) => ({
@@ -99,7 +102,9 @@ export default function TripDetailsPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || "Kunne ikke registrere bindende påmelding");
+        throw new Error(
+          data?.error || "Kunne ikke registrere bindende påmelding",
+        );
       }
 
       setActionState({
@@ -319,7 +324,7 @@ export default function TripDetailsPage() {
     if (!trip?.id) return;
 
     const confirmed = window.confirm(
-      `Er du sikker på at du vil slette turen "${trip.navn}"? Dette kan ikke angres.`
+      `Er du sikker på at du vil slette turen "${trip.navn}"? Dette kan ikke angres.`,
     );
 
     if (!confirmed) return;
@@ -382,7 +387,7 @@ export default function TripDetailsPage() {
     if (!selected) return null;
 
     return `${new Date(selected.start_time).toLocaleString("no-NO")} – ${new Date(
-      selected.end_time
+      selected.end_time,
     ).toLocaleString("no-NO")}`;
   }, [trip?.date_options]);
 
@@ -516,7 +521,8 @@ export default function TripDetailsPage() {
               </ul>
 
               <p>
-                <strong>Antall interesserte:</strong> {trip.interested_count ?? 0}
+                <strong>Antall interesserte:</strong>{" "}
+                {trip.interested_count ?? 0}
               </p>
 
               {selectedDateLabel && (
@@ -543,8 +549,8 @@ export default function TripDetailsPage() {
                     >
                       {trip.date_options.map((option) => (
                         <option key={option.id} value={option.id}>
-                          {new Date(option.start_time).toLocaleString("no-NO")} –{" "}
-                          {new Date(option.end_time).toLocaleString("no-NO")}
+                          {new Date(option.start_time).toLocaleString("no-NO")}{" "}
+                          – {new Date(option.end_time).toLocaleString("no-NO")}
                         </option>
                       ))}
                     </select>
@@ -586,7 +592,9 @@ export default function TripDetailsPage() {
                   </div>
 
                   {dateSelection.message && (
-                    <p className={styles.successMessage}>{dateSelection.message}</p>
+                    <p className={styles.successMessage}>
+                      {dateSelection.message}
+                    </p>
                   )}
 
                   {dateSelection.error && (
@@ -596,7 +604,9 @@ export default function TripDetailsPage() {
                   <button
                     className={styles.registerButton}
                     onClick={handleSelectDate}
-                    disabled={dateSelection.loading || !dateSelection.dateOptionId}
+                    disabled={
+                      dateSelection.loading || !dateSelection.dateOptionId
+                    }
                     type="button"
                   >
                     {dateSelection.loading
@@ -622,8 +632,8 @@ export default function TripDetailsPage() {
                   </p>
                 )}
                 <p>
-                  <strong>Bindende påmeldte:</strong> {trip.binding_count ?? 0} /{" "}
-                  {trip.min_participants ?? 0} minimum
+                  <strong>Bindende påmeldte:</strong> {trip.binding_count ?? 0}{" "}
+                  / {trip.min_participants ?? 0} minimum
                 </p>
               </>
             ) : (
@@ -639,8 +649,15 @@ export default function TripDetailsPage() {
                   <li key={person.id} style={{ marginBottom: 10 }}>
                     <strong>{person.username}</strong>
                     <div style={{ color: "#374151" }}>{person.email}</div>
-                    <div style={{ fontSize: "0.9rem", color: "#6b7280", marginTop: 2 }}>
-                      Meldte seg på: {new Date(person.registered_at).toLocaleString("no-NO")}
+                    <div
+                      style={{
+                        fontSize: "0.9rem",
+                        color: "#6b7280",
+                        marginTop: 2,
+                      }}
+                    >
+                      Meldte seg på:{" "}
+                      {new Date(person.registered_at).toLocaleString("no-NO")}
                     </div>
                   </li>
                 ))}
@@ -757,7 +774,8 @@ export default function TripDetailsPage() {
               !canConfirmDeparture &&
               !canDeleteTrip && (
                 <p className={styles.noDeparture}>
-                  Det finnes ingen aktiv avgang eller åpen interesserunde akkurat nå.
+                  Det finnes ingen aktiv avgang eller åpen interesserunde
+                  akkurat nå.
                 </p>
               )}
           </div>
@@ -766,3 +784,4 @@ export default function TripDetailsPage() {
     </main>
   );
 }
+

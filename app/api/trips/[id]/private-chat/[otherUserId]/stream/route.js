@@ -1,3 +1,4 @@
+// Konrad - 274088
 import pool from "../../../../../../../lib/db";
 import { getCurrentUser } from "../../../../../../../lib/auth";
 
@@ -74,7 +75,7 @@ async function isTripParticipant(client, tripId, userId) {
         AND tr.status = 'binding'
     )
     `,
-    [tripId, userId]
+    [tripId, userId],
   );
 
   return result.rowCount > 0;
@@ -96,7 +97,7 @@ async function ensurePrivateChat(client, tripId, currentUserId, otherUserId) {
       AND user_two_id = $3
     LIMIT 1
     `,
-    [tripId, userOneId, userTwoId]
+    [tripId, userOneId, userTwoId],
   );
 
   if (result.rowCount === 0) {
@@ -106,7 +107,7 @@ async function ensurePrivateChat(client, tripId, currentUserId, otherUserId) {
       VALUES ($1, $2, $3)
       RETURNING id, trip_id, user_one_id, user_two_id, created_at
       `,
-      [tripId, userOneId, userTwoId]
+      [tripId, userOneId, userTwoId],
     );
   }
 
@@ -132,7 +133,7 @@ async function getMessagesAfter(client, chatId, lastMessageId) {
       AND m.id > $2
     ORDER BY m.id ASC
     `,
-    [chatId, lastMessageId]
+    [chatId, lastMessageId],
   );
 
   return result.rows;
@@ -169,7 +170,7 @@ export async function GET(request, context) {
     if (!currentIsMember || !otherIsMember) {
       return new Response(
         "Begge brukere må være med i turen for å bruke privat chat",
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -190,7 +191,9 @@ export async function GET(request, context) {
         const send = (event, data) => {
           if (closed) return;
           controller.enqueue(
-            encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+            encoder.encode(
+              `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+            ),
           );
         };
 
@@ -258,3 +261,4 @@ export async function GET(request, context) {
     });
   }
 }
+

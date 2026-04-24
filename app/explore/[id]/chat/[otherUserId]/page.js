@@ -1,3 +1,4 @@
+// Konrad - 274088
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -35,7 +36,7 @@ export default function TripPrivateChatPage() {
       if (!prev) return prev;
 
       const exists = (prev.messages || []).some(
-        (msg) => String(msg.id) === String(incomingMessage.id)
+        (msg) => String(msg.id) === String(incomingMessage.id),
       );
 
       if (exists) return prev;
@@ -56,13 +57,15 @@ export default function TripPrivateChatPage() {
         `/api/trips/${params.id}/private-chat/${params.otherUserId}`,
         {
           credentials: "include",
-        }
+        },
       );
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.details || data?.error || "Kunne ikke hente privat chat");
+        throw new Error(
+          data?.details || data?.error || "Kunne ikke hente privat chat",
+        );
       }
 
       setChatData(data);
@@ -92,7 +95,7 @@ export default function TripPrivateChatPage() {
     }
 
     const es = new EventSource(
-      `/api/trips/${params.id}/private-chat/${params.otherUserId}/stream?lastMessageId=${lastMessageId}`
+      `/api/trips/${params.id}/private-chat/${params.otherUserId}/stream?lastMessageId=${lastMessageId}`,
     );
 
     eventSourceRef.current = es;
@@ -181,13 +184,15 @@ export default function TripPrivateChatPage() {
           method: "POST",
           credentials: "include",
           body: formData,
-        }
+        },
       );
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.details || data?.error || "Kunne ikke sende privat melding");
+        throw new Error(
+          data?.details || data?.error || "Kunne ikke sende privat melding",
+        );
       }
 
       appendMessageIfMissing(data.message);
@@ -268,7 +273,9 @@ export default function TripPrivateChatPage() {
                 <div
                   key={msg.id}
                   className={`${styles.messageCard} ${
-                    msg.user_id === chatData.currentUserId ? styles.ownMessage : ""
+                    msg.user_id === chatData.currentUserId
+                      ? styles.ownMessage
+                      : ""
                   }`}
                 >
                   <div className={styles.messageHeader}>
@@ -283,7 +290,9 @@ export default function TripPrivateChatPage() {
                         {msg.user_id === chatData.currentUserId ? " (deg)" : ""}
                       </strong>
                     </div>
-                    <span>{new Date(msg.created_at).toLocaleString("no-NO")}</span>
+                    <span>
+                      {new Date(msg.created_at).toLocaleString("no-NO")}
+                    </span>
                   </div>
 
                   {msg.message_type === "image" && msg.image_url ? (
@@ -380,3 +389,4 @@ export default function TripPrivateChatPage() {
     </>
   );
 }
+

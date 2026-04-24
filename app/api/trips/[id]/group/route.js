@@ -1,3 +1,4 @@
+// Konrad - 274088
 import { NextResponse } from "next/server";
 import pool from "../../../../../lib/db";
 import { requireAuth } from "../../../../../lib/auth";
@@ -98,7 +99,7 @@ async function userHasAccess(client, tripId, userId) {
         AND tr.status = 'binding'
     )
     `,
-    [tripId, userId]
+    [tripId, userId],
   );
 
   return result.rowCount > 0;
@@ -120,10 +121,7 @@ export async function GET(request, { params }) {
     const tripId = Number(id);
 
     if (!Number.isFinite(tripId)) {
-      return NextResponse.json(
-        { error: "Ugyldig tur-id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Ugyldig tur-id" }, { status: 400 });
     }
 
     const tripResult = await client.query(
@@ -139,22 +137,22 @@ export async function GET(request, { params }) {
       WHERE t.id = $1
       LIMIT 1
       `,
-      [tripId]
+      [tripId],
     );
 
     if (tripResult.rowCount === 0) {
-      return NextResponse.json(
-        { error: "Fant ikke turen" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Fant ikke turen" }, { status: 404 });
     }
 
     const hasAccess = await userHasAccess(client, tripId, user.id);
 
     if (!hasAccess) {
       return NextResponse.json(
-        { error: "Du må melde interesse eller være påmeldt for å åpne turgruppen" },
-        { status: 403 }
+        {
+          error:
+            "Du må melde interesse eller være påmeldt for å åpne turgruppen",
+        },
+        { status: 403 },
       );
     }
 
@@ -167,7 +165,7 @@ export async function GET(request, { params }) {
       WHERE trip_id = $1
       LIMIT 1
       `,
-      [tripId]
+      [tripId],
     );
 
     if (chatResult.rowCount === 0) {
@@ -177,7 +175,7 @@ export async function GET(request, { params }) {
         VALUES ($1)
         RETURNING id, trip_id, created_at
         `,
-        [tripId]
+        [tripId],
       );
     }
 
@@ -207,7 +205,7 @@ export async function GET(request, { params }) {
       )
       ORDER BY u.username ASC
       `,
-      [tripId]
+      [tripId],
     );
 
     const messagesResult = await client.query(
@@ -228,7 +226,7 @@ export async function GET(request, { params }) {
       ORDER BY m.created_at ASC
       LIMIT 200
       `,
-      [chat.id]
+      [chat.id],
     );
 
     await client.query("COMMIT");
@@ -252,9 +250,10 @@ export async function GET(request, { params }) {
         error: "Kunne ikke hente turgruppen",
         details: error?.message || "Ukjent feil",
       },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
   }
 }
+
